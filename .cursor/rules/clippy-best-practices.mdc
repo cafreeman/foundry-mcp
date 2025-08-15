@@ -1,9 +1,6 @@
 ---
-description: 'Rust Clippy Best Practices - Configuration, key lints, development workflow, and quality gates for maintaining functional programming style'
 globs: ['**/*.rs', '**/Cargo.toml', '**/.cargo/config.toml']
-alwaysApply: true
-priority: high
-tags: ['rust', 'clippy', 'linting', 'functional', 'best-practices']
+alwaysApply: false
 ---
 
 # Rust Clippy Best Practices

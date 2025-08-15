@@ -1,9 +1,6 @@
 ---
-description: 'Rust Code Quality & 2025 Best Practices - Core quality standards, code organization, error handling, performance considerations, testing, and documentation guidelines'
 globs: ['**/*.rs', '**/Cargo.toml', '**/Cargo.lock']
-alwaysApply: true
-priority: high
-tags: ['rust', 'quality', 'best-practices', 'testing', 'documentation']
+alwaysApply: false
 ---
 
 # Rust Code Quality & 2025 Best Practices

@@ -1,9 +1,6 @@
 ---
-description: "Rust Functional Programming Guidelines - Core principles, iterator methods, immutable data, pattern matching, and functional collection operations with code examples"
-globs: ["**/*.rs", "**/src/**/*.rs"]
-alwaysApply: true
-priority: high
-tags: ["rust", "functional", "iterators", "immutability", "pattern-matching"]
+globs: ['**/*.rs', '**/Cargo.toml', '**/.cargo/config.toml']
+alwaysApply: false
 ---
 
 # Rust Functional Programming Guidelines

@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
 /// Manages file system operations for project directories
+#[derive(Clone)]
 pub struct FileSystemManager {
     base_dir: PathBuf,
 }

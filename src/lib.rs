@@ -1,14 +1,15 @@
 #![deny(clippy::all)]
 
-//! Project Manager MCP - A Model Context Protocol server for project context management
+//! Project Manager MCP Server Library
 //!
-//! This library provides deterministic tools for AI coding assistants to manage project
-//! context, specifications, and task lists through a centralized file system.
+//! A Model Context Protocol server for managing software projects with specifications,
+//! tasks, and notes.
 
 pub mod filesystem;
 pub mod handlers;
 pub mod models;
 pub mod repository;
+pub mod tools;
 pub mod utils;
 
 // Re-export main types for convenience
