@@ -35,7 +35,7 @@ pub struct Task {
 }
 
 /// Category for organizing notes
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq, Hash)]
 pub enum NoteCategory {
     Implementation,
     Decision,
