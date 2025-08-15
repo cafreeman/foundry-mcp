@@ -1,5 +1,6 @@
-use project_manager_mcp::ProjectManagerHandler;
+#![deny(clippy::all)]
 
+use project_manager_mcp::ProjectManagerHandler;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -9,7 +10,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!("Starting Project Manager MCP server");
 
     // Create the server handler
-    let handler = ProjectManagerHandler::new();
+    let _handler = ProjectManagerHandler::new();
 
     tracing::info!("Project Manager MCP server initialized");
 

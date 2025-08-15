@@ -1,0 +1,64 @@
+---
+description: "Rust Functional Programming Guidelines - Core principles, iterator methods, immutable data, pattern matching, and functional collection operations with code examples"
+globs: ["**/*.rs", "**/src/**/*.rs"]
+alwaysApply: true
+priority: high
+tags: ["rust", "functional", "iterators", "immutability", "pattern-matching"]
+---
+
+# Rust Functional Programming Guidelines
+
+## Core Principles
+
+- **STRONGLY PREFER** functional programming style over imperative or OO approaches
+- Use Rust 2024 edition features and latest idioms
+- Follow 2025 Rust best practices and community standards
+
+## Functional Programming Guidelines
+
+### 1. Iterator Methods Over Loops
+
+- **USE**: `map()`, `filter()`, `collect()`, `fold()`, `reduce()`, `find()`, `any()`, `all()`
+- **AVOID**: `for` loops with mutable state, manual indexing
+- **PREFER**: `iter().map().collect()` over building collections imperatively
+
+### 2. Immutable Data & Pure Functions
+
+- **USE**: `&` references, `clone()` only when necessary
+- **AVOID**: `mut` variables, side effects in pure functions
+- **PREFER**: Return new data structures over modifying existing ones
+
+### 3. Pattern Matching & Option/Result
+
+- **USE**: `match`, `if let`, `while let`, `?` operator
+- **AVOID**: `unwrap()`, `expect()`, manual null checks
+- **PREFER**: `map()`, `and_then()`, `or_else()` on Option/Result
+
+### 4. Functional Collection Operations
+
+- **USE**: `Vec::new()`, `vec![]`, functional transformations
+- **AVOID**: `String::new()` + `push_str()` chains
+- **PREFER**: `format!()`, `join()`, `collect()` for string building
+
+## Code Examples
+
+### ❌ Imperative (Avoid)
+
+```rust
+let mut content = String::new();
+for task in &tasks {
+    if task.status == TaskStatus::Completed {
+        content.push_str(&format!("- {}\n", task.title));
+    }
+}
+```
+
+### ✅ Functional (Prefer)
+
+```rust
+let content = tasks
+    .iter()
+    .filter(|task| task.status == TaskStatus::Completed)
+    .map(|task| format!("- {}\n", task.title))
+    .collect::<String>();
+```

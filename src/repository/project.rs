@@ -6,6 +6,7 @@ use anyhow::Result;
 
 /// Repository for project data access operations
 pub struct ProjectRepository {
+    #[allow(dead_code)]
     fs_manager: FileSystemManager,
 }
 
@@ -16,7 +17,7 @@ impl ProjectRepository {
     }
 
     /// Create a new project
-    pub async fn create_project(&self, project: Project) -> Result<()> {
+    pub async fn create_project(&self, _project: Project) -> Result<()> {
         // TODO: Implement project creation
         todo!("Implement project creation")
     }

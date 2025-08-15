@@ -1,3 +1,5 @@
+#![deny(clippy::all)]
+
 //! Project Manager MCP - A Model Context Protocol server for project context management
 //!
 //! This library provides deterministic tools for AI coding assistants to manage project

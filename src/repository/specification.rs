@@ -6,6 +6,7 @@ use anyhow::Result;
 
 /// Repository for specification data access operations
 pub struct SpecificationRepository {
+    #[allow(dead_code)]
     fs_manager: FileSystemManager,
 }
 
@@ -16,7 +17,7 @@ impl SpecificationRepository {
     }
 
     /// Create a new specification
-    pub async fn create_spec(&self, spec: Specification) -> Result<()> {
+    pub async fn create_spec(&self, _spec: Specification) -> Result<()> {
         // TODO: Implement specification creation
         todo!("Implement specification creation")
     }

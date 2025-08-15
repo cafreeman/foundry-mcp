@@ -1,0 +1,17 @@
+[target.'cfg(all())']
+rustflags = ["-Dwarnings"]
+
+[alias]
+clippy-strict = "clippy -- -D warnings"
+clippy-fix = "clippy --fix -- -D warnings"
+
+[profile.dev]
+overflow-checks = true
+debug = true
+
+[profile.release]
+overflow-checks = true
+debug = false
+lto = true
+codegen-units = 1
+panic = "abort"
