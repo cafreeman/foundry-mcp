@@ -1,11 +1,10 @@
 //! Specification repository for data access operations
 
+use crate::errors::{self, Result};
 use crate::filesystem::FileSystemManager;
 use crate::models::{Note, NoteCategory, Specification, Task, TaskList, TaskPriority, TaskStatus};
-use anyhow::{Context, Result};
 use chrono::Utc;
 use serde_json;
-use std::collections::HashMap;
 
 /// Repository for specification data access operations
 #[derive(Clone)]
@@ -20,201 +19,136 @@ impl SpecificationRepository {
     }
 
     /// Create a new specification
-    pub async fn create_spec(&self, project_name: &str, spec: Specification) -> Result<()> {
-        // Verify project exists
-        if !self.fs_manager.project_exists(project_name) {
-            return Err(anyhow::anyhow!("Project '{}' does not exist", project_name));
+    pub async fn create_spec(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        description: &str,
+        content: &str,
+    ) -> Result<Specification> {
+        // Validate spec name format (snake_case)
+        if !self.is_valid_spec_name(spec_name) {
+            return Err(errors::helpers::invalid_spec_name(spec_name));
         }
 
+        let spec_id = self.generate_spec_id(spec_name);
+        let spec_path = self.fs_manager.spec_dir(project_name, &spec_id);
+
         // Check if spec already exists
-        if self.fs_manager.spec_exists(project_name, &spec.id) {
-            return Err(anyhow::anyhow!(
-                "Specification '{}' already exists in project '{}'",
-                spec.id,
-                project_name
-            ));
+        if self.fs_manager.spec_exists(project_name, &spec_id) {
+            return Err(errors::helpers::spec_already_exists(&spec_id, project_name));
         }
 
         // Create spec directory structure
         self.fs_manager
-            .create_spec_structure(project_name, &spec.id)?;
+            .create_spec_structure(project_name, &spec_id)?;
+
+        // Create specification
+        let spec = Specification {
+            id: spec_id.clone(),
+            name: spec_name.to_string(),
+            description: description.to_string(),
+            content: content.to_string(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+            status: crate::models::SpecStatus::Draft,
+        };
 
         // Save spec metadata
-        self.save_spec_metadata(project_name, &spec)?;
+        let metadata_path = spec_path.join("spec.json");
+        let metadata_content = serde_json::to_string_pretty(&spec).map_err(|e| {
+            errors::helpers::serialization_error("serialize spec metadata", "spec data", e)
+        })?;
+        self.fs_manager
+            .write_file_safe(&metadata_path, &metadata_content)?;
 
-        // Generate and save spec.md
-        let spec_content = self.render_spec_content(&spec);
-        let spec_path = self
-            .fs_manager
-            .spec_dir(project_name, &spec.id)
-            .join("spec.md");
-        self.fs_manager.write_file_safe(&spec_path, &spec_content)?;
+        // Save spec content
+        let content_path = spec_path.join("spec.md");
+        self.fs_manager.write_file_safe(&content_path, content)?;
 
-        // Create empty task-list.md
-        let empty_task_list = TaskList {
+        // Create initial task list
+        let task_list = TaskList {
             tasks: Vec::new(),
             last_updated: Utc::now(),
         };
-        let task_list_content = self.render_task_list(&empty_task_list);
-        let task_list_path = self
-            .fs_manager
-            .spec_dir(project_name, &spec.id)
-            .join("task-list.md");
+        let task_list_content = self.render_task_list(&task_list);
+        let task_list_path = spec_path.join("task-list.md");
         self.fs_manager
             .write_file_safe(&task_list_path, &task_list_content)?;
 
-        // Create empty notes.md
-        let notes_content = self.render_notes(&[]);
-        let notes_path = self
-            .fs_manager
-            .spec_dir(project_name, &spec.id)
-            .join("notes.md");
+        // Create initial notes file
+        let notes_content = self.render_notes(&Vec::new());
+        let notes_path = spec_path.join("notes.md");
         self.fs_manager
             .write_file_safe(&notes_path, &notes_content)?;
 
-        Ok(())
+        Ok(spec)
     }
 
     /// Load a specification from the file system
     pub async fn load_spec(&self, project_name: &str, spec_id: &str) -> Result<Specification> {
         if !self.fs_manager.spec_exists(project_name, spec_id) {
-            return Err(anyhow::anyhow!(
-                "Specification '{}' does not exist in project '{}'",
-                spec_id,
-                project_name
-            ));
+            return Err(errors::helpers::spec_not_found(spec_id, project_name));
         }
 
-        // Load spec metadata
-        let metadata_path = self
-            .fs_manager
-            .spec_dir(project_name, spec_id)
-            .join("spec.json");
+        let spec_path = self.fs_manager.spec_dir(project_name, spec_id);
+        let metadata_path = spec_path.join("spec.json");
         let metadata_content = self.fs_manager.read_file(&metadata_path)?;
-        let spec: Specification = serde_json::from_str(&metadata_content)
-            .with_context(|| format!("Failed to parse spec metadata for '{}'", spec_id))?;
+        let spec: Specification = serde_json::from_str(&metadata_content).map_err(|e| {
+            errors::helpers::serialization_error("parse spec metadata", &metadata_content, e)
+        })?;
 
         Ok(spec)
     }
 
-    /// Update an existing specification
-    pub async fn update_spec(&self, project_name: &str, spec: &Specification) -> Result<()> {
-        if !self.fs_manager.spec_exists(project_name, &spec.id) {
-            return Err(anyhow::anyhow!(
-                "Specification '{}' does not exist in project '{}'",
-                spec.id,
-                project_name
-            ));
-        }
-
-        // Save updated spec metadata
-        self.save_spec_metadata(project_name, spec)?;
-
-        // Update spec.md
-        let spec_content = self.render_spec_content(spec);
-        let spec_path = self
-            .fs_manager
-            .spec_dir(project_name, &spec.id)
-            .join("spec.md");
-        self.fs_manager.write_file_safe(&spec_path, &spec_content)?;
-
-        Ok(())
+    /// Check if a specification exists
+    pub async fn spec_exists(&self, project_name: &str, spec_id: &str) -> bool {
+        self.fs_manager.spec_exists(project_name, spec_id)
     }
 
     /// List all specifications for a project
-    pub async fn list_specs_for_project(&self, project_name: &str) -> Result<Vec<String>> {
-        self.fs_manager.list_specs(project_name)
-    }
+    pub async fn list_specs(&self, project_name: &str) -> Result<Vec<Specification>> {
+        let spec_ids = self.fs_manager.list_specs(project_name)?;
+        let mut specs = Vec::new();
 
-    /// Delete a specification and all its contents
-    pub async fn delete_spec(
-        &self,
-        project_name: &str,
-        spec_id: &str,
-        confirm: bool,
-    ) -> Result<()> {
-        if !confirm {
-            return Err(anyhow::anyhow!("Specification deletion not confirmed"));
+        for spec_id in spec_ids {
+            match self.load_spec(project_name, &spec_id).await {
+                Ok(spec) => specs.push(spec),
+                Err(e) => {
+                    // Log the error but continue with other specs
+                    tracing::warn!("Failed to load spec '{}': {}", spec_id, e);
+                }
+            }
         }
 
-        if !self.fs_manager.spec_exists(project_name, spec_id) {
-            return Err(anyhow::anyhow!(
-                "Specification '{}' does not exist in project '{}'",
-                spec_id,
-                project_name
-            ));
-        }
-
-        let spec_path = self.fs_manager.spec_dir(project_name, spec_id);
-
-        // Remove the entire spec directory
-        std::fs::remove_dir_all(&spec_path)
-            .with_context(|| format!("Failed to delete spec directory: {:?}", spec_path))?;
-
-        Ok(())
+        Ok(specs)
     }
 
     /// Load task list for a specification
     pub async fn load_task_list(&self, project_name: &str, spec_id: &str) -> Result<TaskList> {
-        if !self.fs_manager.spec_exists(project_name, spec_id) {
-            return Err(anyhow::anyhow!(
-                "Specification '{}' does not exist in project '{}'",
-                spec_id,
-                project_name
-            ));
-        }
-
         let task_list_path = self
             .fs_manager
             .spec_dir(project_name, spec_id)
             .join("task-list.md");
-
-        if !self.fs_manager.file_exists(&task_list_path) {
-            // Return empty task list if file doesn't exist
-            return Ok(TaskList {
-                tasks: Vec::new(),
-                last_updated: Utc::now(),
-            });
-        }
-
-        // For now, return empty task list - parsing markdown would require additional dependencies
-        // TODO: Implement markdown parsing for task list
-        Ok(TaskList {
-            tasks: Vec::new(),
-            last_updated: Utc::now(),
-        })
+        let content = self.fs_manager.read_file(&task_list_path)?;
+        self.parse_task_list(&content)
     }
 
     /// Load notes for a specification
     pub async fn load_notes(&self, project_name: &str, spec_id: &str) -> Result<Vec<Note>> {
-        if !self.fs_manager.spec_exists(project_name, spec_id) {
-            return Err(anyhow::anyhow!(
-                "Specification '{}' does not exist in project '{}'",
-                spec_id,
-                project_name
-            ));
-        }
-
         let notes_path = self
             .fs_manager
             .spec_dir(project_name, spec_id)
             .join("notes.md");
-
-        if !self.fs_manager.file_exists(&notes_path) {
-            return Ok(Vec::new());
-        }
-
-        // For now, return empty notes - parsing markdown would require additional dependencies
-        // TODO: Implement markdown parsing for notes
-        Ok(Vec::new())
+        let content = self.fs_manager.read_file(&notes_path)?;
+        self.parse_notes(&content)
     }
 
-    /// Add a task to the task list
+    /// Add a new task to a specification
     pub async fn add_task(&self, project_name: &str, spec_id: &str, task: Task) -> Result<()> {
         let mut task_list = self.load_task_list(project_name, spec_id).await?;
         task_list.tasks.push(task);
         task_list.last_updated = Utc::now();
-
         let task_list_content = self.render_task_list(&task_list);
         let task_list_path = self
             .fs_manager
@@ -222,7 +156,45 @@ impl SpecificationRepository {
             .join("task-list.md");
         self.fs_manager
             .write_file_safe(&task_list_path, &task_list_content)?;
+        Ok(())
+    }
 
+    /// Remove a task from a specification
+    pub async fn remove_task(
+        &self,
+        project_name: &str,
+        spec_id: &str,
+        task_id: &str,
+    ) -> Result<()> {
+        let mut task_list = self.load_task_list(project_name, spec_id).await?;
+        task_list.tasks.retain(|t| t.id != task_id);
+        task_list.last_updated = Utc::now();
+        let task_list_content = self.render_task_list(&task_list);
+        let task_list_path = self
+            .fs_manager
+            .spec_dir(project_name, spec_id)
+            .join("task-list.md");
+        self.fs_manager
+            .write_file_safe(&task_list_path, &task_list_content)?;
+        Ok(())
+    }
+
+    /// Update an existing task in a specification
+    pub async fn update_task(&self, project_name: &str, spec_id: &str, task: Task) -> Result<()> {
+        let mut task_list = self.load_task_list(project_name, spec_id).await?;
+        if let Some(existing_task) = task_list.tasks.iter_mut().find(|t| t.id == task.id) {
+            *existing_task = task;
+            task_list.last_updated = Utc::now();
+            let task_list_content = self.render_task_list(&task_list);
+            let task_list_path = self
+                .fs_manager
+                .spec_dir(project_name, spec_id)
+                .join("task-list.md");
+            self.fs_manager
+                .write_file_safe(&task_list_path, &task_list_content)?;
+        } else {
+            return Err(errors::helpers::spec_not_found(&task.id, spec_id));
+        }
         Ok(())
     }
 
@@ -235,217 +207,9 @@ impl SpecificationRepository {
         status: TaskStatus,
     ) -> Result<()> {
         let mut task_list = self.load_task_list(project_name, spec_id).await?;
-
         if let Some(task) = task_list.tasks.iter_mut().find(|t| t.id == task_id) {
-            task.status = status;
-            task.updated_at = Utc::now();
+            task.status = status.clone();
             task_list.last_updated = Utc::now();
-
-            let task_list_content = self.render_task_list(&task_list);
-            let task_list_path = self
-                .fs_manager
-                .spec_dir(project_name, spec_id)
-                .join("task-list.md");
-            self.fs_manager
-                .write_file_safe(&task_list_path, &task_list_content)?;
-        }
-
-        Ok(())
-    }
-
-    /// Get the next available task
-    pub async fn get_next_task(&self, project_name: &str, spec_id: &str) -> Result<Option<Task>> {
-        let task_list = self.load_task_list(project_name, spec_id).await?;
-
-        // Find the first task that's not completed
-        let next_task = task_list
-            .tasks
-            .iter()
-            .find(|task| !matches!(task.status, TaskStatus::Completed))
-            .cloned();
-
-        Ok(next_task)
-    }
-
-    /// Render specification content as markdown
-    pub fn render_spec_content(&self, spec: &Specification) -> String {
-        let mut content = String::new();
-        content.push_str(&format!("# {}\n\n", spec.name));
-
-        if !spec.description.is_empty() {
-            content.push_str(&format!("## Description\n\n{}\n\n", spec.description));
-        }
-
-        content.push_str(&format!("## Status\n\n{:?}\n\n", spec.status));
-        content.push_str(&format!("## Content\n\n{}\n\n", spec.content));
-        content.push_str(&format!(
-            "Created: {}\n",
-            spec.created_at.format("%Y-%m-%d %H:%M:%S UTC")
-        ));
-        content.push_str(&format!(
-            "Updated: {}\n",
-            spec.updated_at.format("%Y-%m-%d %H:%M:%S UTC")
-        ));
-
-        content
-    }
-
-    /// Render task list as markdown
-    pub fn render_task_list(&self, task_list: &TaskList) -> String {
-        let mut content = String::new();
-        content.push_str("# Task List\n\n");
-        content.push_str(&format!(
-            "Last Updated: {}\n\n",
-            task_list.last_updated.format("%Y-%m-%d %H:%M:%S UTC")
-        ));
-
-        if task_list.tasks.is_empty() {
-            content.push_str("No tasks yet.\n");
-            return content;
-        }
-
-        // Group tasks by status
-        let mut tasks_by_status: HashMap<TaskStatus, Vec<&Task>> = HashMap::new();
-        for task in &task_list.tasks {
-            tasks_by_status
-                .entry(task.status.clone())
-                .or_default()
-                .push(task);
-        }
-
-        // Render tasks by status
-        let status_order = [
-            TaskStatus::Todo,
-            TaskStatus::InProgress,
-            TaskStatus::Blocked,
-            TaskStatus::Completed,
-        ];
-
-        for status in status_order.iter() {
-            if let Some(tasks) = tasks_by_status.get(status)
-                && !tasks.is_empty()
-            {
-                content.push_str(&format!("## {:?}\n", status));
-                for task in tasks {
-                    content.push_str(&format!(
-                        "- **{}** (Priority: {:?})\n",
-                        task.title, task.priority
-                    ));
-                    if !task.description.is_empty() {
-                        content.push_str(&format!("  {}\n", task.description));
-                    }
-                    if !task.dependencies.is_empty() {
-                        content.push_str(&format!(
-                            "  Dependencies: {}\n",
-                            task.dependencies.join(", ")
-                        ));
-                    }
-                    content.push('\n');
-                }
-            }
-        }
-
-        content
-    }
-
-    /// Render notes as markdown
-    pub fn render_notes(&self, notes: &[Note]) -> String {
-        let mut content = String::new();
-        content.push_str("# Notes\n\n");
-
-        if notes.is_empty() {
-            content.push_str("No notes yet.\n");
-            return content;
-        }
-
-        // Group notes by category
-        let mut notes_by_category: HashMap<NoteCategory, Vec<&Note>> = HashMap::new();
-        for note in notes {
-            notes_by_category
-                .entry(note.category.clone())
-                .or_default()
-                .push(note);
-        }
-
-        // Render notes by category
-        for (category, category_notes) in notes_by_category.iter() {
-            content.push_str(&format!("## {:?}\n", category));
-            for note in category_notes {
-                content.push_str(&format!("- {}\n", note.content));
-                content.push_str(&format!(
-                    "  *Added: {}*\n\n",
-                    note.created_at.format("%Y-%m-%d %H:%M:%S UTC")
-                ));
-            }
-        }
-
-        content
-    }
-
-    /// Save specification metadata to JSON file
-    fn save_spec_metadata(&self, project_name: &str, spec: &Specification) -> Result<()> {
-        let metadata_path = self
-            .fs_manager
-            .spec_dir(project_name, &spec.id)
-            .join("spec.json");
-        let metadata_content = serde_json::to_string_pretty(spec)
-            .with_context(|| "Failed to serialize spec metadata")?;
-
-        self.fs_manager
-            .write_file_safe(&metadata_path, &metadata_content)
-    }
-
-    /// Check if a specification exists
-    pub async fn spec_exists(&self, project_name: &str, spec_id: &str) -> bool {
-        self.fs_manager.spec_exists(project_name, spec_id)
-    }
-
-    /// Add a note to the specification
-    pub async fn add_note(&self, project_name: &str, spec_id: &str, note: Note) -> Result<()> {
-        let mut notes = self.load_notes(project_name, spec_id).await?;
-        notes.push(note);
-
-        let notes_content = self.render_notes(&notes);
-        let notes_path = self
-            .fs_manager
-            .spec_dir(project_name, spec_id)
-            .join("notes.md");
-        self.fs_manager
-            .write_file_safe(&notes_path, &notes_content)?;
-
-        Ok(())
-    }
-
-    /// Remove a task from the task list
-    pub async fn remove_task(
-        &self,
-        project_name: &str,
-        spec_id: &str,
-        task_id: &str,
-    ) -> Result<()> {
-        let mut task_list = self.load_task_list(project_name, spec_id).await?;
-        task_list.tasks.retain(|t| t.id != task_id);
-        task_list.last_updated = Utc::now();
-
-        let task_list_content = self.render_task_list(&task_list);
-        let task_list_path = self
-            .fs_manager
-            .spec_dir(project_name, spec_id)
-            .join("task-list.md");
-        self.fs_manager
-            .write_file_safe(&task_list_path, &task_list_content)?;
-
-        Ok(())
-    }
-
-    /// Update an existing task
-    pub async fn update_task(&self, project_name: &str, spec_id: &str, task: Task) -> Result<()> {
-        let mut task_list = self.load_task_list(project_name, spec_id).await?;
-
-        if let Some(existing_task) = task_list.tasks.iter_mut().find(|t| t.id == task.id) {
-            *existing_task = task;
-            task_list.last_updated = Utc::now();
-
             let task_list_content = self.render_task_list(&task_list);
             let task_list_path = self
                 .fs_manager
@@ -454,17 +218,28 @@ impl SpecificationRepository {
             self.fs_manager
                 .write_file_safe(&task_list_path, &task_list_content)?;
         } else {
-            return Err(anyhow::anyhow!("Task with ID '{}' not found", task.id));
+            return Err(errors::helpers::spec_not_found(task_id, spec_id));
         }
+        Ok(())
+    }
 
+    /// Add a new note to a specification
+    pub async fn add_note(&self, project_name: &str, spec_id: &str, note: Note) -> Result<()> {
+        let mut notes = self.load_notes(project_name, spec_id).await?;
+        notes.push(note);
+        let notes_content = self.render_notes(&notes);
+        let notes_path = self
+            .fs_manager
+            .spec_dir(project_name, spec_id)
+            .join("notes.md");
+        self.fs_manager
+            .write_file_safe(&notes_path, &notes_content)?;
         Ok(())
     }
 
     /// Reorder tasks by priority
     pub async fn reorder_tasks(&self, project_name: &str, spec_id: &str) -> Result<()> {
         let mut task_list = self.load_task_list(project_name, spec_id).await?;
-
-        // Sort tasks by priority (Critical -> High -> Medium -> Low)
         task_list.tasks.sort_by(|a, b| {
             let priority_order = |p: &TaskPriority| match p {
                 TaskPriority::Critical => 0,
@@ -474,9 +249,7 @@ impl SpecificationRepository {
             };
             priority_order(&a.priority).cmp(&priority_order(&b.priority))
         });
-
         task_list.last_updated = Utc::now();
-
         let task_list_content = self.render_task_list(&task_list);
         let task_list_path = self
             .fs_manager
@@ -484,7 +257,304 @@ impl SpecificationRepository {
             .join("task-list.md");
         self.fs_manager
             .write_file_safe(&task_list_path, &task_list_content)?;
-
         Ok(())
+    }
+
+    /// Generate a unique spec ID
+    fn generate_spec_id(&self, spec_name: &str) -> String {
+        let date = Utc::now().format("%Y%m%d");
+        format!("{}_{}", date, spec_name)
+    }
+
+    /// Validate spec name format (snake_case)
+    fn is_valid_spec_name(&self, name: &str) -> bool {
+        name.chars()
+            .all(|c| c.is_lowercase() || c.is_numeric() || c == '_')
+            && !name.starts_with('_')
+            && !name.ends_with('_')
+            && !name.contains("__")
+    }
+
+    /// Parse task list from markdown content
+    fn parse_task_list(&self, content: &str) -> Result<TaskList> {
+        let mut tasks = Vec::new();
+        let mut current_task: Option<Task> = None;
+        let mut current_description = String::new();
+
+        for line in content.lines() {
+            if line.starts_with("## ") {
+                // Save previous task if exists
+                if let Some(mut task) = current_task.take() {
+                    task.description = current_description.trim().to_string();
+                    tasks.push(task);
+                    current_description.clear();
+                }
+
+                // Parse new task header
+                let header = line.trim_start_matches("## ");
+                if let Some(task) = self.parse_task_header(header) {
+                    current_task = Some(task);
+                }
+            } else if line.starts_with("- ") && current_task.is_some() {
+                // Parse task metadata
+                self.parse_task_metadata(line, &mut current_task.as_mut().unwrap());
+            } else if current_task.is_some() {
+                // Add to description
+                current_description.push_str(line);
+                current_description.push('\n');
+            }
+        }
+
+        // Add the last task
+        if let Some(mut task) = current_task {
+            task.description = current_description.trim().to_string();
+            tasks.push(task);
+        }
+
+        Ok(TaskList {
+            tasks,
+            last_updated: Utc::now(),
+        })
+    }
+
+    /// Parse task header to extract basic info
+    fn parse_task_header(&self, header: &str) -> Option<Task> {
+        let parts: Vec<&str> = header.split_whitespace().collect();
+        if parts.len() < 2 {
+            return None;
+        }
+
+        let id = parts[0].to_string();
+        let title = parts[1..].join(" ");
+
+        Some(Task {
+            id,
+            title,
+            description: String::new(),
+            status: TaskStatus::Todo,
+            priority: TaskPriority::Medium,
+            dependencies: Vec::new(),
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        })
+    }
+
+    /// Parse task metadata from markdown list items
+    fn parse_task_metadata(&self, line: &str, task: &mut Task) {
+        let line = line.trim_start_matches("- ");
+        if line.starts_with("Status: ") {
+            if let Some(status_str) = line.strip_prefix("Status: ") {
+                task.status = self.parse_status(status_str);
+            }
+        } else if line.starts_with("Priority: ") {
+            if let Some(priority_str) = line.strip_prefix("Priority: ") {
+                task.priority = self.parse_priority(priority_str);
+            }
+        } else if line.starts_with("Dependencies: ") {
+            if let Some(deps_str) = line.strip_prefix("Dependencies: ") {
+                task.dependencies = deps_str.split(',').map(|s| s.trim().to_string()).collect();
+            }
+        }
+    }
+
+    /// Parse status from string
+    fn parse_status(&self, status: &str) -> TaskStatus {
+        match status.to_lowercase().as_str() {
+            "todo" => TaskStatus::Todo,
+            "in_progress" => TaskStatus::InProgress,
+            "completed" => TaskStatus::Completed,
+            "blocked" => TaskStatus::Blocked,
+            _ => TaskStatus::Todo,
+        }
+    }
+
+    /// Parse priority from string
+    fn parse_priority(&self, priority: &str) -> TaskPriority {
+        match priority.to_lowercase().as_str() {
+            "critical" => TaskPriority::Critical,
+            "high" => TaskPriority::High,
+            "medium" => TaskPriority::Medium,
+            "low" => TaskPriority::Low,
+            _ => TaskPriority::Medium,
+        }
+    }
+
+    /// Parse notes from markdown content
+    fn parse_notes(&self, content: &str) -> Result<Vec<Note>> {
+        let mut notes = Vec::new();
+        let mut current_note: Option<Note> = None;
+        let mut current_content = String::new();
+
+        for line in content.lines() {
+            if line.starts_with("## ") {
+                // Save previous note if exists
+                if let Some(mut note) = current_note.take() {
+                    note.content = current_content.trim().to_string();
+                    notes.push(note);
+                    current_content.clear();
+                }
+
+                // Parse new note header
+                let header = line.trim_start_matches("## ");
+                if let Some(note) = self.parse_note_header(header) {
+                    current_note = Some(note);
+                }
+            } else if line.starts_with("- ") && current_note.is_some() {
+                // Parse note metadata
+                self.parse_note_metadata(line, &mut current_note.as_mut().unwrap());
+            } else if current_note.is_some() {
+                // Add to content
+                current_content.push_str(line);
+                current_content.push('\n');
+            }
+        }
+
+        // Add the last note
+        if let Some(mut note) = current_note {
+            note.content = current_content.trim().to_string();
+            notes.push(note);
+        }
+
+        Ok(notes)
+    }
+
+    /// Parse note header to extract basic info
+    fn parse_note_header(&self, header: &str) -> Option<Note> {
+        let parts: Vec<&str> = header.split_whitespace().collect();
+        if parts.len() < 2 {
+            return None;
+        }
+
+        let id = parts[0].to_string();
+        let content = parts[1..].join(" ");
+
+        Some(Note {
+            id,
+            content,
+            category: NoteCategory::Other,
+            created_at: Utc::now(),
+        })
+    }
+
+    /// Parse note metadata from markdown list items
+    fn parse_note_metadata(&self, line: &str, note: &mut Note) {
+        let line = line.trim_start_matches("- ");
+        if line.starts_with("Category: ") {
+            if let Some(category_str) = line.strip_prefix("Category: ") {
+                note.category = self.parse_category(category_str);
+            }
+        }
+    }
+
+    /// Parse category from string
+    fn parse_category(&self, category: &str) -> NoteCategory {
+        match category.to_lowercase().as_str() {
+            "implementation" => NoteCategory::Implementation,
+            "decision" => NoteCategory::Decision,
+            "question" => NoteCategory::Question,
+            "bug" => NoteCategory::Bug,
+            "enhancement" => NoteCategory::Enhancement,
+            _ => NoteCategory::Other,
+        }
+    }
+
+    /// Render task list to markdown
+    fn render_task_list(&self, task_list: &TaskList) -> String {
+        let mut content = String::new();
+        content.push_str("# Task List\n\n");
+        content.push_str(&format!(
+            "Last updated: {}\n\n",
+            task_list.last_updated.format("%Y-%m-%d %H:%M:%S UTC")
+        ));
+
+        for task in &task_list.tasks {
+            content.push_str(&format!("## {} {}\n", task.id, task.title));
+            content.push_str(&format!(
+                "- Status: {}\n",
+                self.status_to_string(&task.status)
+            ));
+            content.push_str(&format!(
+                "- Priority: {}\n",
+                self.priority_to_string(&task.priority)
+            ));
+            if !task.dependencies.is_empty() {
+                content.push_str(&format!(
+                    "- Dependencies: {}\n",
+                    task.dependencies.join(", ")
+                ));
+            }
+            content.push_str(&format!(
+                "- Created: {}\n",
+                task.created_at.format("%Y-%m-%d %H:%M:%S UTC")
+            ));
+            content.push_str(&format!(
+                "- Updated: {}\n",
+                task.updated_at.format("%Y-%m-%d %H:%M:%S UTC")
+            ));
+            content.push_str("\n");
+            content.push_str(&task.description);
+            content.push_str("\n\n");
+        }
+
+        content
+    }
+
+    /// Render notes to markdown
+    fn render_notes(&self, notes: &[Note]) -> String {
+        let mut content = String::new();
+        content.push_str("# Notes\n\n");
+
+        for note in notes {
+            content.push_str(&format!(
+                "## {} {}\n",
+                note.id,
+                note.content.split('\n').next().unwrap_or("")
+            ));
+            content.push_str(&format!(
+                "- Category: {}\n",
+                self.category_to_string(&note.category)
+            ));
+            content.push_str(&format!(
+                "- Created: {}\n",
+                note.created_at.format("%Y-%m-%d %H:%M:%S UTC")
+            ));
+            content.push_str("\n");
+            content.push_str(&note.content);
+            content.push_str("\n\n");
+        }
+
+        content
+    }
+
+    /// Convert status to string
+    fn status_to_string(&self, status: &TaskStatus) -> String {
+        match status {
+            TaskStatus::Todo => "todo".to_string(),
+            TaskStatus::InProgress => "in_progress".to_string(),
+            TaskStatus::Completed => "completed".to_string(),
+            TaskStatus::Blocked => "blocked".to_string(),
+        }
+    }
+
+    /// Convert priority to string
+    fn priority_to_string(&self, priority: &TaskPriority) -> String {
+        match priority {
+            TaskPriority::Critical => "critical".to_string(),
+            TaskPriority::High => "high".to_string(),
+            TaskPriority::Medium => "medium".to_string(),
+            TaskPriority::Low => "low".to_string(),
+        }
+    }
+
+    /// Convert category to string
+    fn category_to_string(&self, category: &NoteCategory) -> String {
+        match category {
+            NoteCategory::Implementation => "implementation".to_string(),
+            NoteCategory::Decision => "decision".to_string(),
+            NoteCategory::Question => "question".to_string(),
+            NoteCategory::Bug => "bug".to_string(),
+            NoteCategory::Enhancement => "enhancement".to_string(),
+            NoteCategory::Other => "other".to_string(),
+        }
     }
 }

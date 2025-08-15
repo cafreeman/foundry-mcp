@@ -1,6 +1,6 @@
 //! File system manager for project directory operations
 
-use anyhow::{Context, Result};
+use crate::errors::{self, ProjectManagerError, Result};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -15,8 +15,11 @@ pub struct FileSystemManager {
 impl FileSystemManager {
     /// Create a new FileSystemManager instance
     pub fn new() -> Result<Self> {
-        let home_dir = dirs::home_dir()
-            .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))?;
+        let home_dir = dirs::home_dir().ok_or_else(|| ProjectManagerError::Configuration {
+            setting: "home_directory".to_string(),
+            value: "unknown".to_string(),
+            reason: "Could not determine home directory".to_string(),
+        })?;
         let base_dir = home_dir.join(".project-manager-mcp");
 
         Ok(Self { base_dir })
@@ -50,8 +53,9 @@ impl FileSystemManager {
     /// Create the base directory structure if it doesn't exist
     pub fn ensure_base_dir(&self) -> Result<()> {
         if !self.base_dir.exists() {
-            fs::create_dir_all(&self.base_dir)
-                .with_context(|| format!("Failed to create base directory: {:?}", self.base_dir))?;
+            fs::create_dir_all(&self.base_dir).map_err(|e| {
+                errors::helpers::file_system_error("create base directory", &self.base_dir, e)
+            })?;
         }
         Ok(())
     }
@@ -65,31 +69,41 @@ impl FileSystemManager {
         let specs_path = self.specs_dir(project_name);
 
         // Create project directory
-        fs::create_dir_all(&project_path)
-            .with_context(|| format!("Failed to create project directory: {:?}", project_path))?;
+        if !project_path.exists() {
+            fs::create_dir(&project_path).map_err(|e| {
+                errors::helpers::file_system_error("create project directory", &project_path, e)
+            })?;
+        }
 
         // Create project info directory
-        fs::create_dir_all(&project_info_path).with_context(|| {
-            format!(
-                "Failed to create project info directory: {:?}",
-                project_info_path
-            )
-        })?;
+        if !project_info_path.exists() {
+            fs::create_dir(&project_info_path).map_err(|e| {
+                errors::helpers::file_system_error(
+                    "create project info directory",
+                    &project_info_path,
+                    e,
+                )
+            })?;
+        }
 
         // Create specs directory
-        fs::create_dir_all(&specs_path)
-            .with_context(|| format!("Failed to create specs directory: {:?}", specs_path))?;
+        if !specs_path.exists() {
+            fs::create_dir(&specs_path).map_err(|e| {
+                errors::helpers::file_system_error("create specs directory", &specs_path, e)
+            })?;
+        }
 
         Ok(())
     }
 
-    /// Create the specification directory structure
+    /// Create specification directory structure
     pub fn create_spec_structure(&self, project_name: &str, spec_id: &str) -> Result<()> {
         let spec_path = self.spec_dir(project_name, spec_id);
-
-        fs::create_dir_all(&spec_path)
-            .with_context(|| format!("Failed to create spec directory: {:?}", spec_path))?;
-
+        if !spec_path.exists() {
+            fs::create_dir(&spec_path).map_err(|e| {
+                errors::helpers::file_system_error("create spec directory", &spec_path, e)
+            })?;
+        }
         Ok(())
     }
 
@@ -107,103 +121,101 @@ impl FileSystemManager {
     pub fn list_projects(&self) -> Result<Vec<String>> {
         self.ensure_base_dir()?;
 
-        if !self.base_dir.exists() {
-            return Ok(Vec::new());
+        let mut projects = Vec::new();
+        if self.base_dir.exists() {
+            for entry in fs::read_dir(&self.base_dir).map_err(|e| {
+                errors::helpers::file_system_error("read base directory", &self.base_dir, e)
+            })? {
+                let entry = entry.map_err(|e| {
+                    errors::helpers::file_system_error("read directory entry", &self.base_dir, e)
+                })?;
+                let path = entry.path();
+                if path.is_dir() {
+                    if let Some(name) = path.file_name() {
+                        if let Some(name_str) = name.to_str() {
+                            projects.push(name_str.to_string());
+                        }
+                    }
+                }
+            }
         }
 
-        let projects = fs::read_dir(&self.base_dir)
-            .with_context(|| format!("Failed to read base directory: {:?}", self.base_dir))?
-            .filter_map(|entry| {
-                entry.ok().and_then(|entry| {
-                    let path = entry.path();
-                    if path.is_dir()
-                        && !path
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .starts_with('.')
-                        && let Some(name) = path.file_name()
-                    {
-                        Some(name.to_string_lossy().to_string())
-                    } else {
-                        None
-                    }
-                })
-            })
-            .collect::<Vec<_>>();
-
-        let mut sorted_projects = projects;
-        sorted_projects.sort();
-        Ok(sorted_projects)
+        Ok(projects)
     }
 
-    /// List all specifications for a project
+    /// List specifications for a project
     pub fn list_specs(&self, project_name: &str) -> Result<Vec<String>> {
         let specs_path = self.specs_dir(project_name);
-
         if !specs_path.exists() {
             return Ok(Vec::new());
         }
 
-        let specs = fs::read_dir(&specs_path)
-            .with_context(|| format!("Failed to read specs directory: {:?}", specs_path))?
-            .filter_map(|entry| {
-                entry.ok().and_then(|entry| {
-                    let path = entry.path();
-                    if path.is_dir()
-                        && !path
-                            .file_name()
-                            .unwrap_or_default()
-                            .to_string_lossy()
-                            .starts_with('.')
-                        && let Some(name) = path.file_name()
-                    {
-                        Some(name.to_string_lossy().to_string())
-                    } else {
-                        None
+        let mut specs = Vec::new();
+        for entry in fs::read_dir(&specs_path).map_err(|e| {
+            errors::helpers::file_system_error("read specs directory", &specs_path, e)
+        })? {
+            let entry = entry.map_err(|e| {
+                errors::helpers::file_system_error("read specs directory entry", &specs_path, e)
+            })?;
+            let path = entry.path();
+            if path.is_dir() {
+                if let Some(name) = path.file_name() {
+                    if let Some(name_str) = name.to_str() {
+                        specs.push(name_str.to_string());
                     }
-                })
-            })
-            .collect::<Vec<_>>();
+                }
+            }
+        }
 
-        let mut sorted_specs = specs;
-        sorted_specs.sort();
-        Ok(sorted_specs)
+        // Sort specs by creation date (newest first)
+        specs.sort_by(|a, b| {
+            let a_path = self.spec_dir(project_name, a);
+            let b_path = self.spec_dir(project_name, b);
+            let a_time = a_path
+                .metadata()
+                .and_then(|m| m.created())
+                .unwrap_or(SystemTime::UNIX_EPOCH);
+            let b_time = b_path
+                .metadata()
+                .and_then(|m| m.created())
+                .unwrap_or(SystemTime::UNIX_EPOCH);
+            b_time.cmp(&a_time)
+        });
+
+        Ok(specs)
     }
 
     /// Write content to a file with atomic operation and backup
     pub fn write_file_safe(&self, file_path: &Path, content: &str) -> Result<()> {
         // Create parent directories if they don't exist
         if let Some(parent) = file_path.parent() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create parent directory: {:?}", parent))?;
+            fs::create_dir_all(parent).map_err(|e| {
+                errors::helpers::file_system_error("create parent directory", parent, e)
+            })?;
         }
 
         // Create backup if file exists
         if file_path.exists() {
             let backup_path = self.create_backup_path(file_path)?;
             fs::copy(file_path, &backup_path)
-                .with_context(|| format!("Failed to create backup: {:?}", backup_path))?;
+                .map_err(|e| errors::helpers::file_system_error("create backup", file_path, e))?;
         }
 
         // Write to temporary file first
         let temp_path = self.create_temp_path(file_path)?;
         let mut temp_file = File::create(&temp_path)
-            .with_context(|| format!("Failed to create temp file: {:?}", temp_path))?;
+            .map_err(|e| errors::helpers::file_system_error("create temp file", &temp_path, e))?;
 
         temp_file
             .write_all(content.as_bytes())
-            .with_context(|| format!("Failed to write to temp file: {:?}", temp_path))?;
+            .map_err(|e| errors::helpers::file_system_error("write to temp file", &temp_path, e))?;
         temp_file
             .flush()
-            .with_context(|| format!("Failed to flush temp file: {:?}", temp_path))?;
+            .map_err(|e| errors::helpers::file_system_error("flush temp file", &temp_path, e))?;
 
         // Atomic move from temp to final location
-        fs::rename(&temp_path, file_path).with_context(|| {
-            format!(
-                "Failed to move temp file to final location: {:?}",
-                file_path
-            )
+        fs::rename(&temp_path, file_path).map_err(|e| {
+            errors::helpers::file_system_error("move temp file to final location", file_path, e)
         })?;
 
         Ok(())
@@ -212,11 +224,11 @@ impl FileSystemManager {
     /// Read content from a file
     pub fn read_file(&self, file_path: &Path) -> Result<String> {
         let mut file = File::open(file_path)
-            .with_context(|| format!("Failed to open file: {:?}", file_path))?;
+            .map_err(|e| errors::helpers::file_system_error("open file", file_path, e))?;
 
         let mut content = String::new();
         file.read_to_string(&mut content)
-            .with_context(|| format!("Failed to read file: {:?}", file_path))?;
+            .map_err(|e| errors::helpers::file_system_error("read file", file_path, e))?;
 
         Ok(content)
     }
@@ -229,53 +241,70 @@ impl FileSystemManager {
     /// Get file modification time
     pub fn get_file_modified_time(&self, file_path: &Path) -> Result<SystemTime> {
         let metadata = fs::metadata(file_path)
-            .with_context(|| format!("Failed to get metadata for file: {:?}", file_path))?;
-
-        metadata
-            .modified()
-            .with_context(|| format!("Failed to get modification time for file: {:?}", file_path))
+            .map_err(|e| errors::helpers::file_system_error("get file metadata", file_path, e))?;
+        metadata.modified().map_err(|e| {
+            errors::helpers::file_system_error("get file modification time", file_path, e)
+        })
     }
 
     /// Create a backup path for a file
     fn create_backup_path(&self, file_path: &Path) -> Result<PathBuf> {
-        let timestamp = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
         let file_name = file_path
             .file_name()
-            .ok_or_else(|| anyhow::anyhow!("Invalid file path: {:?}", file_path))?
-            .to_string_lossy();
+            .ok_or_else(|| ProjectManagerError::Internal {
+                operation: "create backup path".to_string(),
+                details: "Could not get file name".to_string(),
+                source: None,
+            })?;
 
-        let backup_name = format!("{}.backup.{}", file_name, timestamp);
-        let backup_path = file_path
+        let backup_name = format!(
+            "{}.backup.{}",
+            file_name.to_string_lossy(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        );
+
+        let parent = file_path
             .parent()
-            .ok_or_else(|| anyhow::anyhow!("Invalid file path: {:?}", file_path))?
-            .join(backup_name);
+            .ok_or_else(|| ProjectManagerError::Internal {
+                operation: "create backup path".to_string(),
+                details: "Could not get parent directory".to_string(),
+                source: None,
+            })?;
 
-        Ok(backup_path)
+        Ok(parent.join(backup_name))
     }
 
     /// Create a temporary path for a file
     fn create_temp_path(&self, file_path: &Path) -> Result<PathBuf> {
-        let timestamp = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap()
-            .as_secs();
-
         let file_name = file_path
             .file_name()
-            .ok_or_else(|| anyhow::anyhow!("Invalid file path: {:?}", file_path))?
-            .to_string_lossy();
+            .ok_or_else(|| ProjectManagerError::Internal {
+                operation: "create temp path".to_string(),
+                details: "Could not get file name".to_string(),
+                source: None,
+            })?;
 
-        let temp_name = format!("{}.tmp.{}", file_name, timestamp);
-        let temp_path = file_path
+        let temp_name = format!(
+            ".{}.tmp.{}",
+            file_name.to_string_lossy(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_secs()
+        );
+
+        let parent = file_path
             .parent()
-            .ok_or_else(|| anyhow::anyhow!("Invalid file path: {:?}", file_path))?
-            .join(temp_name);
+            .ok_or_else(|| ProjectManagerError::Internal {
+                operation: "create temp path".to_string(),
+                details: "Could not get parent directory".to_string(),
+                source: None,
+            })?;
 
-        Ok(temp_path)
+        Ok(parent.join(temp_name))
     }
 
     /// Clean up temporary and backup files older than specified age
@@ -314,8 +343,9 @@ impl FileSystemManager {
                     && let Ok(age) = current_time.duration_since(modified)
                     && age > max_age
                 {
-                    fs::remove_file(&path)
-                        .with_context(|| format!("Failed to remove old file: {:?}", path))?;
+                    fs::remove_file(&path).map_err(|e| {
+                        errors::helpers::file_system_error("remove old file", &path, e)
+                    })?;
                 }
             }
         }

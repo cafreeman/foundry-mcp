@@ -1,8 +1,8 @@
 //! Update specification tool handler
 
+use crate::errors::{self, Result};
 use crate::models::{Note, NoteCategory, Task, TaskPriority, TaskStatus};
 use crate::repository::{ProjectRepository, SpecificationRepository};
-use anyhow::Result;
 use chrono::Utc;
 use serde_json::Value;
 use uuid::Uuid;
@@ -25,30 +25,26 @@ impl UpdateSpecHandler {
 
     /// Handle update_spec tool calls
     pub async fn handle_update_spec(&self, arguments: &Value) -> Result<String> {
-        let project_name = arguments["project_name"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing project_name"))?;
-        let spec_id = arguments["spec_id"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing spec_id"))?;
+        let project_name = arguments["project_name"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("project_name", "missing", "Project name is required")
+        })?;
+        let spec_id = arguments["spec_id"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("spec_id", "missing", "Spec ID is required")
+        })?;
 
         // Verify project and spec exist
         if !self.project_repo.project_exists(project_name).await {
-            return Err(anyhow::anyhow!("Project '{}' does not exist", project_name));
+            return Err(errors::helpers::project_not_found(project_name));
         }
 
         if !self.spec_repo.spec_exists(project_name, spec_id).await {
-            return Err(anyhow::anyhow!(
-                "Specification '{}' does not exist in project '{}'",
-                spec_id,
-                project_name
-            ));
+            return Err(errors::helpers::spec_not_found(spec_id, project_name));
         }
 
         // Determine the operation type
-        let operation = arguments["operation"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing operation"))?;
+        let operation = arguments["operation"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("operation", "missing", "Operation is required")
+        })?;
 
         match operation {
             "add_task" => self.handle_add_task(project_name, spec_id, arguments).await,
@@ -66,50 +62,43 @@ impl UpdateSpecHandler {
             }
             "add_note" => self.handle_add_note(project_name, spec_id, arguments).await,
             "reorder_tasks" => self.handle_reorder_tasks(project_name, spec_id).await,
-            _ => Err(anyhow::anyhow!("Unknown operation: {}", operation)),
+            _ => Err(errors::helpers::validation_error(
+                "operation",
+                operation,
+                "Unknown operation",
+            )),
         }
     }
 
-    /// Handle adding a new task
     async fn handle_add_task(
         &self,
         project_name: &str,
         spec_id: &str,
         arguments: &Value,
     ) -> Result<String> {
-        let task_data = arguments["task"]
-            .as_object()
-            .ok_or_else(|| anyhow::anyhow!("Missing task data"))?;
-
-        let title = task_data["title"]
+        let title = arguments["title"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("title", "missing", "Task title is required")
+        })?;
+        let description = arguments["description"]
             .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing task title"))?;
-        let description = task_data["description"].as_str().unwrap_or("").to_string();
+            .unwrap_or("No description provided");
+        let priority = arguments["priority"].as_str().unwrap_or("medium");
 
-        let priority = match task_data["priority"].as_str().unwrap_or("medium") {
-            "low" => TaskPriority::Low,
-            "medium" => TaskPriority::Medium,
-            "high" => TaskPriority::High,
+        let priority_enum = match priority.to_lowercase().as_str() {
             "critical" => TaskPriority::Critical,
+            "high" => TaskPriority::High,
+            "medium" => TaskPriority::Medium,
+            "low" => TaskPriority::Low,
             _ => TaskPriority::Medium,
-        };
-
-        let dependencies = if let Some(deps) = task_data["dependencies"].as_array() {
-            deps.iter()
-                .filter_map(|d| d.as_str())
-                .map(|s| s.to_string())
-                .collect()
-        } else {
-            Vec::new()
         };
 
         let task = Task {
             id: Uuid::new_v4().to_string(),
             title: title.to_string(),
-            description,
+            description: description.to_string(),
             status: TaskStatus::Todo,
-            priority,
-            dependencies,
+            priority: priority_enum,
+            dependencies: Vec::new(),
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
@@ -119,142 +108,125 @@ impl UpdateSpecHandler {
             .await?;
 
         Ok(format!(
-            "Task '{}' added successfully with ID: {}",
-            task.title, task.id
+            "Successfully added task '{}' to specification '{}'",
+            task.title, spec_id
         ))
     }
 
-    /// Handle updating an existing task
     async fn handle_update_task(
         &self,
         project_name: &str,
         spec_id: &str,
         arguments: &Value,
     ) -> Result<String> {
-        let task_data = arguments["task"]
-            .as_object()
-            .ok_or_else(|| anyhow::anyhow!("Missing task data"))?;
-
-        let task_id = task_data["id"]
+        let task_id = arguments["task_id"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("task_id", "missing", "Task ID is required")
+        })?;
+        let title = arguments["title"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("title", "missing", "Task title is required")
+        })?;
+        let description = arguments["description"]
             .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing task ID"))?;
+            .unwrap_or("No description provided");
 
-        // Load existing task to preserve unchanged fields
+        // Load existing task to preserve other fields
         let task_list = self.spec_repo.load_task_list(project_name, spec_id).await?;
         let existing_task = task_list
             .tasks
             .iter()
             .find(|t| t.id == task_id)
-            .ok_or_else(|| anyhow::anyhow!("Task with ID '{}' not found", task_id))?;
+            .ok_or_else(|| errors::helpers::spec_not_found(task_id, spec_id))?;
 
-        let mut updated_task = existing_task.clone();
-
-        // Update fields if provided
-        if let Some(title) = task_data["title"].as_str() {
-            updated_task.title = title.to_string();
-        }
-        if let Some(description) = task_data["description"].as_str() {
-            updated_task.description = description.to_string();
-        }
-        if let Some(priority_str) = task_data["priority"].as_str() {
-            updated_task.priority = match priority_str {
-                "low" => TaskPriority::Low,
-                "medium" => TaskPriority::Medium,
-                "high" => TaskPriority::High,
-                "critical" => TaskPriority::Critical,
-                _ => updated_task.priority,
-            };
-        }
-        if let Some(status_str) = task_data["status"].as_str() {
-            updated_task.status = match status_str {
-                "todo" => TaskStatus::Todo,
-                "in_progress" => TaskStatus::InProgress,
-                "completed" => TaskStatus::Completed,
-                "blocked" => TaskStatus::Blocked,
-                _ => updated_task.status,
-            };
-        }
-        if let Some(deps) = task_data["dependencies"].as_array() {
-            updated_task.dependencies = deps
-                .iter()
-                .filter_map(|d| d.as_str())
-                .map(|s| s.to_string())
-                .collect();
-        }
-
-        updated_task.updated_at = Utc::now();
+        let updated_task = Task {
+            id: task_id.to_string(),
+            title: title.to_string(),
+            description: description.to_string(),
+            status: existing_task.status.clone(),
+            priority: existing_task.priority.clone(),
+            dependencies: existing_task.dependencies.clone(),
+            created_at: existing_task.created_at,
+            updated_at: Utc::now(),
+        };
 
         self.spec_repo
             .update_task(project_name, spec_id, updated_task.clone())
             .await?;
 
         Ok(format!(
-            "Task '{}' updated successfully",
-            updated_task.title
+            "Successfully updated task '{}' in specification '{}'",
+            updated_task.title, spec_id
         ))
     }
 
-    /// Handle removing a task
     async fn handle_remove_task(
         &self,
         project_name: &str,
         spec_id: &str,
         arguments: &Value,
     ) -> Result<String> {
-        let task_id = arguments["task_id"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing task_id"))?;
+        let task_id = arguments["task_id"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("task_id", "missing", "Task ID is required")
+        })?;
 
         self.spec_repo
             .remove_task(project_name, spec_id, task_id)
             .await?;
 
-        Ok(format!("Task '{}' removed successfully", task_id))
+        Ok(format!(
+            "Successfully removed task '{}' from specification '{}'",
+            task_id, spec_id
+        ))
     }
 
-    /// Handle updating task status
     async fn handle_update_task_status(
         &self,
         project_name: &str,
         spec_id: &str,
         arguments: &Value,
     ) -> Result<String> {
-        let task_id = arguments["task_id"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing task_id"))?;
-        let status_str = arguments["status"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing status"))?;
+        let task_id = arguments["task_id"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("task_id", "missing", "Task ID is required")
+        })?;
+        let status_str = arguments["status"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("status", "missing", "Task status is required")
+        })?;
 
-        let status = match status_str {
+        let status = match status_str.to_lowercase().as_str() {
             "todo" => TaskStatus::Todo,
             "in_progress" => TaskStatus::InProgress,
             "completed" => TaskStatus::Completed,
             "blocked" => TaskStatus::Blocked,
-            _ => return Err(anyhow::anyhow!("Invalid status: {}", status_str)),
+            _ => {
+                return Err(errors::helpers::validation_error(
+                    "status",
+                    status_str,
+                    "Invalid status value",
+                ));
+            }
         };
 
         self.spec_repo
             .update_task_status(project_name, spec_id, task_id, status.clone())
             .await?;
 
-        Ok(format!("Task '{}' status updated to {:?}", task_id, status))
+        Ok(format!(
+            "Successfully updated task '{}' status to '{:?}' in specification '{}'",
+            task_id, status, spec_id
+        ))
     }
 
-    /// Handle adding a note
     async fn handle_add_note(
         &self,
         project_name: &str,
         spec_id: &str,
         arguments: &Value,
     ) -> Result<String> {
-        let content = arguments["content"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing note content"))?;
-
+        let content = arguments["content"].as_str().ok_or_else(|| {
+            errors::helpers::validation_error("content", "missing", "Note content is required")
+        })?;
         let category_str = arguments["category"].as_str().unwrap_or("other");
 
-        let category = match category_str {
+        let category = match category_str.to_lowercase().as_str() {
             "implementation" => NoteCategory::Implementation,
             "decision" => NoteCategory::Decision,
             "question" => NoteCategory::Question,
@@ -274,13 +246,18 @@ impl UpdateSpecHandler {
             .add_note(project_name, spec_id, note.clone())
             .await?;
 
-        Ok(format!("Note added successfully with ID: {}", note.id))
+        Ok(format!(
+            "Successfully added note to specification '{}'",
+            spec_id
+        ))
     }
 
-    /// Handle reordering tasks by priority
     async fn handle_reorder_tasks(&self, project_name: &str, spec_id: &str) -> Result<String> {
         self.spec_repo.reorder_tasks(project_name, spec_id).await?;
 
-        Ok("Tasks reordered successfully by priority".to_string())
+        Ok(format!(
+            "Successfully reordered tasks in specification '{}' by priority",
+            spec_id
+        ))
     }
 }

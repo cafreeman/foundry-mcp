@@ -3,7 +3,7 @@
 //! A Model Context Protocol server for managing software projects with specifications,
 //! tasks, and notes.
 
-use anyhow::Result;
+use project_manager_mcp::errors::{ProjectManagerError, Result};
 use project_manager_mcp::handlers::ProjectManagerHandler;
 use rust_mcp_sdk::schema::{
     Implementation, InitializeResult, LATEST_PROTOCOL_VERSION, ServerCapabilities,
@@ -13,7 +13,7 @@ use rust_mcp_sdk::{
     McpServer, StdioTransport, TransportOptions,
     mcp_server::{ServerRuntime, server_runtime},
 };
-use tracing::{Level, info};
+use tracing::{Level, error, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
@@ -53,8 +53,9 @@ async fn main() -> Result<()> {
     };
 
     // STEP 2: create a std transport with default options
-    let transport = StdioTransport::new(TransportOptions::default())
-        .map_err(|e| anyhow::anyhow!("Failed to create transport: {}", e))?;
+    let transport = StdioTransport::new(TransportOptions::default()).map_err(|e| {
+        ProjectManagerError::mcp_protocol_error("create transport", &e.to_string(), None)
+    })?;
 
     // STEP 3: instantiate our custom handler for handling MCP messages
     let handler = ProjectManagerHandler::new()?;
@@ -73,6 +74,7 @@ async fn main() -> Result<()> {
     // STEP 5: Start the server
     info!("Starting MCP server with stdio transport...");
     if let Err(start_error) = server.start().await {
+        error!("Failed to start MCP server: {}", start_error);
         eprintln!(
             "{}",
             start_error
