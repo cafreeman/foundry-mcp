@@ -40,220 +40,193 @@ pub fn format_spec_status(status: &crate::models::SpecStatus) -> String {
 
 /// Render a tech stack to markdown
 pub fn render_tech_stack(tech_stack: &TechStack) -> String {
-    let mut content = String::new();
-    content.push_str("# Technology Stack\n\n");
+    let sections = [
+        ("Programming Languages", &tech_stack.languages),
+        ("Frameworks & Libraries", &tech_stack.frameworks),
+        ("Databases & Storage", &tech_stack.databases),
+        ("Development Tools", &tech_stack.tools),
+        ("Deployment & Infrastructure", &tech_stack.deployment),
+    ];
 
-    if !tech_stack.languages.is_empty() {
-        content.push_str("## Programming Languages\n");
-        for language in &tech_stack.languages {
-            content.push_str(&format!("- {}\n", language));
-        }
-        content.push('\n');
-    }
+    let content = sections
+        .iter()
+        .filter(|(_, items)| !items.is_empty())
+        .map(|(title, items)| {
+            let items_list = items
+                .iter()
+                .map(|item| format!("- {}\n", item))
+                .collect::<String>();
+            format!("## {}\n{}\n", title, items_list)
+        })
+        .collect::<String>();
 
-    if !tech_stack.frameworks.is_empty() {
-        content.push_str("## Frameworks & Libraries\n");
-        for framework in &tech_stack.frameworks {
-            content.push_str(&format!("- {}\n", framework));
-        }
-        content.push('\n');
-    }
-
-    if !tech_stack.databases.is_empty() {
-        content.push_str("## Databases & Storage\n");
-        for database in &tech_stack.databases {
-            content.push_str(&format!("- {}\n", database));
-        }
-        content.push('\n');
-    }
-
-    if !tech_stack.tools.is_empty() {
-        content.push_str("## Development Tools\n");
-        for tool in &tech_stack.tools {
-            content.push_str(&format!("- {}\n", tool));
-        }
-        content.push('\n');
-    }
-
-    if !tech_stack.deployment.is_empty() {
-        content.push_str("## Deployment & Infrastructure\n");
-        for deployment in &tech_stack.deployment {
-            content.push_str(&format!("- {}\n", deployment));
-        }
-        content.push('\n');
-    }
-
-    content
+    format!("# Technology Stack\n\n{}", content)
 }
 
 /// Render a vision document to markdown
 pub fn render_vision(vision: &Vision) -> String {
-    let mut content = String::new();
-    content.push_str("# Project Vision\n\n");
+    let goals_section = if vision.goals.is_empty() {
+        String::new()
+    } else {
+        let goals_list = vision
+            .goals
+            .iter()
+            .enumerate()
+            .map(|(i, goal)| format!("{}. {}\n", i + 1, goal))
+            .collect::<String>();
+        format!("## Goals\n{}\n", goals_list)
+    };
 
-    content.push_str("## Overview\n");
-    content.push_str(&vision.overview);
-    content.push_str("\n\n");
+    let target_users_section = if vision.target_users.is_empty() {
+        String::new()
+    } else {
+        let users_list = vision
+            .target_users
+            .iter()
+            .map(|user| format!("- {}\n", user))
+            .collect::<String>();
+        format!("## Target Users\n{}\n", users_list)
+    };
 
-    if !vision.goals.is_empty() {
-        content.push_str("## Goals\n");
-        for (i, goal) in vision.goals.iter().enumerate() {
-            content.push_str(&format!("{}. {}\n", i + 1, goal));
-        }
-        content.push('\n');
-    }
+    let success_criteria_section = if vision.success_criteria.is_empty() {
+        String::new()
+    } else {
+        let criteria_list = vision
+            .success_criteria
+            .iter()
+            .enumerate()
+            .map(|(i, criterion)| format!("{}. {}\n", i + 1, criterion))
+            .collect::<String>();
+        format!("## Success Criteria\n{}\n", criteria_list)
+    };
 
-    if !vision.target_users.is_empty() {
-        content.push_str("## Target Users\n");
-        for user in &vision.target_users {
-            content.push_str(&format!("- {}\n", user));
-        }
-        content.push('\n');
-    }
-
-    if !vision.success_criteria.is_empty() {
-        content.push_str("## Success Criteria\n");
-        for (i, criterion) in vision.success_criteria.iter().enumerate() {
-            content.push_str(&format!("{}. {}\n", i + 1, criterion));
-        }
-        content.push('\n');
-    }
-
-    content
+    format!(
+        "# Project Vision\n\n## Overview\n{}\n\n{}{}{}",
+        vision.overview, goals_section, target_users_section, success_criteria_section
+    )
 }
 
 /// Render a task list to markdown
 pub fn render_task_list(task_list: &TaskList) -> String {
-    let mut content = String::new();
-    content.push_str("# Task List\n\n");
-
     if task_list.tasks.is_empty() {
-        content.push_str("No tasks defined yet.\n\n");
-    } else {
-        // Group tasks by status
-        let mut todo_tasks = Vec::new();
-        let mut in_progress_tasks = Vec::new();
-        let mut completed_tasks = Vec::new();
-        let mut blocked_tasks = Vec::new();
-
-        for task in &task_list.tasks {
-            match task.status {
-                crate::models::TaskStatus::Todo => todo_tasks.push(task),
-                crate::models::TaskStatus::InProgress => in_progress_tasks.push(task),
-                crate::models::TaskStatus::Completed => completed_tasks.push(task),
-                crate::models::TaskStatus::Blocked => blocked_tasks.push(task),
-            }
-        }
-
-        // Render each group
-        if !todo_tasks.is_empty() {
-            content.push_str("## ⏳ Todo\n");
-            for task in &todo_tasks {
-                content.push_str(&render_task(task));
-            }
-            content.push('\n');
-        }
-
-        if !in_progress_tasks.is_empty() {
-            content.push_str("## 🔄 In Progress\n");
-            for task in &in_progress_tasks {
-                content.push_str(&render_task(task));
-            }
-            content.push('\n');
-        }
-
-        if !blocked_tasks.is_empty() {
-            content.push_str("## 🚫 Blocked\n");
-            for task in &blocked_tasks {
-                content.push_str(&render_task(task));
-            }
-            content.push('\n');
-        }
-
-        if !completed_tasks.is_empty() {
-            content.push_str("## ✅ Completed\n");
-            for task in &completed_tasks {
-                content.push_str(&render_task(task));
-            }
-            content.push('\n');
-        }
+        return "# Task List\n\nNo tasks defined yet.\n\n".to_string();
     }
 
-    content.push_str(&format!(
-        "*Last updated: {}*\n",
-        format_timestamp(&task_list.last_updated)
-    ));
+    // Group tasks by status using functional approach
+    let (todo_tasks, in_progress_tasks, completed_tasks, blocked_tasks) =
+        task_list.tasks.iter().fold(
+            (Vec::new(), Vec::new(), Vec::new(), Vec::new()),
+            |(mut todo, mut in_progress, mut completed, mut blocked), task| {
+                match task.status {
+                    crate::models::TaskStatus::Todo => todo.push(task),
+                    crate::models::TaskStatus::InProgress => in_progress.push(task),
+                    crate::models::TaskStatus::Completed => completed.push(task),
+                    crate::models::TaskStatus::Blocked => blocked.push(task),
+                }
+                (todo, in_progress, completed, blocked)
+            },
+        );
 
-    content
+    let status_groups = [
+        ("⏳ Todo", &todo_tasks),
+        ("🔄 In Progress", &in_progress_tasks),
+        ("🚫 Blocked", &blocked_tasks),
+        ("✅ Completed", &completed_tasks),
+    ];
+
+    let tasks_content = status_groups
+        .iter()
+        .filter(|(_, tasks)| !tasks.is_empty())
+        .map(|(status, tasks)| {
+            let tasks_list = tasks
+                .iter()
+                .map(|task| render_task(task))
+                .collect::<String>();
+            format!("## {}\n{}", status, tasks_list)
+        })
+        .collect::<Vec<_>>()
+        .join("\n\n");
+
+    format!(
+        "# Task List\n\n{}\n\n*Last updated: {}*\n",
+        tasks_content,
+        format_timestamp(&task_list.last_updated)
+    )
 }
 
 /// Render a single task to markdown
 fn render_task(task: &Task) -> String {
-    let mut content = String::new();
+    let mut sections = Vec::new();
 
-    content.push_str(&format!("### {}\n", task.title));
-    content.push_str(&format!(
+    sections.push(format!("### {}\n", task.title));
+    sections.push(format!(
         "**Status:** {} | **Priority:** {}\n",
         format_task_status(&task.status),
         format_task_priority(&task.priority)
     ));
 
     if !task.description.is_empty() {
-        content.push_str(&format!("**Description:** {}\n", task.description));
+        sections.push(format!("**Description:** {}\n", task.description));
     }
 
     if !task.dependencies.is_empty() {
-        content.push_str(&format!(
+        sections.push(format!(
             "**Dependencies:** {}\n",
             task.dependencies.join(", ")
         ));
     }
 
-    content.push_str(&format!(
+    sections.push(format!(
         "**Created:** {} | **Updated:** {}\n",
         format_timestamp(&task.created_at),
         format_timestamp(&task.updated_at)
     ));
 
-    content.push('\n');
+    sections.push('\n'.to_string());
 
-    content
+    sections.join("")
 }
 
 /// Render notes to markdown
 pub fn render_notes(notes: &[crate::models::Note]) -> String {
-    let mut content = String::new();
-    content.push_str("# Notes\n\n");
-
     if notes.is_empty() {
-        content.push_str("No notes yet.\n\n");
-    } else {
-        // Group notes by category
-        let mut notes_by_category = std::collections::HashMap::new();
-
-        for note in notes {
-            notes_by_category
-                .entry(&note.category)
-                .or_insert_with(Vec::new)
-                .push(note);
-        }
-
-        // Render each category
-        for (category, category_notes) in notes_by_category.iter() {
-            content.push_str(&format!("## {}\n", format_note_category(category)));
-
-            for note in category_notes {
-                content.push_str(&format!("### Note: {}\n", note.id));
-                content.push_str(&note.content);
-                content.push_str(&format!(
-                    "\n\n*Created: {}*\n\n",
-                    format_timestamp(&note.created_at)
-                ));
-            }
-        }
+        return "# Notes\n\nNo notes yet.\n\n".to_string();
     }
 
-    content
+    // Group notes by category using functional approach
+    let notes_by_category: std::collections::HashMap<_, Vec<_>> =
+        notes
+            .iter()
+            .fold(std::collections::HashMap::new(), |mut acc, note| {
+                acc.entry(&note.category).or_default().push(note);
+                acc
+            });
+
+    let notes_content = notes_by_category
+        .iter()
+        .map(|(category, category_notes)| {
+            let category_notes_content = category_notes
+                .iter()
+                .map(|note| {
+                    format!(
+                        "### Note: {}\n{}\n\n*Created: {}*\n\n",
+                        note.id,
+                        note.content,
+                        format_timestamp(&note.created_at)
+                    )
+                })
+                .collect::<String>();
+
+            format!(
+                "## {}\n{}",
+                format_note_category(category),
+                category_notes_content
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    format!("# Notes\n\n{}", notes_content)
 }
 
 /// Format a note category for display
@@ -276,111 +249,94 @@ pub fn render_spec_context(
     task_list: &TaskList,
     notes: &[crate::models::Note],
 ) -> String {
-    let mut content = String::new();
-
-    // Project header
-    content.push_str(&format!("# Project: {}\n\n", project.name));
-    content.push_str(&format!("**Description:** {}\n\n", project.description));
-    content.push_str(&format!(
-        "**Created:** {} | **Updated:** {}\n\n",
+    let project_header = format!(
+        "# Project: {}\n\n**Description:** {}\n\n**Created:** {} | **Updated:** {}\n\n",
+        project.name,
+        project.description,
         format_timestamp(&project.created_at),
         format_timestamp(&project.updated_at)
-    ));
+    );
 
-    // Specification header
-    content.push_str(&format!("## Specification: {}\n", spec.name));
-    content.push_str(&format!(
-        "**Status:** {} | **ID:** {}\n\n",
+    let spec_header = format!(
+        "## Specification: {}\n**Status:** {} | **ID:** {}\n\n",
+        spec.name,
         format_spec_status(&spec.status),
         spec.id
-    ));
+    );
 
-    if !spec.description.is_empty() {
-        content.push_str(&format!("**Description:** {}\n\n", spec.description));
-    }
+    let spec_description = if spec.description.is_empty() {
+        String::new()
+    } else {
+        format!("**Description:** {}\n\n", spec.description)
+    };
 
-    content.push_str(&format!(
+    let spec_timestamps = format!(
         "**Created:** {} | **Updated:** {}\n\n",
         format_timestamp(&spec.created_at),
         format_timestamp(&spec.updated_at)
-    ));
+    );
 
-    // Specification content
-    if !spec.content.is_empty() {
-        content.push_str("## Specification Content\n\n");
-        content.push_str(&spec.content);
-        content.push_str("\n\n");
-    }
+    let spec_content = if spec.content.is_empty() {
+        String::new()
+    } else {
+        format!("## Specification Content\n\n{}\n\n", spec.content)
+    };
 
-    // Tech stack summary
-    content.push_str("## Technology Stack Summary\n");
-    let tech_summary = render_tech_stack_summary(&project.tech_stack);
-    content.push_str(&tech_summary);
-    content.push('\n');
+    let tech_summary = format!(
+        "## Technology Stack Summary\n{}\n",
+        render_tech_stack_summary(&project.tech_stack)
+    );
 
-    // Vision summary
-    content.push_str("## Project Vision Summary\n");
-    let vision_summary = render_vision_summary(&project.vision);
-    content.push_str(&vision_summary);
-    content.push('\n');
+    let vision_summary = format!(
+        "## Project Vision Summary\n{}\n",
+        render_vision_summary(&project.vision)
+    );
 
-    // Task list
-    content.push_str("## Current Tasks\n");
-    let task_content = render_task_list(task_list);
-    content.push_str(&task_content);
-    content.push('\n');
+    let task_content = format!("## Current Tasks\n{}\n", render_task_list(task_list));
 
-    // Notes
     let notes_content = render_notes(notes);
-    content.push_str(&notes_content);
 
-    content
+    format!(
+        "{}{}{}{}{}{}{}{}{}",
+        project_header,
+        spec_header,
+        spec_description,
+        spec_timestamps,
+        spec_content,
+        tech_summary,
+        vision_summary,
+        task_content,
+        notes_content
+    )
 }
 
 /// Render a condensed tech stack summary
 fn render_tech_stack_summary(tech_stack: &TechStack) -> String {
-    let mut summary = String::new();
+    let sections = [
+        ("Languages", &tech_stack.languages),
+        ("Frameworks", &tech_stack.frameworks),
+        ("Databases", &tech_stack.databases),
+    ];
 
-    if !tech_stack.languages.is_empty() {
-        summary.push_str(&format!(
-            "**Languages:** {}\n",
-            tech_stack.languages.join(", ")
-        ));
-    }
-
-    if !tech_stack.frameworks.is_empty() {
-        summary.push_str(&format!(
-            "**Frameworks:** {}\n",
-            tech_stack.frameworks.join(", ")
-        ));
-    }
-
-    if !tech_stack.databases.is_empty() {
-        summary.push_str(&format!(
-            "**Databases:** {}\n",
-            tech_stack.databases.join(", ")
-        ));
-    }
-
-    summary
+    sections
+        .iter()
+        .filter(|(_, items)| !items.is_empty())
+        .map(|(title, items)| format!("**{}:** {}\n", title, items.join(", ")))
+        .collect::<String>()
 }
 
 /// Render a condensed vision summary
 fn render_vision_summary(vision: &Vision) -> String {
-    let mut summary = String::new();
+    let sections = [
+        ("Goals", &vision.goals),
+        ("Target Users", &vision.target_users),
+    ];
 
-    if !vision.goals.is_empty() {
-        summary.push_str(&format!("**Goals:** {}\n", vision.goals.join(", ")));
-    }
-
-    if !vision.target_users.is_empty() {
-        summary.push_str(&format!(
-            "**Target Users:** {}\n",
-            vision.target_users.join(", ")
-        ));
-    }
-
-    summary
+    sections
+        .iter()
+        .filter(|(_, items)| !items.is_empty())
+        .map(|(title, items)| format!("**{}:** {}\n", title, items.join(", ")))
+        .collect::<String>()
 }
 
 #[cfg(test)]

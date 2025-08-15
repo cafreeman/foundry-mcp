@@ -62,13 +62,11 @@ pub fn validate_spec_name(spec_name: &str) -> Result<(), String> {
     let invalid_chars: HashSet<char> = ['/', '\\', ':', '*', '?', '"', '<', '>', '|']
         .into_iter()
         .collect();
-    for c in spec_name.chars() {
-        if invalid_chars.contains(&c) {
-            return Err(format!(
-                "Specification name contains invalid character: '{}'",
-                c
-            ));
-        }
+    if let Some(invalid_char) = spec_name.chars().find(|c| invalid_chars.contains(c)) {
+        return Err(format!(
+            "Specification name contains invalid character: '{}'",
+            invalid_char
+        ));
     }
 
     // Check for reserved names
@@ -105,10 +103,11 @@ pub fn validate_project_name(project_name: &str) -> Result<(), String> {
     let invalid_chars: HashSet<char> = ['/', '\\', ':', '*', '?', '"', '<', '>', '|']
         .into_iter()
         .collect();
-    for c in project_name.chars() {
-        if invalid_chars.contains(&c) {
-            return Err(format!("Project name contains invalid character: '{}'", c));
-        }
+    if let Some(invalid_char) = project_name.chars().find(|c| invalid_chars.contains(c)) {
+        return Err(format!(
+            "Project name contains invalid character: '{}'",
+            invalid_char
+        ));
     }
 
     // Check for reserved names
@@ -157,14 +156,14 @@ pub fn validate_spec_id(spec_id: &str) -> Result<(), String> {
         .map_err(|_| "Invalid month in date")?;
     let day: u32 = date_part[6..8].parse().map_err(|_| "Invalid day in date")?;
 
-        if !(2020..=2100).contains(&year) {
+    if !(2020..=2100).contains(&year) {
         return Err("Year must be between 2020 and 2100".to_string());
     }
-    
+
     if !(1..=12).contains(&month) {
         return Err("Month must be between 1 and 12".to_string());
     }
-    
+
     if !(1..=31).contains(&day) {
         return Err("Day must be between 1 and 31".to_string());
     }

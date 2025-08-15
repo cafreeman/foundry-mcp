@@ -106,59 +106,68 @@ impl FileSystemManager {
     pub fn list_projects(&self) -> Result<Vec<String>> {
         self.ensure_base_dir()?;
 
-        let mut projects = Vec::new();
-
-        if self.base_dir.exists() {
-            for entry in fs::read_dir(&self.base_dir)
-                .with_context(|| format!("Failed to read base directory: {:?}", self.base_dir))?
-            {
-                let entry = entry?;
-                let path = entry.path();
-
-                if path.is_dir()
-                    && !path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .starts_with('.')
-                    && let Some(name) = path.file_name()
-                {
-                    projects.push(name.to_string_lossy().to_string());
-                }
-            }
+        if !self.base_dir.exists() {
+            return Ok(Vec::new());
         }
 
-        projects.sort();
-        Ok(projects)
+        let projects = fs::read_dir(&self.base_dir)
+            .with_context(|| format!("Failed to read base directory: {:?}", self.base_dir))?
+            .filter_map(|entry| {
+                entry.ok().and_then(|entry| {
+                    let path = entry.path();
+                    if path.is_dir()
+                        && !path
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .starts_with('.')
+                        && let Some(name) = path.file_name()
+                    {
+                        Some(name.to_string_lossy().to_string())
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let mut sorted_projects = projects;
+        sorted_projects.sort();
+        Ok(sorted_projects)
     }
 
     /// List all specifications for a project
     pub fn list_specs(&self, project_name: &str) -> Result<Vec<String>> {
         let specs_path = self.specs_dir(project_name);
-        let mut specs = Vec::new();
 
-        if specs_path.exists() {
-            for entry in fs::read_dir(&specs_path)
-                .with_context(|| format!("Failed to read specs directory: {:?}", specs_path))?
-            {
-                let entry = entry?;
-                let path = entry.path();
-
-                if path.is_dir()
-                    && !path
-                        .file_name()
-                        .unwrap_or_default()
-                        .to_string_lossy()
-                        .starts_with('.')
-                    && let Some(name) = path.file_name()
-                {
-                    specs.push(name.to_string_lossy().to_string());
-                }
-            }
+        if !specs_path.exists() {
+            return Ok(Vec::new());
         }
 
-        specs.sort();
-        Ok(specs)
+        let specs = fs::read_dir(&specs_path)
+            .with_context(|| format!("Failed to read specs directory: {:?}", specs_path))?
+            .filter_map(|entry| {
+                entry.ok().and_then(|entry| {
+                    let path = entry.path();
+                    if path.is_dir()
+                        && !path
+                            .file_name()
+                            .unwrap_or_default()
+                            .to_string_lossy()
+                            .starts_with('.')
+                        && let Some(name) = path.file_name()
+                    {
+                        Some(name.to_string_lossy().to_string())
+                    } else {
+                        None
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let mut sorted_specs = specs;
+        sorted_specs.sort();
+        Ok(sorted_specs)
     }
 
     /// Write content to a file with atomic operation and backup
@@ -273,14 +282,13 @@ impl FileSystemManager {
         let current_time = SystemTime::now();
         let max_age = std::time::Duration::from_secs(max_age_seconds);
 
-        self.cleanup_directory(&self.base_dir, current_time, max_age)?;
+        Self::cleanup_directory(&self.base_dir, current_time, max_age)?;
 
         Ok(())
     }
 
     /// Recursively clean up old temporary and backup files
     fn cleanup_directory(
-        &self,
         dir_path: &Path,
         current_time: SystemTime,
         max_age: std::time::Duration,
@@ -294,7 +302,7 @@ impl FileSystemManager {
             let path = entry.path();
 
             if path.is_dir() {
-                self.cleanup_directory(&path, current_time, max_age)?;
+                Self::cleanup_directory(&path, current_time, max_age)?;
             } else if path.is_file() {
                 let file_name = path.file_name().unwrap_or_default().to_string_lossy();
 

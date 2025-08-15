@@ -48,66 +48,95 @@ pub fn validate_tech_stack(tech_stack: &TechStack) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
 
     // Validate languages
-    for (i, language) in tech_stack.languages.iter().enumerate() {
-        if language.trim().is_empty() {
-            errors.push(format!("Language {} cannot be empty", i + 1));
-        }
-        if language.len() > 50 {
-            errors.push(format!(
-                "Language '{}' cannot exceed 50 characters",
-                language
-            ));
-        }
-    }
+    errors.extend(
+        tech_stack
+            .languages
+            .iter()
+            .enumerate()
+            .filter_map(|(i, language)| {
+                if language.trim().is_empty() {
+                    Some(format!("Language {} cannot be empty", i + 1))
+                } else if language.len() > 50 {
+                    Some(format!(
+                        "Language '{}' cannot exceed 50 characters",
+                        language
+                    ))
+                } else {
+                    None
+                }
+            }),
+    );
 
     // Validate frameworks
-    for (i, framework) in tech_stack.frameworks.iter().enumerate() {
-        if framework.trim().is_empty() {
-            errors.push(format!("Framework {} cannot be empty", i + 1));
-        }
-        if framework.len() > 100 {
-            errors.push(format!(
-                "Framework '{}' cannot exceed 100 characters",
-                framework
-            ));
-        }
-    }
+    errors.extend(
+        tech_stack
+            .frameworks
+            .iter()
+            .enumerate()
+            .filter_map(|(i, framework)| {
+                if framework.trim().is_empty() {
+                    Some(format!("Framework {} cannot be empty", i + 1))
+                } else if framework.len() > 100 {
+                    Some(format!(
+                        "Framework '{}' cannot exceed 100 characters",
+                        framework
+                    ))
+                } else {
+                    None
+                }
+            }),
+    );
 
     // Validate databases
-    for (i, database) in tech_stack.databases.iter().enumerate() {
-        if database.trim().is_empty() {
-            errors.push(format!("Database {} cannot be empty", i + 1));
-        }
-        if database.len() > 100 {
-            errors.push(format!(
-                "Database '{}' cannot exceed 100 characters",
-                database
-            ));
-        }
-    }
+    errors.extend(
+        tech_stack
+            .databases
+            .iter()
+            .enumerate()
+            .filter_map(|(i, database)| {
+                if database.trim().is_empty() {
+                    Some(format!("Database {} cannot be empty", i + 1))
+                } else if database.len() > 100 {
+                    Some(format!(
+                        "Database '{}' cannot exceed 100 characters",
+                        database
+                    ))
+                } else {
+                    None
+                }
+            }),
+    );
 
     // Validate tools
-    for (i, tool) in tech_stack.tools.iter().enumerate() {
+    errors.extend(tech_stack.tools.iter().enumerate().filter_map(|(i, tool)| {
         if tool.trim().is_empty() {
-            errors.push(format!("Tool {} cannot be empty", i + 1));
+            Some(format!("Tool {} cannot be empty", i + 1))
+        } else if tool.len() > 100 {
+            Some(format!("Tool '{}' cannot exceed 100 characters", tool))
+        } else {
+            None
         }
-        if tool.len() > 100 {
-            errors.push(format!("Tool '{}' cannot exceed 100 characters", tool));
-        }
-    }
+    }));
 
     // Validate deployment
-    for (i, deployment) in tech_stack.deployment.iter().enumerate() {
-        if deployment.trim().is_empty() {
-            errors.push(format!("Deployment {} cannot be empty", i + 1));
-        }
-        if deployment.len() > 100 {
-            errors.push(format!(
-                "Deployment '{}' cannot exceed 100 characters",
-                deployment
-            ));
-        }
-    }
+    errors.extend(
+        tech_stack
+            .deployment
+            .iter()
+            .enumerate()
+            .filter_map(|(i, deployment)| {
+                if deployment.trim().is_empty() {
+                    Some(format!("Deployment {} cannot be empty", i + 1))
+                } else if deployment.len() > 100 {
+                    Some(format!(
+                        "Deployment '{}' cannot exceed 100 characters",
+                        deployment
+                    ))
+                } else {
+                    None
+                }
+            }),
+    );
 
     if errors.is_empty() {
         Ok(())
@@ -134,48 +163,63 @@ pub fn validate_vision(vision: &Vision) -> Result<(), Vec<String>> {
         errors.push("At least one goal must be specified".to_string());
     }
 
-    for (i, goal) in vision.goals.iter().enumerate() {
+    errors.extend(vision.goals.iter().enumerate().filter_map(|(i, goal)| {
         if goal.trim().is_empty() {
-            errors.push(format!("Goal {} cannot be empty", i + 1));
+            Some(format!("Goal {} cannot be empty", i + 1))
+        } else if goal.len() > 500 {
+            Some(format!("Goal '{}' cannot exceed 500 characters", goal))
+        } else {
+            None
         }
-        if goal.len() > 500 {
-            errors.push(format!("Goal '{}' cannot exceed 500 characters", goal));
-        }
-    }
+    }));
 
     // Validate target users
     if vision.target_users.is_empty() {
         errors.push("At least one target user must be specified".to_string());
     }
 
-    for (i, user) in vision.target_users.iter().enumerate() {
-        if user.trim().is_empty() {
-            errors.push(format!("Target user {} cannot be empty", i + 1));
-        }
-        if user.len() > 200 {
-            errors.push(format!(
-                "Target user '{}' cannot exceed 200 characters",
-                user
-            ));
-        }
-    }
+    errors.extend(
+        vision
+            .target_users
+            .iter()
+            .enumerate()
+            .filter_map(|(i, user)| {
+                if user.trim().is_empty() {
+                    Some(format!("Target user {} cannot be empty", i + 1))
+                } else if user.len() > 200 {
+                    Some(format!(
+                        "Target user '{}' cannot exceed 200 characters",
+                        user
+                    ))
+                } else {
+                    None
+                }
+            }),
+    );
 
     // Validate success criteria
     if vision.success_criteria.is_empty() {
         errors.push("At least one success criterion must be specified".to_string());
     }
 
-    for (i, criterion) in vision.success_criteria.iter().enumerate() {
-        if criterion.trim().is_empty() {
-            errors.push(format!("Success criterion {} cannot be empty", i + 1));
-        }
-        if criterion.len() > 500 {
-            errors.push(format!(
-                "Success criterion '{}' cannot exceed 500 characters",
-                criterion
-            ));
-        }
-    }
+    errors.extend(
+        vision
+            .success_criteria
+            .iter()
+            .enumerate()
+            .filter_map(|(i, criterion)| {
+                if criterion.trim().is_empty() {
+                    Some(format!("Success criterion {} cannot be empty", i + 1))
+                } else if criterion.len() > 500 {
+                    Some(format!(
+                        "Success criterion '{}' cannot exceed 500 characters",
+                        criterion
+                    ))
+                } else {
+                    None
+                }
+            }),
+    );
 
     if errors.is_empty() {
         Ok(())
@@ -261,17 +305,23 @@ pub fn validate_task(task: &Task) -> Result<(), Vec<String>> {
     }
 
     // Validate dependencies
-    for (i, dependency) in task.dependencies.iter().enumerate() {
-        if dependency.trim().is_empty() {
-            errors.push(format!("Dependency {} cannot be empty", i + 1));
-        }
-        if dependency.len() > 100 {
-            errors.push(format!(
-                "Dependency '{}' cannot exceed 100 characters",
-                dependency
-            ));
-        }
-    }
+    errors.extend(
+        task.dependencies
+            .iter()
+            .enumerate()
+            .filter_map(|(i, dependency)| {
+                if dependency.trim().is_empty() {
+                    Some(format!("Dependency {} cannot be empty", i + 1))
+                } else if dependency.len() > 100 {
+                    Some(format!(
+                        "Dependency '{}' cannot exceed 100 characters",
+                        dependency
+                    ))
+                } else {
+                    None
+                }
+            }),
+    );
 
     if errors.is_empty() {
         Ok(())
@@ -285,13 +335,16 @@ pub fn validate_task_list(task_list: &TaskList) -> Result<(), Vec<String>> {
     let mut errors = Vec::new();
 
     // Validate tasks
-    for (i, task) in task_list.tasks.iter().enumerate() {
-        if let Err(task_errors) = validate_task(task) {
-            for task_error in task_errors {
-                errors.push(format!("Task {}: {}", i + 1, task_error));
-            }
-        }
-    }
+    errors.extend(task_list.tasks.iter().enumerate().flat_map(|(i, task)| {
+        validate_task(task)
+            .map(|_| Vec::<String>::new())
+            .unwrap_or_else(|task_errors| {
+                task_errors
+                    .into_iter()
+                    .map(|task_error| format!("Task {}: {}", i + 1, task_error))
+                    .collect::<Vec<_>>()
+            })
+    }));
 
     // Validate last updated timestamp
     let now = Utc::now();
@@ -349,13 +402,17 @@ pub fn validate_file_path_safety(path: &str) -> Result<(), String> {
 
     // Check for other potentially dangerous patterns
     let dangerous_patterns = ["/etc/", "/var/", "/usr/", "/bin/", "/sbin/", "C:\\", "D:\\"];
-    for pattern in &dangerous_patterns {
-        if path.to_lowercase().contains(pattern) {
-            return Err(format!(
-                "Path contains potentially dangerous pattern: {}",
-                pattern
-            ));
-        }
+    if dangerous_patterns
+        .iter()
+        .any(|pattern| path.to_lowercase().contains(pattern))
+    {
+        return Err(format!(
+            "Path contains potentially dangerous pattern: {}",
+            dangerous_patterns
+                .iter()
+                .find(|pattern| path.to_lowercase().contains(*pattern))
+                .unwrap()
+        ));
     }
 
     Ok(())
