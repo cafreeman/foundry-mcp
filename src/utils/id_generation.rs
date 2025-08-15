@@ -157,15 +157,15 @@ pub fn validate_spec_id(spec_id: &str) -> Result<(), String> {
         .map_err(|_| "Invalid month in date")?;
     let day: u32 = date_part[6..8].parse().map_err(|_| "Invalid day in date")?;
 
-    if year < 2020 || year > 2100 {
+        if !(2020..=2100).contains(&year) {
         return Err("Year must be between 2020 and 2100".to_string());
     }
-
-    if month < 1 || month > 12 {
+    
+    if !(1..=12).contains(&month) {
         return Err("Month must be between 1 and 12".to_string());
     }
-
-    if day < 1 || day > 31 {
+    
+    if !(1..=31).contains(&day) {
         return Err("Day must be between 1 and 31".to_string());
     }
 

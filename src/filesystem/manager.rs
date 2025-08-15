@@ -121,10 +121,9 @@ impl FileSystemManager {
                         .unwrap_or_default()
                         .to_string_lossy()
                         .starts_with('.')
+                    && let Some(name) = path.file_name()
                 {
-                    if let Some(name) = path.file_name() {
-                        projects.push(name.to_string_lossy().to_string());
-                    }
+                    projects.push(name.to_string_lossy().to_string());
                 }
             }
         }
@@ -151,10 +150,9 @@ impl FileSystemManager {
                         .unwrap_or_default()
                         .to_string_lossy()
                         .starts_with('.')
+                    && let Some(name) = path.file_name()
                 {
-                    if let Some(name) = path.file_name() {
-                        specs.push(name.to_string_lossy().to_string());
-                    }
+                    specs.push(name.to_string_lossy().to_string());
                 }
             }
         }
@@ -301,18 +299,14 @@ impl FileSystemManager {
                 let file_name = path.file_name().unwrap_or_default().to_string_lossy();
 
                 // Check if it's a temp or backup file
-                if file_name.contains(".tmp.") || file_name.contains(".backup.") {
-                    if let Ok(metadata) = fs::metadata(&path) {
-                        if let Ok(modified) = metadata.modified() {
-                            if let Ok(age) = current_time.duration_since(modified) {
-                                if age > max_age {
-                                    fs::remove_file(&path).with_context(|| {
-                                        format!("Failed to remove old file: {:?}", path)
-                                    })?;
-                                }
-                            }
-                        }
-                    }
+                if (file_name.contains(".tmp.") || file_name.contains(".backup."))
+                    && let Ok(metadata) = fs::metadata(&path)
+                    && let Ok(modified) = metadata.modified()
+                    && let Ok(age) = current_time.duration_since(modified)
+                    && age > max_age
+                {
+                    fs::remove_file(&path)
+                        .with_context(|| format!("Failed to remove old file: {:?}", path))?;
                 }
             }
         }

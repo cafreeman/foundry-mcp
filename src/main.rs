@@ -1,5 +1,5 @@
 use project_manager_mcp::ProjectManagerHandler;
-use tracing_subscriber;
+
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -9,3 +9,9 @@ impl ProjectManagerHandler {
         Self
     }
 }
+
+impl Default for ProjectManagerHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
