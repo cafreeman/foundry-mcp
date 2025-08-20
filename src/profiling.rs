@@ -178,6 +178,7 @@ pub struct OperationTimer {
     operation_name: String,
     start_time: Instant,
     enabled: bool,
+    finished: bool,
 }
 
 impl OperationTimer {
@@ -187,14 +188,16 @@ impl OperationTimer {
             operation_name,
             start_time: Instant::now(),
             enabled,
+            finished: false,
         }
     }
 
     /// Finish timing and record the result
-    pub fn finish(self) {
-        if self.enabled {
+    pub fn finish(mut self) {
+        if self.enabled && !self.finished {
             let duration = self.start_time.elapsed();
             self.profiler.record_operation(&self.operation_name, duration);
+            self.finished = true;
         }
     }
 
@@ -206,7 +209,7 @@ impl OperationTimer {
 
 impl Drop for OperationTimer {
     fn drop(&mut self) {
-        if self.enabled {
+        if self.enabled && !self.finished {
             let duration = self.start_time.elapsed();
             self.profiler.record_operation(&self.operation_name, duration);
         }
