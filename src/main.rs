@@ -25,7 +25,12 @@ async fn main() -> Result<()> {
 
     // Handle the command or default to serve mode
     let result = match cli.command {
-        Some(Commands::Serve(args)) => serve::run_server(args).await,
+        Some(Commands::Serve(ref args)) => {
+            // Log serve command configuration for visibility
+            info!("Starting serve command with configuration:");
+            info!("  - Log format preference: {}", args.log_format);
+            serve::run_server(args.clone()).await
+        }
         
         Some(Commands::Install(args)) => install::run_install(args).await,
         

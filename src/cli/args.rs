@@ -142,7 +142,7 @@ pub enum ConfigAction {
     Reset,
 }
 
-#[derive(Parser)]
+#[derive(Parser, Clone)]
 pub struct ServeArgs {
     /// Port for HTTP transport (future use)
     #[arg(long, default_value = "3000")]

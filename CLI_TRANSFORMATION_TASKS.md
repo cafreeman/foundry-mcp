@@ -87,25 +87,25 @@ When adding new dependencies, prefer well-maintained crates:
 ## Phase 3: MCP Server Mode (Serve Command)
 
 ### Task 3.1: Implement Serve Command Handler
-- [ ] Implement `serve.rs` with async `run()` function
-- [ ] Accept all existing MCP server functionality via CLI args
-- [ ] Add `--port` option for future HTTP transport support
-- [ ] Add `--transport` option (stdio as default)
-- [ ] Maintain stdio transport as default for backward compatibility
+- [x] Implement `serve.rs` with async `run()` function
+- [x] Accept all existing MCP server functionality via CLI args
+- [x] Add `--port` option for future HTTP transport support
+- [x] Add `--transport` option (stdio as default)
+- [x] Maintain stdio transport as default for backward compatibility
 
 ### Task 3.2: Add Server Configuration Options
-- [ ] Add `--host` option for future HTTP mode
-- [ ] Add `--max-connections` option with reasonable default
-- [ ] Add `--timeout` option for tool execution timeouts
-- [ ] Add `--backup-retention-days` option (default: 7)
-- [ ] Ensure all options are properly validated
+- [x] Add `--host` option for future HTTP mode
+- [x] Add `--max-connections` option with reasonable default
+- [x] Add `--timeout` option for tool execution timeouts
+- [x] Add `--backup-retention-days` option (default: 7)
+- [x] Ensure all options are properly validated
 
 ### Task 3.3: Enhance Server Logging and Startup
-- [ ] Use CLI-configured log level in server mode
-- [ ] Add `--log-format` option (json, pretty, compact)
-- [ ] Display server startup information when in verbose mode
-- [ ] Add graceful shutdown handling with SIGINT/SIGTERM
-- [ ] Test server starts and stops cleanly
+- [x] Use CLI-configured log level in server mode
+- [x] Add `--log-format` option (json, pretty, compact)
+- [x] Display server startup information when in verbose mode
+- [x] Add graceful shutdown handling with SIGINT/SIGTERM
+- [x] Test server starts and stops cleanly
 
 ## Phase 4: Install Command Implementation
 
