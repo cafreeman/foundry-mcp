@@ -173,6 +173,20 @@ pub struct ServeArgs {
     pub log_format: String,
 }
 
+impl Default for ServeArgs {
+    fn default() -> Self {
+        Self {
+            port: 3000,
+            transport: "stdio".to_string(),
+            host: "localhost".to_string(),
+            max_connections: 10,
+            timeout: 300,
+            backup_retention_days: 7,
+            log_format: "pretty".to_string(),
+        }
+    }
+}
+
 #[derive(Parser)]
 pub struct InstallArgs {
     /// Client to install for (cursor, claude-desktop)

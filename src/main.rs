@@ -1,88 +1,153 @@
-//! Project Manager MCP Server
+//! Project Manager MCP CLI
 //!
-//! A Model Context Protocol server for managing software projects with specifications,
-//! tasks, and notes.
+//! A CLI tool for project management with MCP server capabilities.
+//! Provides project management commands and can run as an MCP server.
 
-use project_manager_mcp::errors::{ProjectManagerError, Result};
-use project_manager_mcp::handlers::ProjectManagerHandler;
-use rust_mcp_sdk::schema::{
-    Implementation, InitializeResult, LATEST_PROTOCOL_VERSION, ServerCapabilities,
-    ServerCapabilitiesTools,
-};
-use rust_mcp_sdk::{
-    McpServer, StdioTransport, TransportOptions,
-    mcp_server::{ServerRuntime, server_runtime},
-};
+use clap::Parser;
+use project_manager_mcp::cli::{Cli, Commands};
+use project_manager_mcp::cli::commands::{serve, install, project};
+use project_manager_mcp::cli::args::ServeArgs;
+use project_manager_mcp::cli::config::CliConfig;
+use project_manager_mcp::errors::Result;
+use std::env;
 use tracing::{Level, error, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Set up logging
-    let _subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
-        .with_target(false)
-        .with_thread_ids(true)
-        .with_thread_names(true)
-        .with_file(true)
-        .with_line_number(true)
-        .init();
+    let cli = Cli::parse();
 
-    info!("Starting Project Manager MCP Server...");
+    // Load configuration with precedence: CLI > env vars > config file > defaults
+    let config = load_configuration(&cli)?;
 
-    // STEP 1: Define server details and capabilities
-    let server_details = InitializeResult {
-        // server name and version
-        server_info: Implementation {
-            name: "Project Manager MCP Server".to_string(),
-            version: "0.1.0".to_string(),
-            title: Some("Project Manager MCP Server".to_string()),
-        },
-        capabilities: ServerCapabilities {
-            // indicates that server support mcp tools
-            tools: Some(ServerCapabilitiesTools { list_changed: None }),
-            // indicates that server support mcp prompts
-            prompts: Some(Default::default()),
-            ..Default::default() // Using default values for other fields
-        },
-        meta: None,
-        instructions: Some(
-            "Project and specification management for AI coding assistants".to_string(),
-        ),
-        protocol_version: LATEST_PROTOCOL_VERSION.to_string(),
+    // Set up logging based on global options and configuration
+    setup_logging(&cli, &config);
+
+    // Handle the command or default to serve mode
+    let result = match cli.command {
+        Some(Commands::Serve(args)) => serve::run_server(args).await,
+        
+        Some(Commands::Install(args)) => install::run_install(args).await,
+        
+        Some(Commands::CreateProject(args)) => project::create_project(args).await,
+        
+        Some(Commands::ListProjects) => project::list_projects().await,
+        
+        Some(Commands::ClearProjects { force, project, backup }) => {
+            project::clear_projects(force, project, backup).await
+        }
+        
+        Some(Commands::ShowProject { name, format }) => {
+            project::show_project(name, format).await
+        }
+        
+        Some(Commands::ListSpecs { project, detailed, json }) => {
+            project::list_specs(project, detailed, json).await
+        }
+        
+        Some(Commands::ShowSpec { project, spec_id, tasks_only, notes_only, format }) => {
+            project::show_spec(project, spec_id, tasks_only, notes_only, format).await
+        }
+        
+        Some(Commands::Export { project, spec, format, output_dir }) => {
+            project::export_data(project, spec, format, output_dir).await
+        }
+        
+        Some(Commands::Import { file, merge }) => {
+            project::import_data(file, merge).await
+        }
+        
+        Some(Commands::Config { action }) => {
+            project::handle_config(action).await
+        }
+        
+        Some(Commands::Status { verbose }) => {
+            project::show_status(verbose).await
+        }
+        
+        Some(Commands::Doctor { fix }) => {
+            project::run_doctor(fix).await
+        }
+        
+        Some(Commands::Completions { shell }) => {
+            project::generate_completions(shell).await
+        }
+        
+        // Default behavior: run serve mode when no subcommand is provided
+        None => {
+            info!("No subcommand provided, starting MCP server mode");
+            serve::run_server(ServeArgs::default()).await
+        }
     };
 
-    // STEP 2: create a std transport with default options
-    let transport = StdioTransport::new(TransportOptions::default()).map_err(|e| {
-        ProjectManagerError::mcp_protocol_error("create transport", &e.to_string(), None)
-    })?;
+    if let Err(e) = result {
+        error!("Command failed: {}", e);
+        if cli.verbose {
+            error!("Debug info: {:?}", e);
+        }
+        std::process::exit(1);
+    }
 
-    // STEP 3: instantiate our custom handler for handling MCP messages
-    let handler = ProjectManagerHandler::new()?;
-
-    // STEP 4: create a MCP server
-    let server: ServerRuntime = server_runtime::create_server(server_details, transport, handler);
-
-    info!("Project Manager MCP Server initialized successfully");
-    info!("Handler created with the following capabilities:");
-    info!("  - setup_project: Create new projects with tech stack and vision");
-    info!("  - create_spec: Create new specifications for projects");
-    info!("  - load_spec: Load specifications with full context");
-    info!("  - update_spec: Update specifications, tasks, and notes");
-    info!("  - execute_task: Generate task execution prompts");
-
-    // STEP 5: Start the server
-    info!("Starting MCP server with stdio transport...");
-    if let Err(start_error) = server.start().await {
-        error!("Failed to start MCP server: {}", start_error);
-        eprintln!(
-            "{}",
-            start_error
-                .rpc_error_message()
-                .unwrap_or(&start_error.to_string())
-        );
-    };
-
-    info!("Shutting down Project Manager MCP Server");
     Ok(())
+}
+
+fn load_configuration(cli: &Cli) -> Result<CliConfig> {
+    // Start with default configuration
+    let mut config = CliConfig::default();
+
+    // Try to load from config file (if it exists)
+    if let Ok(file_config) = CliConfig::load() {
+        config = file_config;
+    }
+
+    // Override with environment variables
+    if let Ok(env_log_level) = env::var("LOG_LEVEL") {
+        if let Err(e) = config.set("log_level", &env_log_level) {
+            error!("Invalid LOG_LEVEL environment variable: {}", e);
+        }
+    }
+
+    // Override with CLI arguments (highest priority)
+    if let Some(ref log_level) = cli.log_level {
+        if let Err(e) = config.set("log_level", log_level) {
+            error!("Invalid log level from CLI: {}", e);
+        }
+    }
+
+    // Handle config directory override
+    if cli.config_dir.is_some() {
+        info!("Custom config directory specified: {:?}", cli.config_dir);
+        // Note: This would require modifying CliConfig to accept custom paths
+        // For now, we'll just log it
+    }
+
+    Ok(config)
+}
+
+fn setup_logging(cli: &Cli, config: &CliConfig) {
+    // Determine log level from configuration (with CLI overrides taking precedence)
+    let log_level = if cli.verbose {
+        Level::DEBUG
+    } else if cli.quiet {
+        Level::WARN
+    } else {
+        match config.log_level.to_lowercase().as_str() {
+            "trace" => Level::TRACE,
+            "debug" => Level::DEBUG,
+            "info" => Level::INFO,
+            "warn" => Level::WARN,
+            "error" => Level::ERROR,
+            _ => Level::INFO,
+        }
+    };
+
+    // Set up logging subscriber
+    FmtSubscriber::builder()
+        .with_max_level(log_level)
+        .with_target(!cli.quiet)
+        .with_thread_ids(cli.verbose)
+        .with_thread_names(cli.verbose)
+        .with_file(cli.verbose)
+        .with_line_number(cli.verbose)
+        .init();
 }

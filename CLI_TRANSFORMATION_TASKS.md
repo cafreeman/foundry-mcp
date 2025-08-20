@@ -64,25 +64,25 @@ When adding new dependencies, prefer well-maintained crates:
 ## Phase 2: Refactor Main Entry Point
 
 ### Task 2.1: Extract MCP Server Logic
-- [ ] Move current `main.rs` MCP server logic to `src/cli/commands/serve.rs`
-- [ ] Create `pub async fn run_server(args: ServeArgs) -> Result<()>` function
-- [ ] Preserve all existing MCP functionality exactly as-is
-- [ ] Add logging configuration from `ServeArgs`
-- [ ] Test that MCP server still works identically
+- [x] Move current `main.rs` MCP server logic to `src/cli/commands/serve.rs`
+- [x] Create `pub async fn run_server(args: ServeArgs) -> Result<()>` function
+- [x] Preserve all existing MCP functionality exactly as-is
+- [x] Add logging configuration from `ServeArgs`
+- [x] Test that MCP server still works identically
 
 ### Task 2.2: Implement CLI Dispatcher
-- [ ] Replace `main.rs` with CLI argument parsing using clap
-- [ ] Add command routing to appropriate handlers
-- [ ] Implement default behavior: run serve mode when no subcommand provided
-- [ ] Add global error handling for CLI parsing failures
-- [ ] Add `--version` and `--help` support
+- [x] Replace `main.rs` with CLI argument parsing using clap
+- [x] Add command routing to appropriate handlers
+- [x] Implement default behavior: run serve mode when no subcommand provided
+- [x] Add global error handling for CLI parsing failures
+- [x] Add `--version` and `--help` support
 
 ### Task 2.3: Add Global Configuration Options
-- [ ] Add global `--verbose`, `--quiet`, `--log-level` flags
-- [ ] Add `--config-dir` option for custom base directory
-- [ ] Implement configuration precedence: CLI > env vars > defaults
-- [ ] Add `LOG_LEVEL` environment variable support
-- [ ] Test logging configuration works correctly
+- [x] Add global `--verbose`, `--quiet`, `--log-level` flags
+- [x] Add `--config-dir` option for custom base directory
+- [x] Implement configuration precedence: CLI > env vars > defaults
+- [x] Add `LOG_LEVEL` environment variable support
+- [x] Test logging configuration works correctly
 
 ## Phase 3: MCP Server Mode (Serve Command)
 
@@ -409,8 +409,8 @@ When adding new dependencies, prefer well-maintained crates:
 
 ## Current Status
 
-**Phase Progress**: Phase 1 - Core CLI Infrastructure Complete ✓
+**Phase Progress**: Phase 2 - Refactor Main Entry Point Complete ✓
 
-**Next Steps**: Begin Phase 2 - Refactor Main Entry Point
+**Next Steps**: Begin Phase 3 - MCP Server Mode (Serve Command)
 
 **Publication Status**: ⚠️  **NO PUBLICATION UNTIL PHASE 11** ⚠️
