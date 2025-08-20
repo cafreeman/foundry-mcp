@@ -1,6 +1,15 @@
 # Project Manager MCP - Installation Guide
 
-This guide walks you through installing and configuring the Project Manager MCP server for use with AI coding assistants.
+This guide walks you through installing and configuring the Project Manager MCP for use as both a CLI tool and MCP server for AI coding assistants.
+
+## 🆕 CLI Mode Available
+
+Project Manager MCP now includes a comprehensive command-line interface in addition to its MCP server capabilities:
+
+- **CLI Mode**: Direct project management, client configuration, and system administration
+- **MCP Server Mode**: Traditional MCP server for AI assistant integration (default when no command provided)
+
+Both modes are **100% backward compatible** with existing installations.
 
 ## Prerequisites
 
@@ -31,7 +40,14 @@ This guide walks you through installing and configuring the Project Manager MCP 
 
 3. **Verify installation:**
    ```bash
+   # Check version
    project-manager-mcp --version
+   
+   # Test CLI mode
+   project-manager-mcp --help
+   
+   # Test MCP server mode (Ctrl+C to exit)
+   project-manager-mcp serve --verbose
    ```
 
 ### Method 2: Install from Crates.io
@@ -53,9 +69,23 @@ cargo install project-manager-mcp
    # Move to a directory in your PATH
    ```
 
-## MCP Client Configuration
+## Quick Setup with CLI
 
-The Project Manager MCP server works with any MCP-compatible AI coding assistant. Below are configuration examples for popular clients.
+🚀 **New**: Use the built-in installation commands for automatic setup!
+
+```bash
+# Install for Cursor IDE
+project-manager-mcp install --client cursor
+
+# Install for Claude Desktop
+project-manager-mcp install --client claude-desktop
+```
+
+This automatically configures the client with the correct binary path and optimal settings.
+
+## Manual MCP Client Configuration
+
+You can also manually configure MCP clients. The Project Manager MCP server works with any MCP-compatible AI coding assistant. Below are configuration examples for popular clients.
 
 ### Claude Desktop
 
@@ -222,12 +252,23 @@ The server creates this directory structure in your home directory:
 
 3. **Test manual execution:**
    ```bash
-   project-manager-mcp
-   # Should show: "MCP server started, waiting for initialization..."
+   # Test CLI mode
+   project-manager-mcp --help
+   
+   # Test MCP server mode
+   project-manager-mcp serve --verbose
+   # Should show: "Starting Project Manager MCP Server..."
    ```
 
-4. **Check logs** (if your client supports it):
+4. **Check logs** with enhanced CLI options:
    ```bash
+   # Verbose logging
+   project-manager-mcp serve --verbose --log-level debug
+   
+   # JSON format for monitoring
+   project-manager-mcp serve --log-format json
+   
+   # Environment variable (legacy)
    LOG_LEVEL=debug project-manager-mcp
    ```
 
@@ -317,10 +358,32 @@ Download the latest release and replace your existing binary.
    rm -rf ~/.project-manager-mcp/
    ```
 
+## CLI Usage Examples
+
+Once installed, explore the CLI capabilities:
+
+```bash
+# Get help for all commands
+project-manager-mcp --help
+
+# Start MCP server with custom settings
+project-manager-mcp serve --port 3001 --log-format json --verbose
+
+# Configure clients automatically  
+project-manager-mcp install --client cursor
+project-manager-mcp install --client claude-desktop
+
+# Project management (upcoming in Phase 5)
+project-manager-mcp list-projects
+project-manager-mcp status --verbose
+project-manager-mcp doctor --fix
+```
+
 ## Getting Help
 
+- **CLI Help**: `project-manager-mcp --help` or `project-manager-mcp <command> --help`
 - **Issues**: [GitHub Issues](https://github.com/your-org/project-manager-mcp/issues)
-- **Documentation**: [README.md](./README.md)
+- **Documentation**: [README.md](./README.md) - Comprehensive CLI and MCP usage guide
 - **API Docs**: `cargo doc --open`
 
 ## Next Steps
