@@ -20,6 +20,7 @@ This task list is designed for systematic implementation by LLM agents. Follow t
 - **Cross-Platform**: Support macOS, Linux, and Windows
 - **Testing**: Write tests for new functionality
 - **Documentation**: Update help text and comments
+- **Local Development Only**: No publishing to crates.io until all phases complete and fully tested
 
 ### Dependencies Management
 
@@ -34,31 +35,31 @@ When adding new dependencies, prefer well-maintained crates:
 ## Phase 1: Core CLI Infrastructure
 
 ### Task 1.1: Add CLI Dependencies
-- [ ] Add `clap = { version = "4.4", features = ["derive"] }` to Cargo.toml
-- [ ] Add `clap_complete = "4.4"` for shell completions
-- [ ] Add `home = "0.5"` for cross-platform home directory detection
-- [ ] Add `inquire = "0.7"` for interactive prompts
-- [ ] Add `indicatif = "0.17"` for progress indicators
-- [ ] Run `cargo update` to ensure compatibility
+- [x] Add `clap = { version = "4.4", features = ["derive"] }` to Cargo.toml
+- [x] Add `clap_complete = "4.4"` for shell completions
+- [x] Add `home = "0.5"` for cross-platform home directory detection
+- [x] Add `inquire = "0.7"` for interactive prompts
+- [x] Add `indicatif = "0.17"` for progress indicators
+- [x] Run `cargo update` to ensure compatibility
 
 ### Task 1.2: Create CLI Module Structure
-- [ ] Create `src/cli/mod.rs` with module declarations
-- [ ] Create `src/cli/args.rs` for CLI argument definitions
-- [ ] Create `src/cli/config.rs` for configuration management
-- [ ] Create `src/cli/commands/mod.rs` for command implementations
-- [ ] Create `src/cli/commands/serve.rs` for MCP server mode
-- [ ] Create `src/cli/commands/install.rs` for client installation
-- [ ] Create `src/cli/commands/project.rs` for project management
-- [ ] Update `src/lib.rs` to expose CLI module
+- [x] Create `src/cli/mod.rs` with module declarations
+- [x] Create `src/cli/args.rs` for CLI argument definitions
+- [x] Create `src/cli/config.rs` for configuration management
+- [x] Create `src/cli/commands/mod.rs` for command implementations
+- [x] Create `src/cli/commands/serve.rs` for MCP server mode
+- [x] Create `src/cli/commands/install.rs` for client installation
+- [x] Create `src/cli/commands/project.rs` for project management
+- [x] Update `src/lib.rs` to expose CLI module
 
 ### Task 1.3: Define CLI Command Structure
-- [ ] Define main `Cli` struct with clap derive macros in `args.rs`
-- [ ] Define `Commands` enum with all subcommands
-- [ ] Define `ServeArgs` struct for MCP server options
-- [ ] Define `InstallArgs` struct with client selection
-- [ ] Define `ProjectArgs` struct for project management
-- [ ] Add comprehensive help text and examples for each command
-- [ ] Add version information using `clap::crate_version!()`
+- [x] Define main `Cli` struct with clap derive macros in `args.rs`
+- [x] Define `Commands` enum with all subcommands
+- [x] Define `ServeArgs` struct for MCP server options
+- [x] Define `InstallArgs` struct with client selection
+- [x] Define `ProjectArgs` struct for project management
+- [x] Add comprehensive help text and examples for each command
+- [x] Add version information using `env!("CARGO_PKG_VERSION")`
 
 ## Phase 2: Refactor Main Entry Point
 
@@ -133,8 +134,9 @@ When adding new dependencies, prefer well-maintained crates:
 
 ### Task 4.4: Add Installation Verification and Testing
 - [ ] Add `--verify` flag to test MCP server startup after installation
-- [ ] Check that `project-manager-mcp` binary is accessible in PATH
+- [ ] Check that local binary path is accessible (use `cargo build` path initially)
 - [ ] Validate generated configuration files are syntactically correct
+- [ ] Use local development binary path in generated configurations
 - [ ] Provide troubleshooting suggestions on installation failure
 - [ ] Display installation summary and next steps
 
@@ -345,6 +347,58 @@ When adding new dependencies, prefer well-maintained crates:
 
 ---
 
+## Phase 11: Local Testing and Preparation for Publication
+
+### Task 11.1: Local Installation Testing
+- [ ] Test `cargo install --path .` installation method
+- [ ] Verify install command works with locally installed binary
+- [ ] Test all CLI functionality with installed binary
+- [ ] Validate MCP client integration with installed version
+- [ ] Document local installation process for testing
+
+### Task 11.2: Pre-Publication Preparation
+- [ ] Add proper metadata to Cargo.toml (license, description, keywords, etc.)
+- [ ] Ensure all documentation is publication-ready
+- [ ] Create comprehensive README for crates.io
+- [ ] Add appropriate license file
+- [ ] Version bump and changelog preparation
+
+### Task 11.3: Publication Testing
+- [ ] Run `cargo publish --dry-run` to validate package
+- [ ] Check package contents with `cargo package --list`
+- [ ] Verify no sensitive files are included
+- [ ] Test package builds in clean environment
+- [ ] Final review of all public APIs and documentation
+
+### Task 11.4: Publication (FINAL STEP)
+- [ ] Create crates.io account and API token if needed
+- [ ] Publish with `cargo publish`
+- [ ] Verify publication on crates.io
+- [ ] Test installation from crates.io: `cargo install project-manager-mcp`
+- [ ] Update documentation with crates.io installation instructions
+
+---
+
+## Local Development Guidelines
+
+### Testing During Development
+- Use `cargo build` and test with `./target/debug/project-manager-mcp`
+- For install command testing, use full path to development binary
+- Test MCP integration with development binary path in configurations
+- Use `cargo install --path .` for local "release" testing
+
+### Binary Path Management
+- Development: `./target/debug/project-manager-mcp` or `./target/release/project-manager-mcp`
+- Local install: `~/.cargo/bin/project-manager-mcp` (from `cargo install --path .`)
+- Published install: `~/.cargo/bin/project-manager-mcp` (from `cargo install project-manager-mcp`)
+
+### Configuration Generation
+- Install command should use appropriate binary path based on installation method
+- Detect if running from development vs installed binary
+- Allow `--binary-path` override for custom installations
+
+---
+
 ## Notes for Future Development
 
 - Consider adding a web UI subcommand for browser-based project management
@@ -355,6 +409,8 @@ When adding new dependencies, prefer well-maintained crates:
 
 ## Current Status
 
-**Phase Progress**: Phase 0 - Planning Complete ✓
+**Phase Progress**: Phase 1 - Core CLI Infrastructure Complete ✓
 
-**Next Steps**: Begin Phase 1 - Core CLI Infrastructure
+**Next Steps**: Begin Phase 2 - Refactor Main Entry Point
+
+**Publication Status**: ⚠️  **NO PUBLICATION UNTIL PHASE 11** ⚠️

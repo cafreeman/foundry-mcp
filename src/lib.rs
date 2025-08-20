@@ -154,6 +154,7 @@
 //! * **Comprehensive error handling** with user-friendly messages
 
 pub mod cache;
+pub mod cli;
 pub mod errors;
 pub mod filesystem;
 pub mod handlers;
