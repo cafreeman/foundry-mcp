@@ -463,3 +463,180 @@ pub mod helpers {
         ProjectManagerError::serialization_error(operation, content, source)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_file_system_error_creation() {
+        let path = PathBuf::from("/test/path");
+        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
+        let error = ProjectManagerError::file_system_error("read file", &path, io_error);
+        
+        match error {
+            ProjectManagerError::FileSystem { operation, path: error_path, .. } => {
+                assert_eq!(operation, "read file");
+                assert_eq!(error_path, path);
+            }
+            _ => panic!("Expected FileSystem error"),
+        }
+    }
+
+    #[test]
+    fn test_serialization_error_creation() {
+        // Create a real JSON error by trying to parse invalid JSON
+        let json_result: std::result::Result<serde_json::Value, serde_json::Error> = serde_json::from_str("invalid json");
+        let json_error = json_result.unwrap_err();
+        let error = ProjectManagerError::serialization_error("parse JSON", "invalid json", json_error);
+        
+        match error {
+            ProjectManagerError::Serialization { operation, content, .. } => {
+                assert_eq!(operation, "parse JSON");
+                assert_eq!(content, "invalid json");
+            }
+            _ => panic!("Expected Serialization error"),
+        }
+    }
+
+    #[test]
+    fn test_validation_error_creation() {
+        let error = ProjectManagerError::validation_error("project_name", "invalid name", "contains spaces");
+        
+        match error {
+            ProjectManagerError::Validation { field, value, reason } => {
+                assert_eq!(field, "project_name");
+                assert_eq!(value, "invalid name");
+                assert_eq!(reason, "contains spaces");
+            }
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[test]
+    fn test_not_found_error_creation() {
+        let error = ProjectManagerError::not_found("Project", "test-project", Some("workspace"));
+        
+        match error {
+            ProjectManagerError::NotFound { resource_type, identifier, context } => {
+                assert_eq!(resource_type, "Project");
+                assert_eq!(identifier, "test-project");
+                assert_eq!(context, Some("workspace".to_string()));
+            }
+            _ => panic!("Expected NotFound error"),
+        }
+    }
+
+    #[test]
+    fn test_already_exists_error_creation() {
+        let error = ProjectManagerError::already_exists("Project", "duplicate-project", Some("workspace"));
+        
+        match error {
+            ProjectManagerError::AlreadyExists { resource_type, identifier, context } => {
+                assert_eq!(resource_type, "Project");
+                assert_eq!(identifier, "duplicate-project");
+                assert_eq!(context, Some("workspace".to_string()));
+            }
+            _ => panic!("Expected AlreadyExists error"),
+        }
+    }
+
+    #[test]
+    fn test_user_message_formatting() {
+        let path = PathBuf::from("/test/file.txt");
+        let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
+        let error = ProjectManagerError::file_system_error("read file", &path, io_error);
+        
+        let message = error.user_message();
+        assert!(message.contains("Failed to read file"));
+        assert!(message.contains("/test/file.txt"));
+    }
+
+    #[test]
+    fn test_user_message_validation_error() {
+        let error = ProjectManagerError::validation_error("project_name", "bad name", "contains invalid characters");
+        let message = error.user_message();
+        
+        assert!(message.contains("Invalid value 'bad name'"));
+        assert!(message.contains("for field 'project_name'"));
+        assert!(message.contains("contains invalid characters"));
+    }
+
+    #[test]
+    fn test_error_category() {
+        let fs_error = ProjectManagerError::file_system_error("test", &PathBuf::new(), 
+            std::io::Error::new(std::io::ErrorKind::NotFound, "test"));
+        assert_eq!(fs_error.category(), "filesystem");
+        
+        let validation_error = ProjectManagerError::validation_error("field", "value", "reason");
+        assert_eq!(validation_error.category(), "validation");
+    }
+
+    #[test]
+    fn test_is_user_facing() {
+        let validation_error = ProjectManagerError::validation_error("field", "value", "reason");
+        assert!(validation_error.is_user_facing());
+        
+        let internal_error = ProjectManagerError::internal_error("op", "details", None);
+        assert!(!internal_error.is_user_facing());
+    }
+
+    #[test]
+    fn test_from_serde_json_error() {
+        let json_result: std::result::Result<serde_json::Value, serde_json::Error> = serde_json::from_str("invalid json");
+        let json_error = json_result.unwrap_err();
+        let pm_error: ProjectManagerError = json_error.into();
+        
+        match pm_error {
+            ProjectManagerError::Serialization { operation, content, .. } => {
+                assert_eq!(operation, "parse JSON");
+                assert_eq!(content, "unknown");
+            }
+            _ => panic!("Expected Serialization error from serde_json::Error conversion"),
+        }
+    }
+
+    #[test]
+    fn test_helpers_invalid_project_name() {
+        let error = helpers::invalid_project_name("bad project name");
+        
+        match error {
+            ProjectManagerError::Validation { field, value, reason } => {
+                assert_eq!(field, "project_name");
+                assert_eq!(value, "bad project name");
+                assert!(reason.contains("special characters"));
+            }
+            _ => panic!("Expected Validation error"),
+        }
+    }
+
+    #[test]
+    fn test_helpers_serialization_error() {
+        let json_result: std::result::Result<serde_json::Value, serde_json::Error> = serde_json::from_str("invalid json");
+        let json_error = json_result.unwrap_err();
+        let error = helpers::serialization_error("deserialize", "bad json", json_error);
+        
+        match error {
+            ProjectManagerError::Serialization { operation, content, .. } => {
+                assert_eq!(operation, "deserialize");
+                assert_eq!(content, "bad json");
+            }
+            _ => panic!("Expected Serialization error"),
+        }
+    }
+
+    #[test]
+    fn test_helpers_project_already_exists() {
+        let error = helpers::project_already_exists("duplicate-project");
+        
+        match error {
+            ProjectManagerError::AlreadyExists { resource_type, identifier, context } => {
+                assert_eq!(resource_type, "Project");
+                assert_eq!(identifier, "duplicate-project");
+                assert_eq!(context, None);
+            }
+            _ => panic!("Expected AlreadyExists error"),
+        }
+    }
+}

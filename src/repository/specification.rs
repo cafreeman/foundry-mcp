@@ -260,6 +260,27 @@ impl SpecificationRepository {
         Ok(())
     }
 
+    /// Update an existing specification
+    pub async fn update_spec(&self, project_name: &str, spec: &Specification) -> Result<()> {
+        let spec_path = self.fs_manager.spec_dir(project_name, &spec.id);
+        
+        if !spec_path.exists() {
+            return Err(errors::helpers::spec_not_found(&spec.id, project_name));
+        }
+
+        // Update spec metadata
+        let spec_metadata_path = spec_path.join("spec.json");
+        let spec_json = serde_json::to_string_pretty(spec)
+            .map_err(|e| errors::helpers::serialization_error("update_spec", "specification", e))?;
+        self.fs_manager.write_file_safe(&spec_metadata_path, &spec_json)?;
+
+        // Update spec content
+        let spec_content_path = spec_path.join("spec.md");
+        self.fs_manager.write_file_safe(&spec_content_path, &spec.content)?;
+
+        Ok(())
+    }
+
     /// Generate a unique spec ID
     fn generate_spec_id(&self, spec_name: &str) -> String {
         let date = Utc::now().format("%Y%m%d");
