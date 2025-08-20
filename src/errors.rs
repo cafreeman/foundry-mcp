@@ -160,36 +160,56 @@ impl ProjectManagerError {
         }
     }
 
-    /// Get a user-friendly error message
+    /// Get a user-friendly error message with context
     pub fn user_message(&self) -> String {
         match self {
             Self::FileSystem {
-                operation, path, ..
+                operation, path, source
             } => {
-                format!("Failed to {} at path '{}'", operation, path.display())
+                let base_msg = format!("Failed to {} at path '{}'", operation, path.display());
+                if let Some(suggestion) = self.get_suggestion() {
+                    format!("{}\n\nSuggestion: {}", base_msg, suggestion)
+                } else {
+                    format!("{}\nReason: {}", base_msg, source)
+                }
             }
             Self::Serialization { operation, .. } => {
-                format!("Failed to {} data", operation)
+                let base_msg = format!("Failed to {} data", operation);
+                if let Some(suggestion) = self.get_suggestion() {
+                    format!("{}\n\nSuggestion: {}", base_msg, suggestion)
+                } else {
+                    base_msg
+                }
             }
             Self::Validation {
                 field,
                 value,
                 reason,
             } => {
-                format!(
+                let base_msg = format!(
                     "Invalid value '{}' for field '{}': {}",
                     value, field, reason
-                )
+                );
+                if let Some(suggestion) = self.get_suggestion() {
+                    format!("{}\n\nSuggestion: {}", base_msg, suggestion)
+                } else {
+                    base_msg
+                }
             }
             Self::NotFound {
                 resource_type,
                 identifier,
                 context,
             } => {
-                if let Some(ctx) = context {
+                let base_msg = if let Some(ctx) = context {
                     format!("{} '{}' not found in {}", resource_type, identifier, ctx)
                 } else {
                     format!("{} '{}' not found", resource_type, identifier)
+                };
+                if let Some(suggestion) = self.get_suggestion() {
+                    format!("{}\n\nSuggestion: {}", base_msg, suggestion)
+                } else {
+                    base_msg
                 }
             }
             Self::AlreadyExists {
@@ -197,45 +217,217 @@ impl ProjectManagerError {
                 identifier,
                 context,
             } => {
-                if let Some(ctx) = context {
+                let base_msg = if let Some(ctx) = context {
                     format!(
                         "{} '{}' already exists in {}",
                         resource_type, identifier, ctx
                     )
                 } else {
                     format!("{} '{}' already exists", resource_type, identifier)
+                };
+                if let Some(suggestion) = self.get_suggestion() {
+                    format!("{}\n\nSuggestion: {}", base_msg, suggestion)
+                } else {
+                    base_msg
                 }
             }
             Self::McpProtocol {
                 operation, details, ..
             } => {
-                format!("MCP protocol error during {}: {}", operation, details)
+                let base_msg = format!("MCP protocol error during {}: {}", operation, details);
+                if let Some(suggestion) = self.get_suggestion() {
+                    format!("{}\n\nSuggestion: {}", base_msg, suggestion)
+                } else {
+                    base_msg
+                }
             }
             Self::Configuration {
                 setting,
                 value,
                 reason,
             } => {
-                format!(
+                let base_msg = format!(
                     "Configuration error for '{}' (value: '{}'): {}",
                     setting, value, reason
-                )
+                );
+                if let Some(suggestion) = self.get_suggestion() {
+                    format!("{}\n\nSuggestion: {}", base_msg, suggestion)
+                } else {
+                    base_msg
+                }
             }
             Self::Permission {
-                operation, path, ..
+                operation, path, details
             } => {
-                format!(
-                    "Permission denied for {} at path '{}'",
+                let base_msg = format!(
+                    "Permission denied for {} at path '{}': {}",
                     operation,
-                    path.display()
-                )
+                    path.display(),
+                    details
+                );
+                if let Some(suggestion) = self.get_suggestion() {
+                    format!("{}\n\nSuggestion: {}", base_msg, suggestion)
+                } else {
+                    base_msg
+                }
             }
             Self::Internal {
                 operation, details, ..
             } => {
-                format!("Internal error during {}: {}", operation, details)
+                let base_msg = format!("Internal error during {}: {}", operation, details);
+                if let Some(suggestion) = self.get_suggestion() {
+                    format!("{}\n\nSuggestion: {}", base_msg, suggestion)
+                } else {
+                    base_msg
+                }
             }
         }
+    }
+
+    /// Get actionable suggestions for resolving the error
+    pub fn get_suggestion(&self) -> Option<String> {
+        match self {
+            Self::FileSystem { operation, path, source } => {
+                match source.kind() {
+                    std::io::ErrorKind::NotFound => {
+                        if operation.contains("create") {
+                            Some("Check that the parent directory exists and you have write permissions.".to_string())
+                        } else if operation.contains("read") || operation.contains("open") {
+                            Some(format!("Verify that the file '{}' exists and you have read permissions.", path.display()))
+                        } else {
+                            Some("Check that the file or directory exists and you have the necessary permissions.".to_string())
+                        }
+                    }
+                    std::io::ErrorKind::PermissionDenied => {
+                        Some("Check file/directory permissions or run with appropriate privileges.".to_string())
+                    }
+                    std::io::ErrorKind::AlreadyExists => {
+                        Some("Choose a different name or remove the existing file/directory first.".to_string())
+                    }
+                    std::io::ErrorKind::InvalidData => {
+                        Some("The file may be corrupted or in an unexpected format. Try recreating it.".to_string())
+                    }
+                    _ => Some("Check file system permissions and available disk space.".to_string())
+                }
+            }
+            Self::Serialization { operation, .. } => {
+                if operation.contains("serialize") {
+                    Some("Check that all required fields are properly set and contain valid data.".to_string())
+                } else if operation.contains("parse") || operation.contains("deserialize") {
+                    Some("The file may be corrupted or in an unexpected format. Try regenerating it or check for syntax errors.".to_string())
+                } else {
+                    Some("Verify that the data structure matches the expected format.".to_string())
+                }
+            }
+            Self::Validation { field, .. } => {
+                match field.as_str() {
+                    "project_name" => Some("Project names should be lowercase with hyphens or underscores, e.g., 'my-project' or 'my_project'.".to_string()),
+                    "spec_name" => Some("Specification names should be in snake_case format, e.g., 'user_authentication' or 'api_design'.".to_string()),
+                    "task_id" => Some("Task IDs should be unique strings. Use the generated UUID or a meaningful identifier.".to_string()),
+                    _ => Some("Check the documentation for the expected format and valid values for this field.".to_string())
+                }
+            }
+            Self::NotFound { resource_type, identifier, .. } => {
+                match resource_type.as_str() {
+                    "Project" => Some(format!("Create the project '{}' first using the setup_project tool.", identifier)),
+                    "Specification" => Some(format!("Create the specification '{}' first using the create_spec tool, or check if the ID is correct.", identifier)),
+                    "Task" => Some("Check that the task ID is correct or create the task first.".to_string()),
+                    _ => Some("Verify that the resource exists and the identifier is correct.".to_string())
+                }
+            }
+            Self::AlreadyExists { resource_type, identifier, .. } => {
+                match resource_type.as_str() {
+                    "Project" => Some(format!("Choose a different project name or use the existing project '{}'.", identifier)),
+                    "Specification" => Some(format!("Choose a different specification name or load the existing specification '{}'.", identifier)),
+                    "Task" => Some("Use a different task ID or update the existing task instead.".to_string()),
+                    _ => Some("Choose a different identifier or work with the existing resource.".to_string())
+                }
+            }
+            Self::McpProtocol { operation, .. } => {
+                match operation.as_str() {
+                    "tool_call" => Some("Check that all required parameters are provided and have correct types.".to_string()),
+                    "list_tools" => Some("Ensure the MCP server is properly initialized and running.".to_string()),
+                    _ => Some("Check the MCP client configuration and network connectivity.".to_string())
+                }
+            }
+            Self::Configuration { setting, .. } => {
+                match setting.as_str() {
+                    "home_directory" => Some("Set the HOME environment variable or run from a user directory.".to_string()),
+                    "base_directory" => Some("Ensure the base directory path is valid and accessible.".to_string()),
+                    _ => Some("Check the configuration documentation and verify all required settings.".to_string())
+                }
+            }
+            Self::Permission { operation, path, .. } => {
+                if operation.contains("write") || operation.contains("create") {
+                    Some(format!("Ensure you have write permissions for '{}' or change the target directory.", path.display()))
+                } else if operation.contains("read") {
+                    Some(format!("Ensure you have read permissions for '{}'.", path.display()))
+                } else {
+                    Some("Check that you have the necessary permissions for this operation.".to_string())
+                }
+            }
+            Self::Internal { .. } => {
+                Some("This is an unexpected error. Please report this issue with the error details.".to_string())
+            }
+        }
+    }
+
+    /// Get detailed troubleshooting steps
+    pub fn get_troubleshooting_steps(&self) -> Vec<String> {
+        let mut steps = Vec::new();
+        
+        match self {
+            Self::FileSystem { operation, path, source } => {
+                steps.push(format!("1. Check if path '{}' exists", path.display()));
+                if operation.contains("write") || operation.contains("create") {
+                    steps.push("2. Verify you have write permissions to the directory".to_string());
+                    steps.push("3. Check available disk space".to_string());
+                    steps.push("4. Ensure parent directories exist".to_string());
+                } else if operation.contains("read") {
+                    steps.push("2. Verify you have read permissions to the file".to_string());
+                    steps.push("3. Check that the file is not locked by another process".to_string());
+                }
+                steps.push(format!("5. System error: {}", source));
+            }
+            Self::NotFound { resource_type, identifier, context } => {
+                match resource_type.as_str() {
+                    "Project" => {
+                        steps.push("1. List available projects to verify the name".to_string());
+                        steps.push(format!("2. Create project '{}' using setup_project tool", identifier));
+                        steps.push("3. Check for typos in the project name".to_string());
+                    }
+                    "Specification" => {
+                        steps.push("1. List available specifications for the project".to_string());
+                        steps.push(format!("2. Create specification '{}' using create_spec tool", identifier));
+                        steps.push("3. Verify the specification ID format (YYYYMMDD_name)".to_string());
+                    }
+                    _ => {
+                        steps.push("1. Verify the resource identifier is correct".to_string());
+                        steps.push("2. Check if the resource exists in the expected location".to_string());
+                        if let Some(ctx) = context {
+                            steps.push(format!("3. Context: {}", ctx));
+                        }
+                    }
+                }
+            }
+            Self::Validation { field, value, reason } => {
+                steps.push(format!("1. Current value '{}' is invalid", value));
+                steps.push(format!("2. Reason: {}", reason));
+                if let Some(suggestion) = self.get_suggestion() {
+                    steps.push(format!("3. {}", suggestion));
+                }
+                steps.push(format!("4. Check the documentation for field '{}'", field));
+            }
+            _ => {
+                if let Some(suggestion) = self.get_suggestion() {
+                    steps.push(format!("1. {}", suggestion));
+                }
+                steps.push("2. Check the logs for more detailed error information".to_string());
+                steps.push("3. Verify your environment and configuration".to_string());
+            }
+        }
+        
+        steps
     }
 
     /// Get a detailed error message for developers

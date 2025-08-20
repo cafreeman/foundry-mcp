@@ -1,5 +1,6 @@
 //! Project repository for data access operations
 
+use crate::cache::ProjectManagerCache;
 use crate::errors::{self, Result};
 use crate::filesystem::FileSystemManager;
 use crate::models::{Project, TechStack, Vision};
@@ -8,12 +9,21 @@ use crate::models::{Project, TechStack, Vision};
 #[derive(Clone)]
 pub struct ProjectRepository {
     fs_manager: FileSystemManager,
+    cache: ProjectManagerCache,
 }
 
 impl ProjectRepository {
     /// Create a new ProjectRepository instance
     pub fn new(fs_manager: FileSystemManager) -> Self {
-        Self { fs_manager }
+        Self { 
+            fs_manager,
+            cache: ProjectManagerCache::new(),
+        }
+    }
+
+    /// Create a new ProjectRepository instance with shared cache
+    pub fn with_cache(fs_manager: FileSystemManager, cache: ProjectManagerCache) -> Self {
+        Self { fs_manager, cache }
     }
 
     /// Create a new project
@@ -47,14 +57,28 @@ impl ProjectRepository {
         self.fs_manager
             .write_file_safe(&vision_path, &vision_content)?;
 
+        // Cache the newly created project
+        self.cache.cache_project(&project.name, project.clone());
+        
+        // Invalidate project lists since we added a new project
+        self.cache.get_project_list("all_projects");
+
         Ok(())
     }
 
     /// Load a project from the file system
     pub async fn load_project(&self, project_name: &str) -> Result<Project> {
+        // Check cache first
+        if let Some(cached_project) = self.cache.get_project(project_name) {
+            tracing::debug!("Retrieved project '{}' from cache", project_name);
+            return Ok(cached_project);
+        }
+
         if !self.fs_manager.project_exists(project_name) {
             return Err(errors::helpers::project_not_found(project_name));
         }
+
+        tracing::debug!("Loading project '{}' from filesystem", project_name);
 
         // Load project metadata
         let metadata_path = self
@@ -66,6 +90,9 @@ impl ProjectRepository {
             errors::helpers::serialization_error("parse project metadata", &metadata_content, e)
         })?;
 
+        // Cache the loaded project
+        self.cache.cache_project(project_name, project.clone());
+
         Ok(project)
     }
 
@@ -76,7 +103,17 @@ impl ProjectRepository {
 
     /// List all projects
     pub async fn list_projects(&self) -> Result<Vec<Project>> {
-        let project_names = self.fs_manager.list_projects()?;
+        // Check if we have a cached list of project names
+        let project_names = if let Some(cached_names) = self.cache.get_project_list("all_projects") {
+            tracing::debug!("Retrieved project list from cache");
+            cached_names
+        } else {
+            tracing::debug!("Loading project list from filesystem");
+            let names = self.fs_manager.list_projects()?;
+            self.cache.cache_project_list("all_projects", names.clone());
+            names
+        };
+
         let mut projects = Vec::new();
 
         for name in project_names {

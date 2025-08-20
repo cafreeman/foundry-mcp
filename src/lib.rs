@@ -153,11 +153,16 @@
 //! * **Unicode support** for international development teams
 //! * **Comprehensive error handling** with user-friendly messages
 
+pub mod cache;
 pub mod errors;
 pub mod filesystem;
 pub mod handlers;
+pub mod lazy;
 pub mod models;
+pub mod profiling;
+pub mod progress;
 pub mod repository;
+pub mod security;
 pub mod tools;
 pub mod utils;
 

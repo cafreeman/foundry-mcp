@@ -1,5 +1,6 @@
 //! MCP server handler implementation
 
+use crate::cache::ProjectManagerCache;
 use crate::errors::Result;
 use crate::filesystem::FileSystemManager;
 use crate::handlers::{
@@ -7,7 +8,9 @@ use crate::handlers::{
     update_spec::UpdateSpecHandler,
 };
 use crate::repository::{ProjectRepository, SpecificationRepository};
+use crate::security::RateLimiter;
 use crate::tools::ProjectManagerTools;
+use std::time::Duration;
 use async_trait::async_trait;
 use rust_mcp_sdk::{
     McpServer,
@@ -29,18 +32,25 @@ pub struct ProjectManagerHandler {
     create_spec_handler: CreateSpecHandler,
     load_spec_handler: LoadSpecHandler,
     update_spec_handler: UpdateSpecHandler,
+    rate_limiter: RateLimiter,
 }
 
 impl ProjectManagerHandler {
     /// Create a new ProjectManagerHandler instance
     pub fn new() -> Result<Self> {
         let fs_manager = FileSystemManager::new()?;
-        let project_repo = ProjectRepository::new(fs_manager.clone());
-        let spec_repo = SpecificationRepository::new(fs_manager.clone());
+        let cache = ProjectManagerCache::new();
+        
+        let project_repo = ProjectRepository::with_cache(fs_manager.clone(), cache.clone());
+        let spec_repo = SpecificationRepository::with_cache(fs_manager.clone(), cache.clone());
+        
         let setup_project_handler = SetupProjectHandler::new(project_repo.clone());
         let create_spec_handler = CreateSpecHandler::new(project_repo.clone(), spec_repo.clone());
         let load_spec_handler = LoadSpecHandler::new(project_repo.clone(), spec_repo.clone());
         let update_spec_handler = UpdateSpecHandler::new(project_repo.clone(), spec_repo.clone());
+        
+        // Configure rate limiter: 100 requests per minute
+        let rate_limiter = RateLimiter::new(100, Duration::from_secs(60));
 
         Ok(Self {
             fs_manager,
@@ -50,6 +60,7 @@ impl ProjectManagerHandler {
             create_spec_handler,
             load_spec_handler,
             update_spec_handler,
+            rate_limiter,
         })
     }
 }
@@ -73,6 +84,16 @@ impl ServerHandler for ProjectManagerHandler {
         request: CallToolRequest,
         _runtime: &dyn McpServer,
     ) -> std::result::Result<CallToolResult, CallToolError> {
+        // Rate limiting check
+        let client_id = "default"; // In a real implementation, you'd extract this from the request
+        if !self.rate_limiter.is_allowed(client_id) {
+            return Err(CallToolError::new(
+                RpcError::invalid_request().with_message(
+                    "Rate limit exceeded. Please wait before making more requests.".to_string()
+                )
+            ));
+        }
+
         // Convert request parameters into ProjectManagerTools enum
         let tool_params: ProjectManagerTools = ProjectManagerTools::try_from(request.params)
             .map_err(|e| {

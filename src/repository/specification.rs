@@ -1,5 +1,6 @@
 //! Specification repository for data access operations
 
+use crate::cache::ProjectManagerCache;
 use crate::errors::{self, Result};
 use crate::filesystem::FileSystemManager;
 use crate::models::{Note, NoteCategory, Specification, Task, TaskList, TaskPriority, TaskStatus};
@@ -10,12 +11,21 @@ use serde_json;
 #[derive(Clone)]
 pub struct SpecificationRepository {
     fs_manager: FileSystemManager,
+    cache: ProjectManagerCache,
 }
 
 impl SpecificationRepository {
     /// Create a new SpecificationRepository instance
     pub fn new(fs_manager: FileSystemManager) -> Self {
-        Self { fs_manager }
+        Self { 
+            fs_manager,
+            cache: ProjectManagerCache::new(),
+        }
+    }
+
+    /// Create a new SpecificationRepository instance with shared cache
+    pub fn with_cache(fs_manager: FileSystemManager, cache: ProjectManagerCache) -> Self {
+        Self { fs_manager, cache }
     }
 
     /// Create a new specification
@@ -82,14 +92,31 @@ impl SpecificationRepository {
         self.fs_manager
             .write_file_safe(&notes_path, &notes_content)?;
 
+        // Cache the newly created specification
+        let cache_key = format!("{}:{}", project_name, spec_id);
+        self.cache.cache_specification(&cache_key, spec.clone());
+        
+        // Invalidate spec lists since we added a new spec
+        self.cache.invalidate_specification(project_name, &spec_id);
+
         Ok(spec)
     }
 
     /// Load a specification from the file system
     pub async fn load_spec(&self, project_name: &str, spec_id: &str) -> Result<Specification> {
+        let cache_key = format!("{}:{}", project_name, spec_id);
+        
+        // Check cache first
+        if let Some(cached_spec) = self.cache.get_specification(&cache_key) {
+            tracing::debug!("Retrieved specification '{}:{}' from cache", project_name, spec_id);
+            return Ok(cached_spec);
+        }
+
         if !self.fs_manager.spec_exists(project_name, spec_id) {
             return Err(errors::helpers::spec_not_found(spec_id, project_name));
         }
+
+        tracing::debug!("Loading specification '{}:{}' from filesystem", project_name, spec_id);
 
         let spec_path = self.fs_manager.spec_dir(project_name, spec_id);
         let metadata_path = spec_path.join("spec.json");
@@ -97,6 +124,9 @@ impl SpecificationRepository {
         let spec: Specification = serde_json::from_str(&metadata_content).map_err(|e| {
             errors::helpers::serialization_error("parse spec metadata", &metadata_content, e)
         })?;
+
+        // Cache the loaded specification
+        self.cache.cache_specification(&cache_key, spec.clone());
 
         Ok(spec)
     }
@@ -108,7 +138,17 @@ impl SpecificationRepository {
 
     /// List all specifications for a project
     pub async fn list_specs(&self, project_name: &str) -> Result<Vec<Specification>> {
-        let spec_ids = self.fs_manager.list_specs(project_name)?;
+        // Check if we have a cached list of spec IDs
+        let spec_ids = if let Some(cached_ids) = self.cache.get_spec_list(project_name) {
+            tracing::debug!("Retrieved spec list for '{}' from cache", project_name);
+            cached_ids
+        } else {
+            tracing::debug!("Loading spec list for '{}' from filesystem", project_name);
+            let ids = self.fs_manager.list_specs(project_name)?;
+            self.cache.cache_spec_list(project_name, ids.clone());
+            ids
+        };
+
         let mut specs = Vec::new();
 
         for spec_id in spec_ids {

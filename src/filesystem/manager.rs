@@ -1,6 +1,7 @@
 //! File system manager for project directory operations
 
 use crate::errors::{self, ProjectManagerError, Result};
+use crate::profile_operation;
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -119,118 +120,134 @@ impl FileSystemManager {
 
     /// List all projects
     pub fn list_projects(&self) -> Result<Vec<String>> {
-        self.ensure_base_dir()?;
+        profile_operation!("fs_list_projects", {
+            self.ensure_base_dir()?;
 
-        let mut projects = Vec::new();
-        if self.base_dir.exists() {
-            for entry in fs::read_dir(&self.base_dir).map_err(|e| {
-                errors::helpers::file_system_error("read base directory", &self.base_dir, e)
+            let mut projects = Vec::new();
+            if self.base_dir.exists() {
+                for entry in fs::read_dir(&self.base_dir).map_err(|e| {
+                    errors::helpers::file_system_error("read base directory", &self.base_dir, e)
+                })? {
+                    let entry = entry.map_err(|e| {
+                        errors::helpers::file_system_error("read directory entry", &self.base_dir, e)
+                    })?;
+                    let path = entry.path();
+                    if path.is_dir() {
+                        if let Some(name) = path.file_name() {
+                            if let Some(name_str) = name.to_str() {
+                                projects.push(name_str.to_string());
+                            }
+                        }
+                    }
+                }
+            }
+
+            Ok(projects)
+        })
+    }
+
+    /// List specifications for a project
+    pub fn list_specs(&self, project_name: &str) -> Result<Vec<String>> {
+        profile_operation!("fs_list_specs", {
+            let specs_path = self.specs_dir(project_name);
+            if !specs_path.exists() {
+                return Ok(Vec::new());
+            }
+
+            let mut specs = Vec::new();
+            for entry in fs::read_dir(&specs_path).map_err(|e| {
+                errors::helpers::file_system_error("read specs directory", &specs_path, e)
             })? {
                 let entry = entry.map_err(|e| {
-                    errors::helpers::file_system_error("read directory entry", &self.base_dir, e)
+                    errors::helpers::file_system_error("read specs directory entry", &specs_path, e)
                 })?;
                 let path = entry.path();
                 if path.is_dir() {
                     if let Some(name) = path.file_name() {
                         if let Some(name_str) = name.to_str() {
-                            projects.push(name_str.to_string());
+                            specs.push(name_str.to_string());
                         }
                     }
                 }
             }
-        }
 
-        Ok(projects)
-    }
+            // Sort specs by creation date (newest first)
+            profile_operation!("fs_sort_specs", {
+                specs.sort_by(|a, b| {
+                    let a_path = self.spec_dir(project_name, a);
+                    let b_path = self.spec_dir(project_name, b);
+                    let a_time = a_path
+                        .metadata()
+                        .and_then(|m| m.created())
+                        .unwrap_or(SystemTime::UNIX_EPOCH);
+                    let b_time = b_path
+                        .metadata()
+                        .and_then(|m| m.created())
+                        .unwrap_or(SystemTime::UNIX_EPOCH);
+                    b_time.cmp(&a_time)
+                })
+            });
 
-    /// List specifications for a project
-    pub fn list_specs(&self, project_name: &str) -> Result<Vec<String>> {
-        let specs_path = self.specs_dir(project_name);
-        if !specs_path.exists() {
-            return Ok(Vec::new());
-        }
-
-        let mut specs = Vec::new();
-        for entry in fs::read_dir(&specs_path).map_err(|e| {
-            errors::helpers::file_system_error("read specs directory", &specs_path, e)
-        })? {
-            let entry = entry.map_err(|e| {
-                errors::helpers::file_system_error("read specs directory entry", &specs_path, e)
-            })?;
-            let path = entry.path();
-            if path.is_dir() {
-                if let Some(name) = path.file_name() {
-                    if let Some(name_str) = name.to_str() {
-                        specs.push(name_str.to_string());
-                    }
-                }
-            }
-        }
-
-        // Sort specs by creation date (newest first)
-        specs.sort_by(|a, b| {
-            let a_path = self.spec_dir(project_name, a);
-            let b_path = self.spec_dir(project_name, b);
-            let a_time = a_path
-                .metadata()
-                .and_then(|m| m.created())
-                .unwrap_or(SystemTime::UNIX_EPOCH);
-            let b_time = b_path
-                .metadata()
-                .and_then(|m| m.created())
-                .unwrap_or(SystemTime::UNIX_EPOCH);
-            b_time.cmp(&a_time)
-        });
-
-        Ok(specs)
+            Ok(specs)
+        })
     }
 
     /// Write content to a file with atomic operation and backup
     pub fn write_file_safe(&self, file_path: &Path, content: &str) -> Result<()> {
-        // Create parent directories if they don't exist
-        if let Some(parent) = file_path.parent() {
-            fs::create_dir_all(parent).map_err(|e| {
-                errors::helpers::file_system_error("create parent directory", parent, e)
+        profile_operation!("fs_write_file_safe", {
+            // Create parent directories if they don't exist
+            if let Some(parent) = file_path.parent() {
+                profile_operation!("fs_create_parent_dirs", {
+                    fs::create_dir_all(parent).map_err(|e| {
+                        errors::helpers::file_system_error("create parent directory", parent, e)
+                    })
+                })?;
+            }
+
+            // Create backup if file exists
+            if file_path.exists() {
+                profile_operation!("fs_create_backup", {
+                    let backup_path = self.create_backup_path(file_path)?;
+                    fs::copy(file_path, &backup_path)
+                        .map_err(|e| errors::helpers::file_system_error("create backup", file_path, e))
+                })?;
+            }
+
+            // Write to temporary file first
+            profile_operation!("fs_write_temp_file", {
+                let temp_path = self.create_temp_path(file_path)?;
+                let mut temp_file = File::create(&temp_path)
+                    .map_err(|e| errors::helpers::file_system_error("create temp file", &temp_path, e))?;
+
+                temp_file
+                    .write_all(content.as_bytes())
+                    .map_err(|e| errors::helpers::file_system_error("write to temp file", &temp_path, e))?;
+                temp_file
+                    .flush()
+                    .map_err(|e| errors::helpers::file_system_error("flush temp file", &temp_path, e))?;
+
+                // Atomic move from temp to final location
+                fs::rename(&temp_path, file_path).map_err(|e| {
+                    errors::helpers::file_system_error("move temp file to final location", file_path, e)
+                })
             })?;
-        }
 
-        // Create backup if file exists
-        if file_path.exists() {
-            let backup_path = self.create_backup_path(file_path)?;
-            fs::copy(file_path, &backup_path)
-                .map_err(|e| errors::helpers::file_system_error("create backup", file_path, e))?;
-        }
-
-        // Write to temporary file first
-        let temp_path = self.create_temp_path(file_path)?;
-        let mut temp_file = File::create(&temp_path)
-            .map_err(|e| errors::helpers::file_system_error("create temp file", &temp_path, e))?;
-
-        temp_file
-            .write_all(content.as_bytes())
-            .map_err(|e| errors::helpers::file_system_error("write to temp file", &temp_path, e))?;
-        temp_file
-            .flush()
-            .map_err(|e| errors::helpers::file_system_error("flush temp file", &temp_path, e))?;
-
-        // Atomic move from temp to final location
-        fs::rename(&temp_path, file_path).map_err(|e| {
-            errors::helpers::file_system_error("move temp file to final location", file_path, e)
-        })?;
-
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Read content from a file
     pub fn read_file(&self, file_path: &Path) -> Result<String> {
-        let mut file = File::open(file_path)
-            .map_err(|e| errors::helpers::file_system_error("open file", file_path, e))?;
+        profile_operation!("fs_read_file", {
+            let mut file = File::open(file_path)
+                .map_err(|e| errors::helpers::file_system_error("open file", file_path, e))?;
 
-        let mut content = String::new();
-        file.read_to_string(&mut content)
-            .map_err(|e| errors::helpers::file_system_error("read file", file_path, e))?;
+            let mut content = String::new();
+            file.read_to_string(&mut content)
+                .map_err(|e| errors::helpers::file_system_error("read file", file_path, e))?;
 
-        Ok(content)
+            Ok(content)
+        })
     }
 
     /// Check if a file exists
