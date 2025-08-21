@@ -136,13 +136,11 @@ impl FileSystemManager {
                         )
                     })?;
                     let path = entry.path();
-                    if path.is_dir() {
-                        if let Some(name) = path.file_name() {
-                            if let Some(name_str) = name.to_str() {
+                    if path.is_dir()
+                        && let Some(name) = path.file_name()
+                            && let Some(name_str) = name.to_str() {
                                 projects.push(name_str.to_string());
                             }
-                        }
-                    }
                 }
             }
 
@@ -166,13 +164,11 @@ impl FileSystemManager {
                     errors::helpers::file_system_error("read specs directory entry", &specs_path, e)
                 })?;
                 let path = entry.path();
-                if path.is_dir() {
-                    if let Some(name) = path.file_name() {
-                        if let Some(name_str) = name.to_str() {
+                if path.is_dir()
+                    && let Some(name) = path.file_name()
+                        && let Some(name_str) = name.to_str() {
                             specs.push(name_str.to_string());
                         }
-                    }
-                }
             }
 
             // Sort specs by creation date (newest first)

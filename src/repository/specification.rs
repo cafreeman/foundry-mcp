@@ -358,7 +358,7 @@ impl SpecificationRepository {
                 }
             } else if line.starts_with("- ") && current_task.is_some() {
                 // Parse task metadata
-                self.parse_task_metadata(line, &mut current_task.as_mut().unwrap());
+                self.parse_task_metadata(line, current_task.as_mut().unwrap());
             } else if current_task.is_some() {
                 // Add to description
                 current_description.push_str(line);
@@ -411,11 +411,10 @@ impl SpecificationRepository {
             if let Some(priority_str) = line.strip_prefix("Priority: ") {
                 task.priority = self.parse_priority(priority_str);
             }
-        } else if line.starts_with("Dependencies: ") {
-            if let Some(deps_str) = line.strip_prefix("Dependencies: ") {
+        } else if line.starts_with("Dependencies: ")
+            && let Some(deps_str) = line.strip_prefix("Dependencies: ") {
                 task.dependencies = deps_str.split(',').map(|s| s.trim().to_string()).collect();
             }
-        }
     }
 
     /// Parse status from string
@@ -462,7 +461,7 @@ impl SpecificationRepository {
                 }
             } else if line.starts_with("- ") && current_note.is_some() {
                 // Parse note metadata
-                self.parse_note_metadata(line, &mut current_note.as_mut().unwrap());
+                self.parse_note_metadata(line, current_note.as_mut().unwrap());
             } else if current_note.is_some() {
                 // Add to content
                 current_content.push_str(line);
@@ -500,11 +499,10 @@ impl SpecificationRepository {
     /// Parse note metadata from markdown list items
     fn parse_note_metadata(&self, line: &str, note: &mut Note) {
         let line = line.trim_start_matches("- ");
-        if line.starts_with("Category: ") {
-            if let Some(category_str) = line.strip_prefix("Category: ") {
+        if line.starts_with("Category: ")
+            && let Some(category_str) = line.strip_prefix("Category: ") {
                 note.category = self.parse_category(category_str);
             }
-        }
     }
 
     /// Parse category from string
@@ -552,7 +550,7 @@ impl SpecificationRepository {
                 "- Updated: {}\n",
                 task.updated_at.format("%Y-%m-%d %H:%M:%S UTC")
             ));
-            content.push_str("\n");
+            content.push('\n');
             content.push_str(&task.description);
             content.push_str("\n\n");
         }
@@ -579,7 +577,7 @@ impl SpecificationRepository {
                 "- Created: {}\n",
                 note.created_at.format("%Y-%m-%d %H:%M:%S UTC")
             ));
-            content.push_str("\n");
+            content.push('\n');
             content.push_str(&note.content);
             content.push_str("\n\n");
         }

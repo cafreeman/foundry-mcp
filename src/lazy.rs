@@ -233,21 +233,20 @@ impl LazySpecificationContent {
         for line in content.lines() {
             let trimmed = line.trim();
             
-            if trimmed.starts_with("## ") {
+            if let Some(title) = trimmed.strip_prefix("## ") {
                 // Save previous note if exists
                 if let Some(note) = current_note.take() {
                     notes.push(note);
                 }
                 
                 // Start new note
-                let _title = trimmed[3..].trim().to_string();
+                let _title = title.trim().to_string();
                 current_note = Some(Note {
                     id: uuid::Uuid::new_v4().to_string(),
                     content: String::new(),
                     category: crate::models::NoteCategory::Other,
                     created_at: chrono::Utc::now(),
-                });
-            } else if let Some(ref mut note) = current_note {
+                });            } else if let Some(ref mut note) = current_note {
                 // Add content to current note
                 if !note.content.is_empty() {
                     note.content.push('\n');

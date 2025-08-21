@@ -34,7 +34,7 @@
 //! # Usage
 //!
 //! ```rust
-//! use project_manager_mcp::{
+//! use foundry_mcp::{
 //!     ProjectRepository, SpecificationRepository, FileSystemManager,
 //!     Project, TechStack, Vision, Task, TaskStatus, TaskPriority, Note, NoteCategory
 //! };

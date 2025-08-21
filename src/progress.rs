@@ -301,7 +301,7 @@ impl ProgressReporter {
             
             let elapsed = update.timestamp.elapsed();
             report.push_str(&format!("Elapsed: {:.2}s\n", elapsed.as_secs_f64()));
-            report.push_str("\n");
+            report.push('\n');
         }
 
         report

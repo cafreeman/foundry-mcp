@@ -34,6 +34,16 @@ pub enum Commands {
     Install(InstallArgs),
     /// Create a new project
     CreateProject(ProjectArgs),
+    /// Create a new specification
+    CreateSpec {
+        /// Project name
+        project: String,
+        /// Specification name (snake_case)
+        name: String,
+        /// Specification description
+        #[arg(long)]
+        description: String,
+    },
     /// List all projects
     ListProjects,
     /// Clear projects (with confirmation)

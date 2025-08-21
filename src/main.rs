@@ -36,6 +36,10 @@ async fn main() -> Result<()> {
         
         Some(Commands::CreateProject(args)) => project::create_project(args).await,
         
+        Some(Commands::CreateSpec { project, name, description }) => {
+            project::create_spec(project, name, description).await
+        }
+        
         Some(Commands::ListProjects) => project::list_projects().await,
         
         Some(Commands::ClearProjects { force, project, backup }) => {
@@ -106,18 +110,16 @@ fn load_configuration(cli: &Cli) -> Result<CliConfig> {
     }
 
     // Override with environment variables
-    if let Ok(env_log_level) = env::var("LOG_LEVEL") {
-        if let Err(e) = config.set("log_level", &env_log_level) {
+    if let Ok(env_log_level) = env::var("LOG_LEVEL")
+        && let Err(e) = config.set("log_level", &env_log_level) {
             error!("Invalid LOG_LEVEL environment variable: {}", e);
         }
-    }
 
     // Override with CLI arguments (highest priority)
-    if let Some(ref log_level) = cli.log_level {
-        if let Err(e) = config.set("log_level", log_level) {
+    if let Some(ref log_level) = cli.log_level
+        && let Err(e) = config.set("log_level", log_level) {
             error!("Invalid log level from CLI: {}", e);
         }
-    }
 
     // Handle config directory override
     if cli.config_dir.is_some() {

@@ -6,7 +6,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use project_manager_mcp::models::base::{Project, TechStack, Vision};
+//! use foundry_mcp::models::base::{Project, TechStack, Vision};
 //! use chrono::Utc;
 //!
 //! // Create a technology stack
@@ -58,7 +58,7 @@ use serde::{Deserialize, Serialize};
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::base::{Project, TechStack, Vision};
+/// use foundry_mcp::models::base::{Project, TechStack, Vision};
 /// use chrono::Utc;
 ///
 /// let project = Project {
@@ -114,7 +114,7 @@ pub struct Project {
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::base::TechStack;
+/// use foundry_mcp::models::base::TechStack;
 ///
 /// // Full-stack web application
 /// let web_stack = TechStack {
@@ -164,7 +164,7 @@ pub struct TechStack {
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::base::Vision;
+/// use foundry_mcp::models::base::Vision;
 ///
 /// // E-commerce platform vision
 /// let ecommerce_vision = Vision {

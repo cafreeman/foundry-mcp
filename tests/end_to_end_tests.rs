@@ -1,9 +1,9 @@
 //! End-to-end workflow tests for the Project Manager MCP
 
 use chrono::Utc;
-use project_manager_mcp::models::*;
-use project_manager_mcp::filesystem::FileSystemManager;
-use project_manager_mcp::repository::{ProjectRepository, SpecificationRepository};
+use foundry_mcp::models::*;
+use foundry_mcp::filesystem::FileSystemManager;
+use foundry_mcp::repository::{ProjectRepository, SpecificationRepository};
 
 /// Generate a unique test project name to avoid conflicts
 fn generate_test_project_name(base: &str) -> String {

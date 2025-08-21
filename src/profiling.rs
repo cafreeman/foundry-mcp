@@ -151,7 +151,7 @@ impl Profiler {
     pub fn get_slowest_operations(&self, limit: usize) -> Vec<OperationMetrics> {
         let metrics = self.get_all_metrics();
         let mut sorted_metrics: Vec<_> = metrics.into_values().collect();
-        sorted_metrics.sort_by(|a, b| b.average_duration().cmp(&a.average_duration()));
+        sorted_metrics.sort_by_key(|b| std::cmp::Reverse(b.average_duration()));
         sorted_metrics.truncate(limit);
         sorted_metrics
     }

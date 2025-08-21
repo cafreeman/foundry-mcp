@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use project_manager_mcp::models::specification::{Specification, SpecStatus};
+//! use foundry_mcp::models::specification::{Specification, SpecStatus};
 //! use chrono::Utc;
 //!
 //! // Create a new specification
@@ -41,7 +41,7 @@ use serde::{Deserialize, Serialize};
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::specification::SpecStatus;
+/// use foundry_mcp::models::specification::SpecStatus;
 ///
 /// // New specification starts as draft
 /// let status = SpecStatus::Draft;
@@ -90,7 +90,7 @@ pub enum SpecStatus {
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::specification::{Specification, SpecStatus};
+/// use foundry_mcp::models::specification::{Specification, SpecStatus};
 /// use chrono::Utc;
 ///
 /// // Create a new API specification

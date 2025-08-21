@@ -1,7 +1,7 @@
 //! MCP Protocol tests for the Project Manager MCP Server
 
-use project_manager_mcp::handlers::ProjectManagerHandler;
-use project_manager_mcp::tools::{ProjectManagerTools, SetupProjectTool, CreateSpecTool, LoadSpecTool, UpdateSpecTool};
+use foundry_mcp::handlers::ProjectManagerHandler;
+use foundry_mcp::tools::{ProjectManagerTools, SetupProjectTool, CreateSpecTool, LoadSpecTool, UpdateSpecTool};
 use rust_mcp_sdk::schema::CallToolRequestParams;
 use serde_json::json;
 

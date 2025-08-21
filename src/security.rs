@@ -138,7 +138,7 @@ impl PathSanitizer {
         if filename.starts_with('.') && filename.len() > 1 {
             // Allow some common dotfiles but block dangerous ones
             let allowed_dotfiles = [".gitignore", ".env.example", ".editorconfig"];
-            if !allowed_dotfiles.iter().any(|&allowed| filename == allowed) {
+            if !allowed_dotfiles.contains(&filename) {
                 return Err(ProjectManagerError::validation_error(
                     "filename",
                     filename,
@@ -280,9 +280,9 @@ impl PathSanitizer {
         }
 
         // Check file size if it's a file
-        if path.is_file() {
-            if let Ok(metadata) = path.metadata() {
-                if metadata.len() > self.config.max_file_size {
+        if path.is_file()
+            && let Ok(metadata) = path.metadata()
+                && metadata.len() > self.config.max_file_size {
                     return Err(ProjectManagerError::validation_error(
                         "file_size",
                         &path.display().to_string(),
@@ -292,8 +292,6 @@ impl PathSanitizer {
                         ),
                     ));
                 }
-            }
-        }
 
         Ok(())
     }

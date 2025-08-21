@@ -43,7 +43,7 @@
 //! You can also use the library directly in Rust applications:
 //!
 //! ```rust
-//! use project_manager_mcp::{
+//! use foundry_mcp::{
 //!     ProjectRepository, SpecificationRepository, FileSystemManager,
 //!     Project, TechStack, Vision, ProjectManagerError
 //! };
@@ -127,7 +127,7 @@
 //! The library uses a comprehensive error system with user-friendly messages:
 //!
 //! ```rust
-//! use project_manager_mcp::{ProjectManagerError, Result};
+//! use foundry_mcp::{ProjectManagerError, Result};
 //!
 //! fn handle_error(result: Result<()>) {
 //!     match result {

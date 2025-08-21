@@ -7,7 +7,7 @@
 //! # Examples
 //!
 //! ```rust
-//! use project_manager_mcp::models::task::{Task, TaskStatus, TaskPriority, Note, NoteCategory, TaskList};
+//! use foundry_mcp::models::task::{Task, TaskStatus, TaskPriority, Note, NoteCategory, TaskList};
 //! use chrono::Utc;
 //!
 //! // Create a high-priority task
@@ -55,7 +55,7 @@ use serde::{Deserialize, Serialize};
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::task::TaskStatus;
+/// use foundry_mcp::models::task::TaskStatus;
 ///
 /// // New tasks start as Todo
 /// let status = TaskStatus::Todo;
@@ -97,7 +97,7 @@ pub enum TaskStatus {
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::task::TaskPriority;
+/// use foundry_mcp::models::task::TaskPriority;
 ///
 /// // Regular feature work
 /// let priority = TaskPriority::Medium;
@@ -149,7 +149,7 @@ pub enum TaskPriority {
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::task::{Task, TaskStatus, TaskPriority};
+/// use foundry_mcp::models::task::{Task, TaskStatus, TaskPriority};
 /// use chrono::Utc;
 ///
 /// // Simple independent task
@@ -226,7 +226,7 @@ pub struct Task {
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::task::NoteCategory;
+/// use foundry_mcp::models::task::NoteCategory;
 ///
 /// // Technical implementation note
 /// let category = NoteCategory::Implementation;
@@ -280,7 +280,7 @@ pub enum NoteCategory {
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::task::{Note, NoteCategory};
+/// use foundry_mcp::models::task::{Note, NoteCategory};
 /// use chrono::Utc;
 ///
 /// // Implementation note with code example
@@ -341,7 +341,7 @@ pub struct Note {
 /// # Examples
 ///
 /// ```rust
-/// use project_manager_mcp::models::task::{TaskList, Task, TaskStatus, TaskPriority};
+/// use foundry_mcp::models::task::{TaskList, Task, TaskStatus, TaskPriority};
 /// use chrono::Utc;
 ///
 /// // Create a task list for a feature specification
