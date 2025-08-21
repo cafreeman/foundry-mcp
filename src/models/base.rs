@@ -229,7 +229,8 @@ mod tests {
 
     fn create_sample_vision() -> Vision {
         Vision {
-            overview: "A comprehensive project management tool for AI coding assistants".to_string(),
+            overview: "A comprehensive project management tool for AI coding assistants"
+                .to_string(),
             goals: vec![
                 "Provide deterministic context management".to_string(),
                 "Enable seamless project collaboration".to_string(),
@@ -260,8 +261,9 @@ mod tests {
     fn test_tech_stack_serialization() {
         let tech_stack = create_sample_tech_stack();
         let serialized = serde_json::to_string(&tech_stack).expect("Failed to serialize TechStack");
-        let deserialized: TechStack = serde_json::from_str(&serialized).expect("Failed to deserialize TechStack");
-        
+        let deserialized: TechStack =
+            serde_json::from_str(&serialized).expect("Failed to deserialize TechStack");
+
         assert_eq!(tech_stack.languages, deserialized.languages);
         assert_eq!(tech_stack.frameworks, deserialized.frameworks);
         assert_eq!(tech_stack.databases, deserialized.databases);
@@ -278,10 +280,12 @@ mod tests {
             tools: vec![],
             deployment: vec![],
         };
-        
-        let serialized = serde_json::to_string(&empty_tech_stack).expect("Failed to serialize empty TechStack");
-        let deserialized: TechStack = serde_json::from_str(&serialized).expect("Failed to deserialize empty TechStack");
-        
+
+        let serialized =
+            serde_json::to_string(&empty_tech_stack).expect("Failed to serialize empty TechStack");
+        let deserialized: TechStack =
+            serde_json::from_str(&serialized).expect("Failed to deserialize empty TechStack");
+
         assert!(deserialized.languages.is_empty());
         assert!(deserialized.frameworks.is_empty());
         assert!(deserialized.databases.is_empty());
@@ -293,8 +297,9 @@ mod tests {
     fn test_vision_serialization() {
         let vision = create_sample_vision();
         let serialized = serde_json::to_string(&vision).expect("Failed to serialize Vision");
-        let deserialized: Vision = serde_json::from_str(&serialized).expect("Failed to deserialize Vision");
-        
+        let deserialized: Vision =
+            serde_json::from_str(&serialized).expect("Failed to deserialize Vision");
+
         assert_eq!(vision.overview, deserialized.overview);
         assert_eq!(vision.goals, deserialized.goals);
         assert_eq!(vision.target_users, deserialized.target_users);
@@ -309,10 +314,12 @@ mod tests {
             target_users: vec!["Test user".to_string()],
             success_criteria: vec!["Test criteria".to_string()],
         };
-        
-        let serialized = serde_json::to_string(&vision).expect("Failed to serialize Vision with empty overview");
-        let deserialized: Vision = serde_json::from_str(&serialized).expect("Failed to deserialize Vision with empty overview");
-        
+
+        let serialized =
+            serde_json::to_string(&vision).expect("Failed to serialize Vision with empty overview");
+        let deserialized: Vision = serde_json::from_str(&serialized)
+            .expect("Failed to deserialize Vision with empty overview");
+
         assert_eq!(vision.overview, deserialized.overview);
         assert!(deserialized.overview.is_empty());
     }
@@ -321,13 +328,17 @@ mod tests {
     fn test_project_serialization() {
         let project = create_sample_project();
         let serialized = serde_json::to_string(&project).expect("Failed to serialize Project");
-        let deserialized: Project = serde_json::from_str(&serialized).expect("Failed to deserialize Project");
-        
+        let deserialized: Project =
+            serde_json::from_str(&serialized).expect("Failed to deserialize Project");
+
         assert_eq!(project.name, deserialized.name);
         assert_eq!(project.description, deserialized.description);
         assert_eq!(project.created_at, deserialized.created_at);
         assert_eq!(project.updated_at, deserialized.updated_at);
-        assert_eq!(project.tech_stack.languages, deserialized.tech_stack.languages);
+        assert_eq!(
+            project.tech_stack.languages,
+            deserialized.tech_stack.languages
+        );
         assert_eq!(project.vision.overview, deserialized.vision.overview);
     }
 
@@ -352,21 +363,27 @@ mod tests {
                 success_criteria: vec![],
             },
         };
-        
-        let serialized = serde_json::to_string(&project).expect("Failed to serialize Project with Unicode");
-        let deserialized: Project = serde_json::from_str(&serialized).expect("Failed to deserialize Project with Unicode");
-        
+
+        let serialized =
+            serde_json::to_string(&project).expect("Failed to serialize Project with Unicode");
+        let deserialized: Project =
+            serde_json::from_str(&serialized).expect("Failed to deserialize Project with Unicode");
+
         assert_eq!(project.name, deserialized.name);
         assert_eq!(project.description, deserialized.description);
-        assert_eq!(project.tech_stack.languages[0], deserialized.tech_stack.languages[0]);
+        assert_eq!(
+            project.tech_stack.languages[0],
+            deserialized.tech_stack.languages[0]
+        );
         assert_eq!(project.vision.overview, deserialized.vision.overview);
     }
 
     #[test]
     fn test_project_json_format() {
         let project = create_sample_project();
-        let serialized = serde_json::to_string_pretty(&project).expect("Failed to serialize Project as pretty JSON");
-        
+        let serialized = serde_json::to_string_pretty(&project)
+            .expect("Failed to serialize Project as pretty JSON");
+
         assert!(serialized.contains("\"name\""));
         assert!(serialized.contains("\"test-project\""));
         assert!(serialized.contains("\"tech_stack\""));

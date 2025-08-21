@@ -56,7 +56,8 @@ impl ProjectManagerCache {
 
     /// Cache a project with custom TTL
     pub fn cache_project_with_ttl(&self, name: &str, project: Project, ttl: Duration) {
-        self.projects.insert(name.to_string(), CacheEntry::new(project, ttl));
+        self.projects
+            .insert(name.to_string(), CacheEntry::new(project, ttl));
     }
 
     /// Get a cached project if not expired
@@ -78,7 +79,8 @@ impl ProjectManagerCache {
 
     /// Cache a specification with custom TTL
     pub fn cache_specification_with_ttl(&self, key: &str, spec: Specification, ttl: Duration) {
-        self.specifications.insert(key.to_string(), CacheEntry::new(spec, ttl));
+        self.specifications
+            .insert(key.to_string(), CacheEntry::new(spec, ttl));
     }
 
     /// Get a cached specification if not expired
@@ -100,7 +102,8 @@ impl ProjectManagerCache {
 
     /// Cache a project list with custom TTL
     pub fn cache_project_list_with_ttl(&self, key: &str, projects: Vec<String>, ttl: Duration) {
-        self.project_lists.insert(key.to_string(), CacheEntry::new(projects, ttl));
+        self.project_lists
+            .insert(key.to_string(), CacheEntry::new(projects, ttl));
     }
 
     /// Get a cached project list if not expired
@@ -122,7 +125,8 @@ impl ProjectManagerCache {
 
     /// Cache a spec list with custom TTL
     pub fn cache_spec_list_with_ttl(&self, key: &str, specs: Vec<String>, ttl: Duration) {
-        self.spec_lists.insert(key.to_string(), CacheEntry::new(specs, ttl));
+        self.spec_lists
+            .insert(key.to_string(), CacheEntry::new(specs, ttl));
     }
 
     /// Get a cached spec list if not expired
@@ -144,7 +148,8 @@ impl ProjectManagerCache {
 
     /// Cache file contents with custom TTL
     pub fn cache_file_content_with_ttl(&self, path: &str, content: String, ttl: Duration) {
-        self.file_contents.insert(path.to_string(), CacheEntry::new(content, ttl));
+        self.file_contents
+            .insert(path.to_string(), CacheEntry::new(content, ttl));
     }
 
     /// Get cached file contents if not expired
@@ -163,38 +168,35 @@ impl ProjectManagerCache {
     pub fn invalidate_project(&self, project_name: &str) {
         // Remove project cache
         self.projects.remove(project_name);
-        
+
         // Remove related specifications
-        self.specifications.retain(|key, _| {
-            !key.starts_with(&format!("{}:", project_name))
-        });
-        
+        self.specifications
+            .retain(|key, _| !key.starts_with(&format!("{}:", project_name)));
+
         // Remove spec lists for this project
         self.spec_lists.remove(project_name);
-        
+
         // Remove project lists (since they might include this project)
         self.project_lists.clear();
-        
+
         // Remove file contents for this project
         let project_path = format!("/{}/", project_name);
-        self.file_contents.retain(|key, _| {
-            !key.contains(&project_path)
-        });
+        self.file_contents
+            .retain(|key, _| !key.contains(&project_path));
     }
 
     /// Invalidate all cached data for a specific specification
     pub fn invalidate_specification(&self, project_name: &str, spec_id: &str) {
         let spec_key = format!("{}:{}", project_name, spec_id);
         self.specifications.remove(&spec_key);
-        
+
         // Remove spec lists for this project since they might be outdated
         self.spec_lists.remove(project_name);
-        
+
         // Remove related file contents
         let spec_path = format!("/{}/{}/", project_name, spec_id);
-        self.file_contents.retain(|key, _| {
-            !key.contains(&spec_path)
-        });
+        self.file_contents
+            .retain(|key, _| !key.contains(&spec_path));
     }
 
     /// Clear all expired entries
@@ -245,18 +247,18 @@ pub struct CacheStats {
 
 impl CacheStats {
     pub fn total_entries(&self) -> usize {
-        self.projects_count + 
-        self.specifications_count + 
-        self.project_lists_count + 
-        self.spec_lists_count + 
-        self.file_contents_count
+        self.projects_count
+            + self.specifications_count
+            + self.project_lists_count
+            + self.spec_lists_count
+            + self.file_contents_count
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Project, TechStack, Vision, Specification, SpecStatus};
+    use crate::models::{Project, SpecStatus, Specification, TechStack, Vision};
     use std::thread;
 
     fn create_test_project() -> Project {
@@ -297,13 +299,13 @@ mod tests {
     fn test_cache_and_get_project() {
         let cache = ProjectManagerCache::new();
         let project = create_test_project();
-        
+
         // Cache should be empty initially
         assert!(cache.get_project("test-project").is_none());
-        
+
         // Cache the project
         cache.cache_project("test-project", project.clone());
-        
+
         // Should be able to retrieve it
         let cached_project = cache.get_project("test-project");
         assert!(cached_project.is_some());
@@ -314,16 +316,16 @@ mod tests {
     fn test_cache_expiration() {
         let cache = ProjectManagerCache::new();
         let project = create_test_project();
-        
+
         // Cache with very short TTL
         cache.cache_project_with_ttl("test-project", project, Duration::from_millis(10));
-        
+
         // Should be available immediately
         assert!(cache.get_project("test-project").is_some());
-        
+
         // Wait for expiration
         thread::sleep(Duration::from_millis(20));
-        
+
         // Should be expired and removed
         assert!(cache.get_project("test-project").is_none());
     }
@@ -333,9 +335,9 @@ mod tests {
         let cache = ProjectManagerCache::new();
         let spec = create_test_spec();
         let key = format!("test-project:{}", spec.id);
-        
+
         cache.cache_specification(&key, spec.clone());
-        
+
         let cached_spec = cache.get_specification(&key);
         assert!(cached_spec.is_some());
         assert_eq!(cached_spec.unwrap().id, spec.id);
@@ -346,10 +348,10 @@ mod tests {
         let cache = ProjectManagerCache::new();
         let projects = vec!["project1".to_string(), "project2".to_string()];
         let specs = vec!["spec1".to_string(), "spec2".to_string()];
-        
+
         cache.cache_project_list("all_projects", projects.clone());
         cache.cache_spec_list("project1_specs", specs.clone());
-        
+
         assert_eq!(cache.get_project_list("all_projects"), Some(projects));
         assert_eq!(cache.get_spec_list("project1_specs"), Some(specs));
     }
@@ -359,9 +361,9 @@ mod tests {
         let cache = ProjectManagerCache::new();
         let path = "/path/to/file.txt";
         let content = "file contents";
-        
+
         cache.cache_file_content(path, content.to_string());
-        
+
         let cached_content = cache.get_file_content(path);
         assert_eq!(cached_content, Some(content.to_string()));
     }
@@ -371,22 +373,22 @@ mod tests {
         let cache = ProjectManagerCache::new();
         let project = create_test_project();
         let spec = create_test_spec();
-        
+
         // Cache project and related data
         cache.cache_project("test-project", project);
         cache.cache_specification("test-project:test-spec", spec);
         cache.cache_spec_list("test-project", vec!["spec1".to_string()]);
         cache.cache_file_content("/test-project/file.txt", "content".to_string());
-        
+
         // Verify they're cached
         assert!(cache.get_project("test-project").is_some());
         assert!(cache.get_specification("test-project:test-spec").is_some());
         assert!(cache.get_spec_list("test-project").is_some());
         assert!(cache.get_file_content("/test-project/file.txt").is_some());
-        
+
         // Invalidate project
         cache.invalidate_project("test-project");
-        
+
         // All related data should be gone
         assert!(cache.get_project("test-project").is_none());
         assert!(cache.get_specification("test-project:test-spec").is_none());
@@ -400,17 +402,24 @@ mod tests {
         let spec1 = create_test_spec();
         let mut spec2 = create_test_spec();
         spec2.id = "test-spec-2".to_string();
-        
+
         cache.cache_specification("test-project:test-spec", spec1);
         cache.cache_specification("test-project:test-spec-2", spec2);
-        cache.cache_spec_list("test-project", vec!["spec1".to_string(), "spec2".to_string()]);
-        
+        cache.cache_spec_list(
+            "test-project",
+            vec!["spec1".to_string(), "spec2".to_string()],
+        );
+
         // Invalidate one specification
         cache.invalidate_specification("test-project", "test-spec");
-        
+
         // First spec should be gone, second should remain
         assert!(cache.get_specification("test-project:test-spec").is_none());
-        assert!(cache.get_specification("test-project:test-spec-2").is_some());
+        assert!(
+            cache
+                .get_specification("test-project:test-spec-2")
+                .is_some()
+        );
         // Spec list should be cleared since it might be outdated
         assert!(cache.get_spec_list("test-project").is_none());
     }
@@ -421,17 +430,17 @@ mod tests {
         let project1 = create_test_project();
         let mut project2 = create_test_project();
         project2.name = "project2".to_string();
-        
+
         // Cache one with short TTL, one with long TTL
         cache.cache_project_with_ttl("project1", project1, Duration::from_millis(10));
         cache.cache_project_with_ttl("project2", project2, Duration::from_secs(3600));
-        
+
         // Wait for first to expire
         thread::sleep(Duration::from_millis(20));
-        
+
         // Before cleanup, expired entry still exists in map
         assert_eq!(cache.stats().projects_count, 2);
-        
+
         // After cleanup, only non-expired entry should remain
         cache.cleanup_expired();
         assert_eq!(cache.stats().projects_count, 1);
@@ -443,33 +452,33 @@ mod tests {
         let cache = ProjectManagerCache::new();
         let project = create_test_project();
         let spec = create_test_spec();
-        
+
         cache.cache_project("test-project", project);
         cache.cache_specification("test-project:test-spec", spec);
         cache.cache_project_list("all", vec!["project1".to_string()]);
         cache.cache_spec_list("project1", vec!["spec1".to_string()]);
         cache.cache_file_content("/file.txt", "content".to_string());
-        
+
         assert!(cache.stats().total_entries() > 0);
-        
+
         cache.clear_all();
-        
+
         assert_eq!(cache.stats().total_entries(), 0);
     }
 
     #[test]
     fn test_cache_stats() {
         let cache = ProjectManagerCache::new();
-        
+
         let initial_stats = cache.stats();
         assert_eq!(initial_stats.total_entries(), 0);
-        
+
         cache.cache_project("project1", create_test_project());
         cache.cache_specification("project1:spec1", create_test_spec());
         cache.cache_project_list("all", vec!["project1".to_string()]);
         cache.cache_spec_list("project1", vec!["spec1".to_string()]);
         cache.cache_file_content("/file.txt", "content".to_string());
-        
+
         let stats = cache.stats();
         assert_eq!(stats.projects_count, 1);
         assert_eq!(stats.specifications_count, 1);

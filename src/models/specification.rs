@@ -161,24 +161,38 @@ mod tests {
 
         for status in &statuses {
             let serialized = serde_json::to_string(status).expect("Failed to serialize SpecStatus");
-            let deserialized: SpecStatus = serde_json::from_str(&serialized).expect("Failed to deserialize SpecStatus");
+            let deserialized: SpecStatus =
+                serde_json::from_str(&serialized).expect("Failed to deserialize SpecStatus");
             assert_eq!(*status, deserialized);
         }
     }
 
     #[test]
     fn test_spec_status_json_values() {
-        assert_eq!(serde_json::to_string(&SpecStatus::Draft).unwrap(), "\"Draft\"");
-        assert_eq!(serde_json::to_string(&SpecStatus::InProgress).unwrap(), "\"InProgress\"");
-        assert_eq!(serde_json::to_string(&SpecStatus::Completed).unwrap(), "\"Completed\"");
-        assert_eq!(serde_json::to_string(&SpecStatus::OnHold).unwrap(), "\"OnHold\"");
+        assert_eq!(
+            serde_json::to_string(&SpecStatus::Draft).unwrap(),
+            "\"Draft\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SpecStatus::InProgress).unwrap(),
+            "\"InProgress\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SpecStatus::Completed).unwrap(),
+            "\"Completed\""
+        );
+        assert_eq!(
+            serde_json::to_string(&SpecStatus::OnHold).unwrap(),
+            "\"OnHold\""
+        );
     }
 
     #[test]
     fn test_specification_serialization() {
         let spec = create_sample_specification();
         let serialized = serde_json::to_string(&spec).expect("Failed to serialize Specification");
-        let deserialized: Specification = serde_json::from_str(&serialized).expect("Failed to deserialize Specification");
+        let deserialized: Specification =
+            serde_json::from_str(&serialized).expect("Failed to deserialize Specification");
 
         assert_eq!(spec.id, deserialized.id);
         assert_eq!(spec.name, deserialized.name);
@@ -201,8 +215,10 @@ mod tests {
             content: "".to_string(),
         };
 
-        let serialized = serde_json::to_string(&spec).expect("Failed to serialize empty Specification");
-        let deserialized: Specification = serde_json::from_str(&serialized).expect("Failed to deserialize empty Specification");
+        let serialized =
+            serde_json::to_string(&spec).expect("Failed to serialize empty Specification");
+        let deserialized: Specification =
+            serde_json::from_str(&serialized).expect("Failed to deserialize empty Specification");
 
         assert_eq!(spec.description, deserialized.description);
         assert_eq!(spec.content, deserialized.content);
@@ -237,11 +253,14 @@ fn hello() {
 
 > Blockquote example
 
-[Link](https://example.com)"#.to_string(),
+[Link](https://example.com)"#
+                .to_string(),
         };
 
-        let serialized = serde_json::to_string(&spec).expect("Failed to serialize Markdown Specification");
-        let deserialized: Specification = serde_json::from_str(&serialized).expect("Failed to deserialize Markdown Specification");
+        let serialized =
+            serde_json::to_string(&spec).expect("Failed to serialize Markdown Specification");
+        let deserialized: Specification = serde_json::from_str(&serialized)
+            .expect("Failed to deserialize Markdown Specification");
 
         assert_eq!(spec.content, deserialized.content);
         assert!(deserialized.content.contains("# Main Title"));
@@ -258,11 +277,14 @@ fn hello() {
             status: SpecStatus::Completed,
             created_at: Utc::now(),
             updated_at: Utc::now(),
-            content: "Content with quotes \"double\" and 'single', newlines\nand tabs\t.".to_string(),
+            content: "Content with quotes \"double\" and 'single', newlines\nand tabs\t."
+                .to_string(),
         };
 
-        let serialized = serde_json::to_string(&spec).expect("Failed to serialize Specification with special characters");
-        let deserialized: Specification = serde_json::from_str(&serialized).expect("Failed to deserialize Specification with special characters");
+        let serialized = serde_json::to_string(&spec)
+            .expect("Failed to serialize Specification with special characters");
+        let deserialized: Specification = serde_json::from_str(&serialized)
+            .expect("Failed to deserialize Specification with special characters");
 
         assert_eq!(spec.name, deserialized.name);
         assert_eq!(spec.description, deserialized.description);
@@ -272,11 +294,11 @@ fn hello() {
     #[test]
     fn test_specification_id_format_validation() {
         let spec = create_sample_specification();
-        
+
         // Test valid ID format: YYYYMMDD_snake_case
         assert!(spec.id.starts_with("20240101_"));
         assert!(spec.id.contains("_"));
-        
+
         let parts: Vec<&str> = spec.id.split('_').collect();
         assert!(parts.len() >= 2);
         assert_eq!(parts[0].len(), 8); // YYYYMMDD format
@@ -285,20 +307,20 @@ fn hello() {
     #[test]
     fn test_specification_status_transitions() {
         let mut spec = create_sample_specification();
-        
+
         // Test status transitions
         assert_eq!(spec.status, SpecStatus::Draft);
-        
+
         spec.status = SpecStatus::InProgress;
         let serialized = serde_json::to_string(&spec).unwrap();
         let deserialized: Specification = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.status, SpecStatus::InProgress);
-        
+
         spec.status = SpecStatus::Completed;
         let serialized = serde_json::to_string(&spec).unwrap();
         let deserialized: Specification = serde_json::from_str(&serialized).unwrap();
         assert_eq!(deserialized.status, SpecStatus::Completed);
-        
+
         spec.status = SpecStatus::OnHold;
         let serialized = serde_json::to_string(&spec).unwrap();
         let deserialized: Specification = serde_json::from_str(&serialized).unwrap();

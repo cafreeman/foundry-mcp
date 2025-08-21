@@ -4,10 +4,10 @@
 //! Provides project management commands and can run as an MCP server.
 
 use clap::Parser;
-use foundry_mcp::cli::{Cli, Commands};
-use foundry_mcp::cli::commands::{serve, install, project};
 use foundry_mcp::cli::args::ServeArgs;
+use foundry_mcp::cli::commands::{install, project, serve};
 use foundry_mcp::cli::config::CliConfig;
+use foundry_mcp::cli::{Cli, Commands};
 use foundry_mcp::errors::Result;
 use std::env;
 use tracing::{Level, error, info};
@@ -31,57 +31,58 @@ async fn main() -> Result<()> {
             info!("  - Log format preference: {}", args.log_format);
             serve::run_server(args.clone()).await
         }
-        
+
         Some(Commands::Install(args)) => install::run_install(args).await,
-        
+
         Some(Commands::CreateProject(args)) => project::create_project(args).await,
-        
-        Some(Commands::CreateSpec { project, name, description }) => {
-            project::create_spec(project, name, description).await
-        }
-        
+
+        Some(Commands::CreateSpec {
+            project,
+            name,
+            description,
+        }) => project::create_spec(project, name, description).await,
+
         Some(Commands::ListProjects) => project::list_projects().await,
-        
-        Some(Commands::ClearProjects { force, project, backup }) => {
-            project::clear_projects(force, project, backup).await
-        }
-        
-        Some(Commands::ShowProject { name, format }) => {
-            project::show_project(name, format).await
-        }
-        
-        Some(Commands::ListSpecs { project, detailed, json }) => {
-            project::list_specs(project, detailed, json).await
-        }
-        
-        Some(Commands::ShowSpec { project, spec_id, tasks_only, notes_only, format }) => {
-            project::show_spec(project, spec_id, tasks_only, notes_only, format).await
-        }
-        
-        Some(Commands::Export { project, spec, format, output_dir }) => {
-            project::export_data(project, spec, format, output_dir).await
-        }
-        
-        Some(Commands::Import { file, merge }) => {
-            project::import_data(file, merge).await
-        }
-        
-        Some(Commands::Config { action }) => {
-            project::handle_config(action).await
-        }
-        
-        Some(Commands::Status { verbose }) => {
-            project::show_status(verbose).await
-        }
-        
-        Some(Commands::Doctor { fix }) => {
-            project::run_doctor(fix).await
-        }
-        
-        Some(Commands::Completions { shell }) => {
-            project::generate_completions(shell).await
-        }
-        
+
+        Some(Commands::ClearProjects {
+            force,
+            project,
+            backup,
+        }) => project::clear_projects(force, project, backup).await,
+
+        Some(Commands::ShowProject { name, format }) => project::show_project(name, format).await,
+
+        Some(Commands::ListSpecs {
+            project,
+            detailed,
+            json,
+        }) => project::list_specs(project, detailed, json).await,
+
+        Some(Commands::ShowSpec {
+            project,
+            spec_id,
+            tasks_only,
+            notes_only,
+            format,
+        }) => project::show_spec(project, spec_id, tasks_only, notes_only, format).await,
+
+        Some(Commands::Export {
+            project,
+            spec,
+            format,
+            output_dir,
+        }) => project::export_data(project, spec, format, output_dir).await,
+
+        Some(Commands::Import { file, merge }) => project::import_data(file, merge).await,
+
+        Some(Commands::Config { action }) => project::handle_config(action).await,
+
+        Some(Commands::Status { verbose }) => project::show_status(verbose).await,
+
+        Some(Commands::Doctor { fix }) => project::run_doctor(fix).await,
+
+        Some(Commands::Completions { shell }) => project::generate_completions(shell).await,
+
         // Default behavior: run serve mode when no subcommand is provided
         None => {
             info!("No subcommand provided, starting MCP server mode");
@@ -111,15 +112,17 @@ fn load_configuration(cli: &Cli) -> Result<CliConfig> {
 
     // Override with environment variables
     if let Ok(env_log_level) = env::var("LOG_LEVEL")
-        && let Err(e) = config.set("log_level", &env_log_level) {
-            error!("Invalid LOG_LEVEL environment variable: {}", e);
-        }
+        && let Err(e) = config.set("log_level", &env_log_level)
+    {
+        error!("Invalid LOG_LEVEL environment variable: {}", e);
+    }
 
     // Override with CLI arguments (highest priority)
     if let Some(ref log_level) = cli.log_level
-        && let Err(e) = config.set("log_level", log_level) {
-            error!("Invalid log level from CLI: {}", e);
-        }
+        && let Err(e) = config.set("log_level", log_level)
+    {
+        error!("Invalid log level from CLI: {}", e);
+    }
 
     // Handle config directory override
     if cli.config_dir.is_some() {

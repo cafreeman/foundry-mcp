@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use tokio::sync::{mpsc, RwLock};
+use tokio::sync::{RwLock, mpsc};
 use tokio::time::interval;
 
 /// Progress status for an operation
@@ -36,10 +36,7 @@ impl ProgressTracker {
         let (sender, receiver) = mpsc::unbounded_channel();
         let operations = Arc::new(RwLock::new(std::collections::HashMap::new()));
 
-        let tracker = Self {
-            sender,
-            operations,
-        };
+        let tracker = Self { sender, operations };
 
         (tracker, receiver)
     }
@@ -53,12 +50,21 @@ impl ProgressTracker {
             timestamp: Instant::now(),
         };
 
-        self.operations.write().await.insert(operation_id.to_string(), update.clone());
+        self.operations
+            .write()
+            .await
+            .insert(operation_id.to_string(), update.clone());
         let _ = self.sender.send(update);
     }
 
     /// Update operation progress
-    pub async fn update_progress(&self, operation_id: &str, current: u64, total: Option<u64>, message: Option<&str>) {
+    pub async fn update_progress(
+        &self,
+        operation_id: &str,
+        current: u64,
+        total: Option<u64>,
+        message: Option<&str>,
+    ) {
         let update = ProgressUpdate {
             operation_id: operation_id.to_string(),
             status: ProgressStatus::InProgress { current, total },
@@ -66,7 +72,10 @@ impl ProgressTracker {
             timestamp: Instant::now(),
         };
 
-        self.operations.write().await.insert(operation_id.to_string(), update.clone());
+        self.operations
+            .write()
+            .await
+            .insert(operation_id.to_string(), update.clone());
         let _ = self.sender.send(update);
     }
 
@@ -79,7 +88,10 @@ impl ProgressTracker {
             timestamp: Instant::now(),
         };
 
-        self.operations.write().await.insert(operation_id.to_string(), update.clone());
+        self.operations
+            .write()
+            .await
+            .insert(operation_id.to_string(), update.clone());
         let _ = self.sender.send(update);
     }
 
@@ -87,12 +99,17 @@ impl ProgressTracker {
     pub async fn fail_operation(&self, operation_id: &str, error: &str) {
         let update = ProgressUpdate {
             operation_id: operation_id.to_string(),
-            status: ProgressStatus::Failed { error: error.to_string() },
+            status: ProgressStatus::Failed {
+                error: error.to_string(),
+            },
             message: None,
             timestamp: Instant::now(),
         };
 
-        self.operations.write().await.insert(operation_id.to_string(), update.clone());
+        self.operations
+            .write()
+            .await
+            .insert(operation_id.to_string(), update.clone());
         let _ = self.sender.send(update);
     }
 
@@ -110,7 +127,7 @@ impl ProgressTracker {
     pub async fn cleanup_old_operations(&self, max_age: Duration) {
         let now = Instant::now();
         let mut operations = self.operations.write().await;
-        
+
         operations.retain(|_, update| {
             match &update.status {
                 ProgressStatus::Completed { .. } | ProgressStatus::Failed { .. } => {
@@ -150,35 +167,43 @@ impl OperationProgress {
 
     /// Start the operation
     pub async fn start(&self, message: Option<&str>) {
-        self.tracker.start_operation(&self.operation_id, message).await;
+        self.tracker
+            .start_operation(&self.operation_id, message)
+            .await;
     }
 
     /// Advance to the next step
     pub async fn advance(&mut self, message: Option<&str>) {
         self.current_step += 1;
-        self.tracker.update_progress(
-            &self.operation_id, 
-            self.current_step, 
-            self.total_steps, 
-            message
-        ).await;
+        self.tracker
+            .update_progress(
+                &self.operation_id,
+                self.current_step,
+                self.total_steps,
+                message,
+            )
+            .await;
     }
 
     /// Set current step directly
     pub async fn set_progress(&mut self, current: u64, message: Option<&str>) {
         self.current_step = current;
-        self.tracker.update_progress(
-            &self.operation_id, 
-            self.current_step, 
-            self.total_steps, 
-            message
-        ).await;
+        self.tracker
+            .update_progress(
+                &self.operation_id,
+                self.current_step,
+                self.total_steps,
+                message,
+            )
+            .await;
     }
 
     /// Complete the operation
     pub async fn complete(&self, message: Option<&str>) {
         let total = self.total_steps.unwrap_or(self.current_step);
-        self.tracker.complete_operation(&self.operation_id, total, message).await;
+        self.tracker
+            .complete_operation(&self.operation_id, total, message)
+            .await;
     }
 
     /// Fail the operation
@@ -248,12 +273,15 @@ impl ProgressReporter {
                 } else {
                     format!("[{}]", current)
                 };
-                
+
                 let message = update.message.as_deref().unwrap_or("In progress");
                 tracing::info!("⏳ {}: {} {}", update.operation_id, progress_str, message);
             }
             ProgressStatus::Completed { total } => {
-                let message = update.message.as_deref().unwrap_or("Completed successfully");
+                let message = update
+                    .message
+                    .as_deref()
+                    .unwrap_or("Completed successfully");
                 tracing::info!("✅ {}: {} (total: {})", update.operation_id, message, total);
             }
             ProgressStatus::Failed { error } => {
@@ -274,7 +302,7 @@ impl ProgressReporter {
 
         for update in operations {
             report.push_str(&format!("Operation: {}\n", update.operation_id));
-            
+
             match &update.status {
                 ProgressStatus::NotStarted => {
                     report.push_str("Status: Not Started\n");
@@ -282,7 +310,10 @@ impl ProgressReporter {
                 ProgressStatus::InProgress { current, total } => {
                     if let Some(total) = total {
                         let percentage = (*current as f64 / *total as f64) * 100.0;
-                        report.push_str(&format!("Status: In Progress [{}/{}] ({:.1}%)\n", current, total, percentage));
+                        report.push_str(&format!(
+                            "Status: In Progress [{}/{}] ({:.1}%)\n",
+                            current, total, percentage
+                        ));
                     } else {
                         report.push_str(&format!("Status: In Progress [{}]\n", current));
                     }
@@ -294,11 +325,11 @@ impl ProgressReporter {
                     report.push_str(&format!("Status: Failed - {}\n", error));
                 }
             }
-            
+
             if let Some(message) = &update.message {
                 report.push_str(&format!("Message: {}\n", message));
             }
-            
+
             let elapsed = update.timestamp.elapsed();
             report.push_str(&format!("Elapsed: {:.2}s\n", elapsed.as_secs_f64()));
             report.push('\n');
@@ -313,9 +344,7 @@ static GLOBAL_PROGRESS_TRACKER: std::sync::OnceLock<ProgressTracker> = std::sync
 
 /// Get the global progress tracker instance
 pub fn global_progress_tracker() -> &'static ProgressTracker {
-    GLOBAL_PROGRESS_TRACKER.get_or_init(|| {
-        ProgressTracker::new().0
-    })
+    GLOBAL_PROGRESS_TRACKER.get_or_init(|| ProgressTracker::new().0)
 }
 
 /// Convenience macro for tracking operation progress
@@ -326,20 +355,22 @@ macro_rules! track_progress {
         let mut progress = $crate::progress::OperationProgress::new(
             tracker.clone(),
             $operation_id.to_string(),
-            Some($total_steps)
+            Some($total_steps),
         );
-        
+
         progress.start(None).await;
-        
-        let result = async {
-            $code
-        }.await;
-        
+
+        let result = async { $code }.await;
+
         match &result {
-            Ok(_) => progress.complete(Some("Operation completed successfully")).await,
+            Ok(_) => {
+                progress
+                    .complete(Some("Operation completed successfully"))
+                    .await
+            }
             Err(e) => progress.fail(&e.to_string()).await,
         }
-        
+
         result
     }};
 }
@@ -347,24 +378,28 @@ macro_rules! track_progress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tokio::time::{sleep, Duration};
+    use tokio::time::{Duration, sleep};
 
     #[tokio::test]
     async fn test_progress_tracker_basic() {
         let (tracker, mut receiver) = ProgressTracker::new();
-        
+
         // Start operation
-        tracker.start_operation("test_op", Some("Starting test")).await;
-        
+        tracker
+            .start_operation("test_op", Some("Starting test"))
+            .await;
+
         // Check that we received the update
         let update = receiver.recv().await.unwrap();
         assert_eq!(update.operation_id, "test_op");
         assert!(matches!(update.status, ProgressStatus::NotStarted));
         assert_eq!(update.message, Some("Starting test".to_string()));
-        
+
         // Update progress
-        tracker.update_progress("test_op", 5, Some(10), Some("Half way")).await;
-        
+        tracker
+            .update_progress("test_op", 5, Some(10), Some("Half way"))
+            .await;
+
         let update = receiver.recv().await.unwrap();
         assert_eq!(update.operation_id, "test_op");
         match update.status {
@@ -374,10 +409,12 @@ mod tests {
             }
             _ => panic!("Expected InProgress status"),
         }
-        
+
         // Complete operation
-        tracker.complete_operation("test_op", 10, Some("Finished")).await;
-        
+        tracker
+            .complete_operation("test_op", 10, Some("Finished"))
+            .await;
+
         let update = receiver.recv().await.unwrap();
         assert_eq!(update.operation_id, "test_op");
         match update.status {
@@ -392,17 +429,17 @@ mod tests {
     async fn test_operation_progress() {
         let (tracker, _receiver) = ProgressTracker::new();
         let mut progress = OperationProgress::new(tracker.clone(), "test_op".to_string(), Some(3));
-        
+
         progress.start(Some("Starting")).await;
-        
+
         // Check initial status
         let status = tracker.get_status("test_op").await.unwrap();
         assert!(matches!(status.status, ProgressStatus::NotStarted));
-        
+
         // Advance progress
         progress.advance(Some("Step 1")).await;
         progress.advance(Some("Step 2")).await;
-        
+
         let status = tracker.get_status("test_op").await.unwrap();
         match status.status {
             ProgressStatus::InProgress { current, total } => {
@@ -411,35 +448,40 @@ mod tests {
             }
             _ => panic!("Expected InProgress status"),
         }
-        
+
         // Test percentage calculation (allow for floating point precision)
         let percentage = progress.get_percentage().unwrap();
         assert!((percentage - 66.66666666666667).abs() < 0.0001);
-        
+
         // Complete
         progress.complete(Some("All done")).await;
-        
+
         let status = tracker.get_status("test_op").await.unwrap();
-        assert!(matches!(status.status, ProgressStatus::Completed { total: 3 }));
+        assert!(matches!(
+            status.status,
+            ProgressStatus::Completed { total: 3 }
+        ));
     }
 
     #[tokio::test]
     async fn test_progress_cleanup() {
         let (tracker, _receiver) = ProgressTracker::new();
-        
+
         // Add some operations
         tracker.start_operation("op1", None).await;
         tracker.complete_operation("op2", 10, None).await;
         tracker.fail_operation("op3", "Test error").await;
-        
+
         // Should have 3 operations
         let operations = tracker.get_all_operations().await;
         assert_eq!(operations.len(), 3);
-        
+
         // Wait a bit and cleanup with very short max age
         sleep(Duration::from_millis(10)).await;
-        tracker.cleanup_old_operations(Duration::from_millis(5)).await;
-        
+        tracker
+            .cleanup_old_operations(Duration::from_millis(5))
+            .await;
+
         // Should still have the in-progress operation
         let operations = tracker.get_all_operations().await;
         assert_eq!(operations.len(), 1);
@@ -450,21 +492,27 @@ mod tests {
     async fn test_progress_reporter() {
         let (tracker, receiver) = ProgressTracker::new();
         let mut reporter = ProgressReporter::new(receiver, true);
-        
+
         // Start the reporter in the background
         let reporter_task = tokio::spawn(async move {
             // Run for a short time then exit
-            tokio::time::timeout(Duration::from_millis(100), reporter.start_reporting()).await.ok();
+            tokio::time::timeout(Duration::from_millis(100), reporter.start_reporting())
+                .await
+                .ok();
         });
-        
+
         // Generate some progress updates
         tracker.start_operation("test", Some("Testing")).await;
-        tracker.update_progress("test", 5, Some(10), Some("Half done")).await;
-        tracker.complete_operation("test", 10, Some("Finished")).await;
-        
+        tracker
+            .update_progress("test", 5, Some(10), Some("Half done"))
+            .await;
+        tracker
+            .complete_operation("test", 10, Some("Finished"))
+            .await;
+
         // Wait for reporter to process
         sleep(Duration::from_millis(50)).await;
-        
+
         // Clean up
         reporter_task.abort();
     }
@@ -474,7 +522,10 @@ mod tests {
         let updates = vec![
             ProgressUpdate {
                 operation_id: "op1".to_string(),
-                status: ProgressStatus::InProgress { current: 5, total: Some(10) },
+                status: ProgressStatus::InProgress {
+                    current: 5,
+                    total: Some(10),
+                },
                 message: Some("Working on it".to_string()),
                 timestamp: Instant::now(),
             },
@@ -485,9 +536,9 @@ mod tests {
                 timestamp: Instant::now(),
             },
         ];
-        
+
         let report = ProgressReporter::generate_report(&updates);
-        
+
         assert!(report.contains("Progress Report"));
         assert!(report.contains("op1"));
         assert!(report.contains("op2"));

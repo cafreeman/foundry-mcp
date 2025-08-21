@@ -15,7 +15,7 @@ pub struct ProjectRepository {
 impl ProjectRepository {
     /// Create a new ProjectRepository instance
     pub fn new(fs_manager: FileSystemManager) -> Self {
-        Self { 
+        Self {
             fs_manager,
             cache: ProjectManagerCache::new(),
         }
@@ -59,7 +59,7 @@ impl ProjectRepository {
 
         // Cache the newly created project
         self.cache.cache_project(&project.name, project.clone());
-        
+
         // Invalidate project lists since we added a new project
         self.cache.get_project_list("all_projects");
 
@@ -104,7 +104,8 @@ impl ProjectRepository {
     /// List all projects
     pub async fn list_projects(&self) -> Result<Vec<Project>> {
         // Check if we have a cached list of project names
-        let project_names = if let Some(cached_names) = self.cache.get_project_list("all_projects") {
+        let project_names = if let Some(cached_names) = self.cache.get_project_list("all_projects")
+        {
             tracing::debug!("Retrieved project list from cache");
             cached_names
         } else {

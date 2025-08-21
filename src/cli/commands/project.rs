@@ -1,9 +1,9 @@
-use anyhow::Result;
-use crate::cli::args::{ProjectArgs, ConfigAction};
 use crate::cache::ProjectManagerCache;
+use crate::cli::args::{ConfigAction, ProjectArgs};
 use crate::filesystem::FileSystemManager;
-use crate::handlers::{setup_project::SetupProjectHandler, create_spec::CreateSpecHandler};
+use crate::handlers::{create_spec::CreateSpecHandler, setup_project::SetupProjectHandler};
 use crate::repository::{ProjectRepository, SpecificationRepository};
+use anyhow::Result;
 use serde_json::json;
 
 pub async fn create_project(args: ProjectArgs) -> Result<()> {
@@ -15,11 +15,12 @@ pub async fn create_project(args: ProjectArgs) -> Result<()> {
 
     // For CLI usage, parse tech stack and put all items in frameworks by default
     // Users can manually organize later or we can enhance this in the future
-    let tech_stack_items: Vec<String> = args.tech_stack
+    let tech_stack_items: Vec<String> = args
+        .tech_stack
         .as_ref()
         .map(|s| s.split(',').map(|item| item.trim().to_string()).collect())
         .unwrap_or_default();
-    
+
     // Prepare arguments for setup_project handler
     let arguments = json!({
         "name": args.name,
@@ -49,7 +50,11 @@ pub async fn create_project(args: ProjectArgs) -> Result<()> {
     }
 }
 
-pub async fn create_spec(project_name: String, spec_name: String, description: String) -> Result<()> {
+pub async fn create_spec(
+    project_name: String,
+    spec_name: String,
+    description: String,
+) -> Result<()> {
     // Initialize components
     let fs_manager = FileSystemManager::new()?;
     let cache = ProjectManagerCache::new();
@@ -68,7 +73,7 @@ pub async fn create_spec(project_name: String, spec_name: String, description: S
         return Ok(());
     }
 
-    // Prepare arguments for create_spec handler  
+    // Prepare arguments for create_spec handler
     let arguments = json!({
         "project_name": project_name,
         "spec_name": spec_name,
@@ -79,7 +84,10 @@ pub async fn create_spec(project_name: String, spec_name: String, description: S
     match handler.handle_create_spec(&arguments).await {
         Ok(result) => {
             println!("✓ {}", result);
-            println!("📄 Specification created in ~/.foundry/{}/specs/", project_name);
+            println!(
+                "📄 Specification created in ~/.foundry/{}/specs/",
+                project_name
+            );
             println!("💡 View with: foundry-mcp list-specs {}", project_name);
             Ok(())
         }
@@ -109,14 +117,19 @@ pub async fn list_projects() -> Result<()> {
             println!();
             for project in projects {
                 println!("  {} - {}", project.name, project.description);
-                println!("    Created: {}", project.created_at.format("%Y-%m-%d %H:%M"));
-                
-                // Count specifications
-                let spec_repo = SpecificationRepository::with_cache(
-                    fs_manager.clone(), 
-                    cache.clone()
+                println!(
+                    "    Created: {}",
+                    project.created_at.format("%Y-%m-%d %H:%M")
                 );
-                let spec_count = spec_repo.list_specs(&project.name).await.unwrap_or_default().len();
+
+                // Count specifications
+                let spec_repo =
+                    SpecificationRepository::with_cache(fs_manager.clone(), cache.clone());
+                let spec_count = spec_repo
+                    .list_specs(&project.name)
+                    .await
+                    .unwrap_or_default()
+                    .len();
                 println!("    Specs: {}", spec_count);
                 println!();
             }
@@ -164,7 +177,10 @@ pub async fn list_specs(project: String, _detailed: bool, _json: bool) -> Result
         Ok(specs) => {
             if specs.is_empty() {
                 println!("No specifications found for project '{}'.", project);
-                println!("Create a spec with: foundry-mcp create-spec {} <spec-name>", project);
+                println!(
+                    "Create a spec with: foundry-mcp create-spec {} <spec-name>",
+                    project
+                );
                 return Ok(());
             }
 
@@ -191,13 +207,24 @@ pub async fn list_specs(project: String, _detailed: bool, _json: bool) -> Result
     }
 }
 
-pub async fn show_spec(_project: String, _spec_id: String, _tasks_only: bool, _notes_only: bool, _format: String) -> Result<()> {
+pub async fn show_spec(
+    _project: String,
+    _spec_id: String,
+    _tasks_only: bool,
+    _notes_only: bool,
+    _format: String,
+) -> Result<()> {
     // This will be implemented in Phase 6
     println!("Show spec command - implementation coming in Phase 6");
     Ok(())
 }
 
-pub async fn export_data(_project: Option<String>, _spec: Option<String>, _format: String, _output_dir: Option<String>) -> Result<()> {
+pub async fn export_data(
+    _project: Option<String>,
+    _spec: Option<String>,
+    _format: String,
+    _output_dir: Option<String>,
+) -> Result<()> {
     // This will be implemented in Phase 6
     println!("Export command - implementation coming in Phase 6");
     Ok(())
@@ -232,4 +259,3 @@ pub async fn generate_completions(_shell: String) -> Result<()> {
     println!("Completions command - implementation coming in Phase 8");
     Ok(())
 }
-

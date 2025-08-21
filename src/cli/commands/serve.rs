@@ -1,7 +1,7 @@
-use anyhow::Result;
 use crate::cli::args::ServeArgs;
 use crate::errors::ProjectManagerError;
 use crate::handlers::ProjectManagerHandler;
+use anyhow::Result;
 use rust_mcp_sdk::schema::{
     Implementation, InitializeResult, LATEST_PROTOCOL_VERSION, ServerCapabilities,
     ServerCapabilitiesTools,
@@ -21,8 +21,7 @@ pub async fn run_server(args: ServeArgs) -> Result<()> {
     info!("  - Port: {}", args.port);
     info!("  - Max Connections: {}", args.max_connections);
     info!("  - Timeout: {}s", args.timeout);
-    info!("  - Backup Retention: {} days", args.backup_retention_days);
-    info!("  - Log Format: {}", args.log_format);
+    info!("  - Backup Retention: {} days", args.backup_retention_days);    info!("  - Log Format: {}", args.log_format);
 
     // Validate transport mode
     if args.transport != "stdio" {

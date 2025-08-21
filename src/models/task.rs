@@ -431,7 +431,8 @@ mod tests {
 
         for status in &statuses {
             let serialized = serde_json::to_string(status).expect("Failed to serialize TaskStatus");
-            let deserialized: TaskStatus = serde_json::from_str(&serialized).expect("Failed to deserialize TaskStatus");
+            let deserialized: TaskStatus =
+                serde_json::from_str(&serialized).expect("Failed to deserialize TaskStatus");
             assert_eq!(*status, deserialized);
         }
     }
@@ -446,8 +447,10 @@ mod tests {
         ];
 
         for priority in &priorities {
-            let serialized = serde_json::to_string(priority).expect("Failed to serialize TaskPriority");
-            let deserialized: TaskPriority = serde_json::from_str(&serialized).expect("Failed to deserialize TaskPriority");
+            let serialized =
+                serde_json::to_string(priority).expect("Failed to serialize TaskPriority");
+            let deserialized: TaskPriority =
+                serde_json::from_str(&serialized).expect("Failed to deserialize TaskPriority");
             assert_eq!(*priority, deserialized);
         }
     }
@@ -464,8 +467,10 @@ mod tests {
         ];
 
         for category in &categories {
-            let serialized = serde_json::to_string(category).expect("Failed to serialize NoteCategory");
-            let deserialized: NoteCategory = serde_json::from_str(&serialized).expect("Failed to deserialize NoteCategory");
+            let serialized =
+                serde_json::to_string(category).expect("Failed to serialize NoteCategory");
+            let deserialized: NoteCategory =
+                serde_json::from_str(&serialized).expect("Failed to deserialize NoteCategory");
             assert_eq!(*category, deserialized);
         }
     }
@@ -474,7 +479,8 @@ mod tests {
     fn test_task_serialization() {
         let task = create_sample_task();
         let serialized = serde_json::to_string(&task).expect("Failed to serialize Task");
-        let deserialized: Task = serde_json::from_str(&serialized).expect("Failed to deserialize Task");
+        let deserialized: Task =
+            serde_json::from_str(&serialized).expect("Failed to deserialize Task");
 
         assert_eq!(task.id, deserialized.id);
         assert_eq!(task.title, deserialized.title);
@@ -491,8 +497,10 @@ mod tests {
         let mut task = create_sample_task();
         task.dependencies = vec![];
 
-        let serialized = serde_json::to_string(&task).expect("Failed to serialize Task with empty dependencies");
-        let deserialized: Task = serde_json::from_str(&serialized).expect("Failed to deserialize Task with empty dependencies");
+        let serialized =
+            serde_json::to_string(&task).expect("Failed to serialize Task with empty dependencies");
+        let deserialized: Task = serde_json::from_str(&serialized)
+            .expect("Failed to deserialize Task with empty dependencies");
 
         assert!(deserialized.dependencies.is_empty());
     }
@@ -506,8 +514,10 @@ mod tests {
             "task_003".to_string(),
         ];
 
-        let serialized = serde_json::to_string(&task).expect("Failed to serialize Task with multiple dependencies");
-        let deserialized: Task = serde_json::from_str(&serialized).expect("Failed to deserialize Task with multiple dependencies");
+        let serialized = serde_json::to_string(&task)
+            .expect("Failed to serialize Task with multiple dependencies");
+        let deserialized: Task = serde_json::from_str(&serialized)
+            .expect("Failed to deserialize Task with multiple dependencies");
 
         assert_eq!(deserialized.dependencies.len(), 3);
         assert_eq!(deserialized.dependencies[0], "task_001");
@@ -519,7 +529,8 @@ mod tests {
     fn test_note_serialization() {
         let note = create_sample_note();
         let serialized = serde_json::to_string(&note).expect("Failed to serialize Note");
-        let deserialized: Note = serde_json::from_str(&serialized).expect("Failed to deserialize Note");
+        let deserialized: Note =
+            serde_json::from_str(&serialized).expect("Failed to deserialize Note");
 
         assert_eq!(note.id, deserialized.id);
         assert_eq!(note.content, deserialized.content);
@@ -537,8 +548,10 @@ mod tests {
             created_at: Utc::now(),
         };
 
-        let serialized = serde_json::to_string(&note).expect("Failed to serialize Note with long content");
-        let deserialized: Note = serde_json::from_str(&serialized).expect("Failed to deserialize Note with long content");
+        let serialized =
+            serde_json::to_string(&note).expect("Failed to serialize Note with long content");
+        let deserialized: Note = serde_json::from_str(&serialized)
+            .expect("Failed to deserialize Note with long content");
 
         assert_eq!(note.content, deserialized.content);
         assert_eq!(deserialized.content.len(), 10000);
@@ -560,13 +573,16 @@ fn main() {
 **Important**: This needs to be tested thoroughly.
 
 - Item 1
-- Item 2"#.to_string(),
+- Item 2"#
+                .to_string(),
             category: NoteCategory::Implementation,
             created_at: Utc::now(),
         };
 
-        let serialized = serde_json::to_string(&note).expect("Failed to serialize Note with markdown");
-        let deserialized: Note = serde_json::from_str(&serialized).expect("Failed to deserialize Note with markdown");
+        let serialized =
+            serde_json::to_string(&note).expect("Failed to serialize Note with markdown");
+        let deserialized: Note =
+            serde_json::from_str(&serialized).expect("Failed to deserialize Note with markdown");
 
         assert_eq!(note.content, deserialized.content);
         assert!(deserialized.content.contains("# Implementation Note"));
@@ -577,7 +593,8 @@ fn main() {
     fn test_task_list_serialization() {
         let task_list = create_sample_task_list();
         let serialized = serde_json::to_string(&task_list).expect("Failed to serialize TaskList");
-        let deserialized: TaskList = serde_json::from_str(&serialized).expect("Failed to deserialize TaskList");
+        let deserialized: TaskList =
+            serde_json::from_str(&serialized).expect("Failed to deserialize TaskList");
 
         assert_eq!(task_list.tasks.len(), deserialized.tasks.len());
         assert_eq!(task_list.last_updated, deserialized.last_updated);
@@ -591,8 +608,10 @@ fn main() {
             last_updated: Utc::now(),
         };
 
-        let serialized = serde_json::to_string(&task_list).expect("Failed to serialize empty TaskList");
-        let deserialized: TaskList = serde_json::from_str(&serialized).expect("Failed to deserialize empty TaskList");
+        let serialized =
+            serde_json::to_string(&task_list).expect("Failed to serialize empty TaskList");
+        let deserialized: TaskList =
+            serde_json::from_str(&serialized).expect("Failed to deserialize empty TaskList");
 
         assert!(deserialized.tasks.is_empty());
     }
@@ -628,8 +647,10 @@ fn main() {
             last_updated: Utc::now(),
         };
 
-        let serialized = serde_json::to_string(&task_list).expect("Failed to serialize TaskList with multiple tasks");
-        let deserialized: TaskList = serde_json::from_str(&serialized).expect("Failed to deserialize TaskList with multiple tasks");
+        let serialized = serde_json::to_string(&task_list)
+            .expect("Failed to serialize TaskList with multiple tasks");
+        let deserialized: TaskList = serde_json::from_str(&serialized)
+            .expect("Failed to deserialize TaskList with multiple tasks");
 
         assert_eq!(deserialized.tasks.len(), 3);
         assert_eq!(deserialized.tasks[0].status, TaskStatus::Todo);

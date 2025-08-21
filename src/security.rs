@@ -282,16 +282,17 @@ impl PathSanitizer {
         // Check file size if it's a file
         if path.is_file()
             && let Ok(metadata) = path.metadata()
-                && metadata.len() > self.config.max_file_size {
-                    return Err(ProjectManagerError::validation_error(
-                        "file_size",
-                        &path.display().to_string(),
-                        &format!(
-                            "File size exceeds maximum of {} bytes",
-                            self.config.max_file_size
-                        ),
-                    ));
-                }
+            && metadata.len() > self.config.max_file_size
+        {
+            return Err(ProjectManagerError::validation_error(
+                "file_size",
+                &path.display().to_string(),
+                &format!(
+                    "File size exceeds maximum of {} bytes",
+                    self.config.max_file_size
+                ),
+            ));
+        }
 
         Ok(())
     }

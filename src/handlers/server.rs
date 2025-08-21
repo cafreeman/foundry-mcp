@@ -10,7 +10,6 @@ use crate::handlers::{
 use crate::repository::{ProjectRepository, SpecificationRepository};
 use crate::security::RateLimiter;
 use crate::tools::ProjectManagerTools;
-use std::time::Duration;
 use async_trait::async_trait;
 use rust_mcp_sdk::{
     McpServer,
@@ -21,6 +20,7 @@ use rust_mcp_sdk::{
         schema_utils::CallToolError,
     },
 };
+use std::time::Duration;
 
 /// Main MCP server handler for Project Manager
 #[allow(dead_code)]
@@ -40,15 +40,15 @@ impl ProjectManagerHandler {
     pub fn new() -> Result<Self> {
         let fs_manager = FileSystemManager::new()?;
         let cache = ProjectManagerCache::new();
-        
+
         let project_repo = ProjectRepository::with_cache(fs_manager.clone(), cache.clone());
         let spec_repo = SpecificationRepository::with_cache(fs_manager.clone(), cache.clone());
-        
+
         let setup_project_handler = SetupProjectHandler::new(project_repo.clone());
         let create_spec_handler = CreateSpecHandler::new(project_repo.clone(), spec_repo.clone());
         let load_spec_handler = LoadSpecHandler::new(project_repo.clone(), spec_repo.clone());
         let update_spec_handler = UpdateSpecHandler::new(project_repo.clone(), spec_repo.clone());
-        
+
         // Configure rate limiter: 100 requests per minute
         let rate_limiter = RateLimiter::new(100, Duration::from_secs(60));
 
@@ -89,8 +89,8 @@ impl ServerHandler for ProjectManagerHandler {
         if !self.rate_limiter.is_allowed(client_id) {
             return Err(CallToolError::new(
                 RpcError::invalid_request().with_message(
-                    "Rate limit exceeded. Please wait before making more requests.".to_string()
-                )
+                    "Rate limit exceeded. Please wait before making more requests.".to_string(),
+                ),
             ));
         }
 

@@ -138,9 +138,10 @@ impl FileSystemManager {
                     let path = entry.path();
                     if path.is_dir()
                         && let Some(name) = path.file_name()
-                            && let Some(name_str) = name.to_str() {
-                                projects.push(name_str.to_string());
-                            }
+                        && let Some(name_str) = name.to_str()
+                    {
+                        projects.push(name_str.to_string());
+                    }
                 }
             }
 
@@ -166,9 +167,10 @@ impl FileSystemManager {
                 let path = entry.path();
                 if path.is_dir()
                     && let Some(name) = path.file_name()
-                        && let Some(name_str) = name.to_str() {
-                            specs.push(name_str.to_string());
-                        }
+                    && let Some(name_str) = name.to_str()
+                {
+                    specs.push(name_str.to_string());
+                }
             }
 
             // Sort specs by creation date (newest first)

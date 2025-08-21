@@ -17,7 +17,7 @@ pub struct SpecificationRepository {
 impl SpecificationRepository {
     /// Create a new SpecificationRepository instance
     pub fn new(fs_manager: FileSystemManager) -> Self {
-        Self { 
+        Self {
             fs_manager,
             cache: ProjectManagerCache::new(),
         }
@@ -95,7 +95,7 @@ impl SpecificationRepository {
         // Cache the newly created specification
         let cache_key = format!("{}:{}", project_name, spec_id);
         self.cache.cache_specification(&cache_key, spec.clone());
-        
+
         // Invalidate spec lists since we added a new spec
         self.cache.invalidate_specification(project_name, &spec_id);
 
@@ -105,10 +105,14 @@ impl SpecificationRepository {
     /// Load a specification from the file system
     pub async fn load_spec(&self, project_name: &str, spec_id: &str) -> Result<Specification> {
         let cache_key = format!("{}:{}", project_name, spec_id);
-        
+
         // Check cache first
         if let Some(cached_spec) = self.cache.get_specification(&cache_key) {
-            tracing::debug!("Retrieved specification '{}:{}' from cache", project_name, spec_id);
+            tracing::debug!(
+                "Retrieved specification '{}:{}' from cache",
+                project_name,
+                spec_id
+            );
             return Ok(cached_spec);
         }
 
@@ -116,7 +120,11 @@ impl SpecificationRepository {
             return Err(errors::helpers::spec_not_found(spec_id, project_name));
         }
 
-        tracing::debug!("Loading specification '{}:{}' from filesystem", project_name, spec_id);
+        tracing::debug!(
+            "Loading specification '{}:{}' from filesystem",
+            project_name,
+            spec_id
+        );
 
         let spec_path = self.fs_manager.spec_dir(project_name, spec_id);
         let metadata_path = spec_path.join("spec.json");
@@ -303,7 +311,7 @@ impl SpecificationRepository {
     /// Update an existing specification
     pub async fn update_spec(&self, project_name: &str, spec: &Specification) -> Result<()> {
         let spec_path = self.fs_manager.spec_dir(project_name, &spec.id);
-        
+
         if !spec_path.exists() {
             return Err(errors::helpers::spec_not_found(&spec.id, project_name));
         }
@@ -312,11 +320,13 @@ impl SpecificationRepository {
         let spec_metadata_path = spec_path.join("spec.json");
         let spec_json = serde_json::to_string_pretty(spec)
             .map_err(|e| errors::helpers::serialization_error("update_spec", "specification", e))?;
-        self.fs_manager.write_file_safe(&spec_metadata_path, &spec_json)?;
+        self.fs_manager
+            .write_file_safe(&spec_metadata_path, &spec_json)?;
 
         // Update spec content
         let spec_content_path = spec_path.join("spec.md");
-        self.fs_manager.write_file_safe(&spec_content_path, &spec.content)?;
+        self.fs_manager
+            .write_file_safe(&spec_content_path, &spec.content)?;
 
         Ok(())
     }
@@ -412,9 +422,10 @@ impl SpecificationRepository {
                 task.priority = self.parse_priority(priority_str);
             }
         } else if line.starts_with("Dependencies: ")
-            && let Some(deps_str) = line.strip_prefix("Dependencies: ") {
-                task.dependencies = deps_str.split(',').map(|s| s.trim().to_string()).collect();
-            }
+            && let Some(deps_str) = line.strip_prefix("Dependencies: ")
+        {
+            task.dependencies = deps_str.split(',').map(|s| s.trim().to_string()).collect();
+        }
     }
 
     /// Parse status from string
@@ -500,9 +511,10 @@ impl SpecificationRepository {
     fn parse_note_metadata(&self, line: &str, note: &mut Note) {
         let line = line.trim_start_matches("- ");
         if line.starts_with("Category: ")
-            && let Some(category_str) = line.strip_prefix("Category: ") {
-                note.category = self.parse_category(category_str);
-            }
+            && let Some(category_str) = line.strip_prefix("Category: ")
+        {
+            note.category = self.parse_category(category_str);
+        }
     }
 
     /// Parse category from string

@@ -164,7 +164,9 @@ impl ProjectManagerError {
     pub fn user_message(&self) -> String {
         match self {
             Self::FileSystem {
-                operation, path, source
+                operation,
+                path,
+                source,
             } => {
                 let base_msg = format!("Failed to {} at path '{}'", operation, path.display());
                 if let Some(suggestion) = self.get_suggestion() {
@@ -257,7 +259,9 @@ impl ProjectManagerError {
                 }
             }
             Self::Permission {
-                operation, path, details
+                operation,
+                path,
+                details,
             } => {
                 let base_msg = format!(
                     "Permission denied for {} at path '{}': {}",
@@ -375,9 +379,13 @@ impl ProjectManagerError {
     /// Get detailed troubleshooting steps
     pub fn get_troubleshooting_steps(&self) -> Vec<String> {
         let mut steps = Vec::new();
-        
+
         match self {
-            Self::FileSystem { operation, path, source } => {
+            Self::FileSystem {
+                operation,
+                path,
+                source,
+            } => {
                 steps.push(format!("1. Check if path '{}' exists", path.display()));
                 if operation.contains("write") || operation.contains("create") {
                     steps.push("2. Verify you have write permissions to the directory".to_string());
@@ -385,32 +393,48 @@ impl ProjectManagerError {
                     steps.push("4. Ensure parent directories exist".to_string());
                 } else if operation.contains("read") {
                     steps.push("2. Verify you have read permissions to the file".to_string());
-                    steps.push("3. Check that the file is not locked by another process".to_string());
+                    steps.push(
+                        "3. Check that the file is not locked by another process".to_string(),
+                    );
                 }
                 steps.push(format!("5. System error: {}", source));
             }
-            Self::NotFound { resource_type, identifier, context } => {
-                match resource_type.as_str() {
-                    "Project" => {
-                        steps.push("1. List available projects to verify the name".to_string());
-                        steps.push(format!("2. Create project '{}' using setup_project tool", identifier));
-                        steps.push("3. Check for typos in the project name".to_string());
-                    }
-                    "Specification" => {
-                        steps.push("1. List available specifications for the project".to_string());
-                        steps.push(format!("2. Create specification '{}' using create_spec tool", identifier));
-                        steps.push("3. Verify the specification ID format (YYYYMMDD_name)".to_string());
-                    }
-                    _ => {
-                        steps.push("1. Verify the resource identifier is correct".to_string());
-                        steps.push("2. Check if the resource exists in the expected location".to_string());
-                        if let Some(ctx) = context {
-                            steps.push(format!("3. Context: {}", ctx));
-                        }
+            Self::NotFound {
+                resource_type,
+                identifier,
+                context,
+            } => match resource_type.as_str() {
+                "Project" => {
+                    steps.push("1. List available projects to verify the name".to_string());
+                    steps.push(format!(
+                        "2. Create project '{}' using setup_project tool",
+                        identifier
+                    ));
+                    steps.push("3. Check for typos in the project name".to_string());
+                }
+                "Specification" => {
+                    steps.push("1. List available specifications for the project".to_string());
+                    steps.push(format!(
+                        "2. Create specification '{}' using create_spec tool",
+                        identifier
+                    ));
+                    steps.push("3. Verify the specification ID format (YYYYMMDD_name)".to_string());
+                }
+                _ => {
+                    steps.push("1. Verify the resource identifier is correct".to_string());
+                    steps.push(
+                        "2. Check if the resource exists in the expected location".to_string(),
+                    );
+                    if let Some(ctx) = context {
+                        steps.push(format!("3. Context: {}", ctx));
                     }
                 }
-            }
-            Self::Validation { field, value, reason } => {
+            },
+            Self::Validation {
+                field,
+                value,
+                reason,
+            } => {
                 steps.push(format!("1. Current value '{}' is invalid", value));
                 steps.push(format!("2. Reason: {}", reason));
                 if let Some(suggestion) = self.get_suggestion() {
@@ -426,7 +450,7 @@ impl ProjectManagerError {
                 steps.push("3. Verify your environment and configuration".to_string());
             }
         }
-        
+
         steps
     }
 
@@ -666,9 +690,13 @@ mod tests {
         let path = PathBuf::from("/test/path");
         let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
         let error = ProjectManagerError::file_system_error("read file", &path, io_error);
-        
+
         match error {
-            ProjectManagerError::FileSystem { operation, path: error_path, .. } => {
+            ProjectManagerError::FileSystem {
+                operation,
+                path: error_path,
+                ..
+            } => {
                 assert_eq!(operation, "read file");
                 assert_eq!(error_path, path);
             }
@@ -679,12 +707,16 @@ mod tests {
     #[test]
     fn test_serialization_error_creation() {
         // Create a real JSON error by trying to parse invalid JSON
-        let json_result: std::result::Result<serde_json::Value, serde_json::Error> = serde_json::from_str("invalid json");
+        let json_result: std::result::Result<serde_json::Value, serde_json::Error> =
+            serde_json::from_str("invalid json");
         let json_error = json_result.unwrap_err();
-        let error = ProjectManagerError::serialization_error("parse JSON", "invalid json", json_error);
-        
+        let error =
+            ProjectManagerError::serialization_error("parse JSON", "invalid json", json_error);
+
         match error {
-            ProjectManagerError::Serialization { operation, content, .. } => {
+            ProjectManagerError::Serialization {
+                operation, content, ..
+            } => {
                 assert_eq!(operation, "parse JSON");
                 assert_eq!(content, "invalid json");
             }
@@ -694,10 +726,18 @@ mod tests {
 
     #[test]
     fn test_validation_error_creation() {
-        let error = ProjectManagerError::validation_error("project_name", "invalid name", "contains spaces");
-        
+        let error = ProjectManagerError::validation_error(
+            "project_name",
+            "invalid name",
+            "contains spaces",
+        );
+
         match error {
-            ProjectManagerError::Validation { field, value, reason } => {
+            ProjectManagerError::Validation {
+                field,
+                value,
+                reason,
+            } => {
                 assert_eq!(field, "project_name");
                 assert_eq!(value, "invalid name");
                 assert_eq!(reason, "contains spaces");
@@ -709,9 +749,13 @@ mod tests {
     #[test]
     fn test_not_found_error_creation() {
         let error = ProjectManagerError::not_found("Project", "test-project", Some("workspace"));
-        
+
         match error {
-            ProjectManagerError::NotFound { resource_type, identifier, context } => {
+            ProjectManagerError::NotFound {
+                resource_type,
+                identifier,
+                context,
+            } => {
                 assert_eq!(resource_type, "Project");
                 assert_eq!(identifier, "test-project");
                 assert_eq!(context, Some("workspace".to_string()));
@@ -722,10 +766,15 @@ mod tests {
 
     #[test]
     fn test_already_exists_error_creation() {
-        let error = ProjectManagerError::already_exists("Project", "duplicate-project", Some("workspace"));
-        
+        let error =
+            ProjectManagerError::already_exists("Project", "duplicate-project", Some("workspace"));
+
         match error {
-            ProjectManagerError::AlreadyExists { resource_type, identifier, context } => {
+            ProjectManagerError::AlreadyExists {
+                resource_type,
+                identifier,
+                context,
+            } => {
                 assert_eq!(resource_type, "Project");
                 assert_eq!(identifier, "duplicate-project");
                 assert_eq!(context, Some("workspace".to_string()));
@@ -739,7 +788,7 @@ mod tests {
         let path = PathBuf::from("/test/file.txt");
         let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "File not found");
         let error = ProjectManagerError::file_system_error("read file", &path, io_error);
-        
+
         let message = error.user_message();
         assert!(message.contains("Failed to read file"));
         assert!(message.contains("/test/file.txt"));
@@ -747,9 +796,13 @@ mod tests {
 
     #[test]
     fn test_user_message_validation_error() {
-        let error = ProjectManagerError::validation_error("project_name", "bad name", "contains invalid characters");
+        let error = ProjectManagerError::validation_error(
+            "project_name",
+            "bad name",
+            "contains invalid characters",
+        );
         let message = error.user_message();
-        
+
         assert!(message.contains("Invalid value 'bad name'"));
         assert!(message.contains("for field 'project_name'"));
         assert!(message.contains("contains invalid characters"));
@@ -757,10 +810,13 @@ mod tests {
 
     #[test]
     fn test_error_category() {
-        let fs_error = ProjectManagerError::file_system_error("test", &PathBuf::new(), 
-            std::io::Error::new(std::io::ErrorKind::NotFound, "test"));
+        let fs_error = ProjectManagerError::file_system_error(
+            "test",
+            &PathBuf::new(),
+            std::io::Error::new(std::io::ErrorKind::NotFound, "test"),
+        );
         assert_eq!(fs_error.category(), "filesystem");
-        
+
         let validation_error = ProjectManagerError::validation_error("field", "value", "reason");
         assert_eq!(validation_error.category(), "validation");
     }
@@ -769,19 +825,22 @@ mod tests {
     fn test_is_user_facing() {
         let validation_error = ProjectManagerError::validation_error("field", "value", "reason");
         assert!(validation_error.is_user_facing());
-        
+
         let internal_error = ProjectManagerError::internal_error("op", "details", None);
         assert!(!internal_error.is_user_facing());
     }
 
     #[test]
     fn test_from_serde_json_error() {
-        let json_result: std::result::Result<serde_json::Value, serde_json::Error> = serde_json::from_str("invalid json");
+        let json_result: std::result::Result<serde_json::Value, serde_json::Error> =
+            serde_json::from_str("invalid json");
         let json_error = json_result.unwrap_err();
         let pm_error: ProjectManagerError = json_error.into();
-        
+
         match pm_error {
-            ProjectManagerError::Serialization { operation, content, .. } => {
+            ProjectManagerError::Serialization {
+                operation, content, ..
+            } => {
                 assert_eq!(operation, "parse JSON");
                 assert_eq!(content, "unknown");
             }
@@ -792,9 +851,13 @@ mod tests {
     #[test]
     fn test_helpers_invalid_project_name() {
         let error = helpers::invalid_project_name("bad project name");
-        
+
         match error {
-            ProjectManagerError::Validation { field, value, reason } => {
+            ProjectManagerError::Validation {
+                field,
+                value,
+                reason,
+            } => {
                 assert_eq!(field, "project_name");
                 assert_eq!(value, "bad project name");
                 assert!(reason.contains("special characters"));
@@ -805,12 +868,15 @@ mod tests {
 
     #[test]
     fn test_helpers_serialization_error() {
-        let json_result: std::result::Result<serde_json::Value, serde_json::Error> = serde_json::from_str("invalid json");
+        let json_result: std::result::Result<serde_json::Value, serde_json::Error> =
+            serde_json::from_str("invalid json");
         let json_error = json_result.unwrap_err();
         let error = helpers::serialization_error("deserialize", "bad json", json_error);
-        
+
         match error {
-            ProjectManagerError::Serialization { operation, content, .. } => {
+            ProjectManagerError::Serialization {
+                operation, content, ..
+            } => {
                 assert_eq!(operation, "deserialize");
                 assert_eq!(content, "bad json");
             }
@@ -821,9 +887,13 @@ mod tests {
     #[test]
     fn test_helpers_project_already_exists() {
         let error = helpers::project_already_exists("duplicate-project");
-        
+
         match error {
-            ProjectManagerError::AlreadyExists { resource_type, identifier, context } => {
+            ProjectManagerError::AlreadyExists {
+                resource_type,
+                identifier,
+                context,
+            } => {
                 assert_eq!(resource_type, "Project");
                 assert_eq!(identifier, "duplicate-project");
                 assert_eq!(context, None);

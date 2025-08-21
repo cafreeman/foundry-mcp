@@ -1,8 +1,8 @@
 //! Performance profiling utilities for the project manager
 
-use std::time::{Duration, Instant};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
 /// Performance metrics for a single operation
 #[derive(Debug, Clone)]
@@ -89,11 +89,7 @@ impl Profiler {
 
     /// Get metrics for a specific operation
     pub fn get_metrics(&self, name: &str) -> Option<OperationMetrics> {
-        self.metrics
-            .lock()
-            .ok()?
-            .get(name)
-            .cloned()
+        self.metrics.lock().ok()?.get(name).cloned()
     }
 
     /// Get all recorded metrics
@@ -196,7 +192,8 @@ impl OperationTimer {
     pub fn finish(mut self) {
         if self.enabled && !self.finished {
             let duration = self.start_time.elapsed();
-            self.profiler.record_operation(&self.operation_name, duration);
+            self.profiler
+                .record_operation(&self.operation_name, duration);
             self.finished = true;
         }
     }
@@ -211,7 +208,8 @@ impl Drop for OperationTimer {
     fn drop(&mut self) {
         if self.enabled && !self.finished {
             let duration = self.start_time.elapsed();
-            self.profiler.record_operation(&self.operation_name, duration);
+            self.profiler
+                .record_operation(&self.operation_name, duration);
         }
     }
 }
@@ -257,12 +255,12 @@ mod tests {
     #[test]
     fn test_profiler_basic_functionality() {
         let profiler = Profiler::new();
-        
+
         // Record some operations
         profiler.record_operation("test_op", Duration::from_millis(100));
         profiler.record_operation("test_op", Duration::from_millis(200));
         profiler.record_operation("another_op", Duration::from_millis(50));
-        
+
         // Check metrics
         let metrics = profiler.get_metrics("test_op").unwrap();
         assert_eq!(metrics.count, 2);
@@ -270,7 +268,7 @@ mod tests {
         assert_eq!(metrics.min_duration, Duration::from_millis(100));
         assert_eq!(metrics.max_duration, Duration::from_millis(200));
         assert_eq!(metrics.average_duration(), Duration::from_millis(150));
-        
+
         let all_metrics = profiler.get_all_metrics();
         assert_eq!(all_metrics.len(), 2);
     }
@@ -279,13 +277,13 @@ mod tests {
     fn test_operation_timer() {
         let profiler = Profiler::new();
         profiler.reset(); // Clear any previous state
-        
+
         {
             let timer = profiler.start_operation("manual_timer_test");
             thread::sleep(Duration::from_millis(10));
             timer.finish();
         }
-        
+
         let metrics = profiler.get_metrics("manual_timer_test").unwrap();
         assert_eq!(metrics.count, 1);
         assert!(metrics.total_duration >= Duration::from_millis(10));
@@ -294,13 +292,13 @@ mod tests {
     #[test]
     fn test_operation_timer_auto_finish() {
         let profiler = Profiler::new();
-        
+
         {
             let _timer = profiler.start_operation("auto_timer_test");
             thread::sleep(Duration::from_millis(10));
             // Timer automatically finishes when dropped
         }
-        
+
         let metrics = profiler.get_metrics("auto_timer_test").unwrap();
         assert_eq!(metrics.count, 1);
         assert!(metrics.total_duration >= Duration::from_millis(10));
@@ -309,9 +307,9 @@ mod tests {
     #[test]
     fn test_disabled_profiler() {
         let profiler = Profiler::disabled();
-        
+
         profiler.record_operation("disabled_test", Duration::from_millis(100));
-        
+
         // Should have no metrics since profiler is disabled
         assert!(profiler.get_metrics("disabled_test").is_none());
         assert!(profiler.get_all_metrics().is_empty());
@@ -320,10 +318,10 @@ mod tests {
     #[test]
     fn test_generate_report() {
         let profiler = Profiler::new();
-        
+
         profiler.record_operation("fast_op", Duration::from_millis(10));
         profiler.record_operation("slow_op", Duration::from_millis(100));
-        
+
         let report = profiler.generate_report();
         assert!(report.contains("Performance Report"));
         assert!(report.contains("fast_op"));
@@ -333,11 +331,11 @@ mod tests {
     #[test]
     fn test_slowest_operations() {
         let profiler = Profiler::new();
-        
+
         profiler.record_operation("fast", Duration::from_millis(10));
         profiler.record_operation("medium", Duration::from_millis(50));
         profiler.record_operation("slow", Duration::from_millis(100));
-        
+
         let slowest = profiler.get_slowest_operations(2);
         assert_eq!(slowest.len(), 2);
         assert_eq!(slowest[0].name, "slow");
@@ -347,15 +345,15 @@ mod tests {
     #[test]
     fn test_high_impact_operations() {
         let profiler = Profiler::new();
-        
+
         // Operation with high frequency but low individual time
         for _ in 0..10 {
             profiler.record_operation("frequent", Duration::from_millis(10));
         }
-        
+
         // Operation with low frequency but high individual time
         profiler.record_operation("expensive", Duration::from_millis(200));
-        
+
         let high_impact = profiler.get_high_impact_operations(2);
         assert_eq!(high_impact.len(), 2);
         // "expensive" should be first (200ms total) over "frequent" (100ms total)
@@ -369,9 +367,9 @@ mod tests {
             thread::sleep(Duration::from_millis(10));
             42
         });
-        
+
         assert_eq!(result, 42);
-        
+
         let metrics = global_profiler().get_metrics("macro_test");
         if cfg!(debug_assertions) {
             assert!(metrics.is_some());
@@ -390,9 +388,9 @@ mod tests {
             tokio::time::sleep(Duration::from_millis(10)).await;
             "async_result"
         });
-        
+
         assert_eq!(result, "async_result");
-        
+
         let metrics = global_profiler().get_metrics("async_macro_test");
         if cfg!(debug_assertions) {
             assert!(metrics.is_some());

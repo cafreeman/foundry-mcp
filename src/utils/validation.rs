@@ -46,11 +46,11 @@ impl ValidationError {
 
     pub fn format_error(&self) -> String {
         let mut error_msg = format!("Field '{}': {}", self.field, self.message);
-        
+
         if let Some(suggestion) = &self.suggestion {
             error_msg.push_str(&format!("\nSuggestion: {}", suggestion));
         }
-        
+
         error_msg
     }
 }
@@ -78,7 +78,10 @@ impl Default for ValidationContext {
 }
 
 /// Enhanced project validation with detailed error reporting
-pub fn validate_project_enhanced(project: &Project, context: &ValidationContext) -> ValidationResult {
+pub fn validate_project_enhanced(
+    project: &Project,
+    context: &ValidationContext,
+) -> ValidationResult {
     let mut errors = Vec::new();
 
     // Validate project name
@@ -99,20 +102,26 @@ pub fn validate_project_enhanced(project: &Project, context: &ValidationContext)
                     "name",
                     &project.name,
                     ValidationErrorType::TooLong,
-                    "Project name cannot exceed 100 characters"
-                ).with_suggestion("Use a shorter, more concise name")
+                    "Project name cannot exceed 100 characters",
+                )
+                .with_suggestion("Use a shorter, more concise name"),
             );
         }
 
         // Check format
-        if !project.name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
+        if !project
+            .name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
             errors.push(
                 ValidationError::new(
                     "name",
                     &project.name,
                     ValidationErrorType::InvalidCharacters,
-                    "Project name can only contain letters, numbers, hyphens, and underscores"
-                ).with_suggestion("Replace special characters with hyphens or underscores")
+                    "Project name can only contain letters, numbers, hyphens, and underscores",
+                )
+                .with_suggestion("Replace special characters with hyphens or underscores"),
             );
         }
 
@@ -123,8 +132,9 @@ pub fn validate_project_enhanced(project: &Project, context: &ValidationContext)
                     "name",
                     &project.name,
                     ValidationErrorType::InvalidFormat,
-                    "Project name should be lowercase"
-                ).with_suggestion("Convert the name to lowercase")
+                    "Project name should be lowercase",
+                )
+                .with_suggestion("Convert the name to lowercase"),
             );
         }
 
@@ -135,8 +145,9 @@ pub fn validate_project_enhanced(project: &Project, context: &ValidationContext)
                     "name",
                     &project.name,
                     ValidationErrorType::AlreadyExists,
-                    "Project name already exists"
-                ).with_suggestion("Choose a different project name or load the existing project")
+                    "Project name already exists",
+                )
+                .with_suggestion("Choose a different project name or load the existing project"),
             );
         }
 
@@ -147,8 +158,9 @@ pub fn validate_project_enhanced(project: &Project, context: &ValidationContext)
                     "name",
                     &project.name,
                     ValidationErrorType::SecurityRisk,
-                    &security_error
-                ).with_suggestion("Use only safe characters in project names")
+                    &security_error,
+                )
+                .with_suggestion("Use only safe characters in project names"),
             );
         }
     }
@@ -160,8 +172,9 @@ pub fn validate_project_enhanced(project: &Project, context: &ValidationContext)
                 "description",
                 &project.description,
                 ValidationErrorType::Required,
-                "Project description is required"
-            ).with_suggestion("Provide a brief description of what this project does")
+                "Project description is required",
+            )
+            .with_suggestion("Provide a brief description of what this project does"),
         );
     } else if project.description.len() > 2000 {
         errors.push(
@@ -169,8 +182,11 @@ pub fn validate_project_enhanced(project: &Project, context: &ValidationContext)
                 "description",
                 &project.description,
                 ValidationErrorType::TooLong,
-                "Project description cannot exceed 2000 characters"
-            ).with_suggestion("Shorten the description or move detailed information to the vision overview")
+                "Project description cannot exceed 2000 characters",
+            )
+            .with_suggestion(
+                "Shorten the description or move detailed information to the vision overview",
+            ),
         );
     }
 
@@ -181,8 +197,9 @@ pub fn validate_project_enhanced(project: &Project, context: &ValidationContext)
                 "description",
                 &project.description,
                 ValidationErrorType::SecurityRisk,
-                &security_error
-            ).with_suggestion("Remove any potentially dangerous content from the description")
+                &security_error,
+            )
+            .with_suggestion("Remove any potentially dangerous content from the description"),
         );
     }
 
@@ -191,10 +208,16 @@ pub fn validate_project_enhanced(project: &Project, context: &ValidationContext)
         errors.push(
             ValidationError::new(
                 "timestamps",
-                &format!("created: {}, updated: {}", project.created_at, project.updated_at),
+                &format!(
+                    "created: {}, updated: {}",
+                    project.created_at, project.updated_at
+                ),
                 ValidationErrorType::InvalidTimestamp,
-                "Created timestamp cannot be after updated timestamp"
-            ).with_suggestion("Ensure the updated timestamp is equal to or after the created timestamp")
+                "Created timestamp cannot be after updated timestamp",
+            )
+            .with_suggestion(
+                "Ensure the updated timestamp is equal to or after the created timestamp",
+            ),
         );
     }
 
@@ -215,7 +238,10 @@ pub fn validate_project_enhanced(project: &Project, context: &ValidationContext)
 }
 
 /// Enhanced tech stack validation
-pub fn validate_tech_stack_enhanced(tech_stack: &TechStack, context: &ValidationContext) -> ValidationResult {
+pub fn validate_tech_stack_enhanced(
+    tech_stack: &TechStack,
+    context: &ValidationContext,
+) -> ValidationResult {
     let mut errors = Vec::new();
 
     // Validate languages
@@ -225,8 +251,9 @@ pub fn validate_tech_stack_enhanced(tech_stack: &TechStack, context: &Validation
                 "languages",
                 "",
                 ValidationErrorType::Required,
-                "At least one programming language should be specified"
-            ).with_suggestion("Add the main programming language(s) for this project")
+                "At least one programming language should be specified",
+            )
+            .with_suggestion("Add the main programming language(s) for this project"),
         );
     }
 
@@ -238,8 +265,9 @@ pub fn validate_tech_stack_enhanced(tech_stack: &TechStack, context: &Validation
                     &field_name,
                     language,
                     ValidationErrorType::Required,
-                    "Language name cannot be empty"
-                ).with_suggestion("Remove empty entries or provide a valid language name")
+                    "Language name cannot be empty",
+                )
+                .with_suggestion("Remove empty entries or provide a valid language name"),
             );
         } else if language.len() > 50 {
             errors.push(
@@ -247,8 +275,9 @@ pub fn validate_tech_stack_enhanced(tech_stack: &TechStack, context: &Validation
                     &field_name,
                     language,
                     ValidationErrorType::TooLong,
-                    "Language name cannot exceed 50 characters"
-                ).with_suggestion("Use standard language names like 'JavaScript', 'Python', 'Rust'")
+                    "Language name cannot exceed 50 characters",
+                )
+                .with_suggestion("Use standard language names like 'JavaScript', 'Python', 'Rust'"),
             );
         } else if let Err(security_error) = validate_input_security(language) {
             errors.push(
@@ -256,17 +285,36 @@ pub fn validate_tech_stack_enhanced(tech_stack: &TechStack, context: &Validation
                     &field_name,
                     language,
                     ValidationErrorType::SecurityRisk,
-                    &security_error
-                ).with_suggestion("Use only standard programming language names")
+                    &security_error,
+                )
+                .with_suggestion("Use only standard programming language names"),
             );
         }
     }
 
     // Similar validation for frameworks, databases, tools, and deployment
-    validate_string_list(&tech_stack.frameworks, "frameworks", 100, &mut errors, context);
-    validate_string_list(&tech_stack.databases, "databases", 100, &mut errors, context);
+    validate_string_list(
+        &tech_stack.frameworks,
+        "frameworks",
+        100,
+        &mut errors,
+        context,
+    );
+    validate_string_list(
+        &tech_stack.databases,
+        "databases",
+        100,
+        &mut errors,
+        context,
+    );
     validate_string_list(&tech_stack.tools, "tools", 100, &mut errors, context);
-    validate_string_list(&tech_stack.deployment, "deployment", 100, &mut errors, context);
+    validate_string_list(
+        &tech_stack.deployment,
+        "deployment",
+        100,
+        &mut errors,
+        context,
+    );
 
     if errors.is_empty() {
         Ok(())
@@ -286,8 +334,9 @@ pub fn validate_vision_enhanced(vision: &Vision, context: &ValidationContext) ->
                 "overview",
                 &vision.overview,
                 ValidationErrorType::Required,
-                "Vision overview is required"
-            ).with_suggestion("Provide a clear overview of the project's purpose and scope")
+                "Vision overview is required",
+            )
+            .with_suggestion("Provide a clear overview of the project's purpose and scope"),
         );
     } else if vision.overview.len() > 5000 {
         errors.push(
@@ -295,8 +344,11 @@ pub fn validate_vision_enhanced(vision: &Vision, context: &ValidationContext) ->
                 "overview",
                 &vision.overview,
                 ValidationErrorType::TooLong,
-                "Vision overview cannot exceed 5000 characters"
-            ).with_suggestion("Keep the overview concise and move detailed information to specifications")
+                "Vision overview cannot exceed 5000 characters",
+            )
+            .with_suggestion(
+                "Keep the overview concise and move detailed information to specifications",
+            ),
         );
     }
 
@@ -307,15 +359,28 @@ pub fn validate_vision_enhanced(vision: &Vision, context: &ValidationContext) ->
                 "overview",
                 &vision.overview,
                 ValidationErrorType::SecurityRisk,
-                &security_error
-            ).with_suggestion("Remove any potentially dangerous content from the overview")
+                &security_error,
+            )
+            .with_suggestion("Remove any potentially dangerous content from the overview"),
         );
     }
 
     // Validate goals, target_users, and success_criteria
     validate_string_list(&vision.goals, "goals", 500, &mut errors, context);
-    validate_string_list(&vision.target_users, "target_users", 200, &mut errors, context);
-    validate_string_list(&vision.success_criteria, "success_criteria", 500, &mut errors, context);
+    validate_string_list(
+        &vision.target_users,
+        "target_users",
+        200,
+        &mut errors,
+        context,
+    );
+    validate_string_list(
+        &vision.success_criteria,
+        "success_criteria",
+        500,
+        &mut errors,
+        context,
+    );
 
     // Check minimum requirements in strict mode
     if context.strict_mode {
@@ -325,8 +390,9 @@ pub fn validate_vision_enhanced(vision: &Vision, context: &ValidationContext) ->
                     "goals",
                     "",
                     ValidationErrorType::Required,
-                    "At least one goal must be specified"
-                ).with_suggestion("Define clear, measurable goals for the project")
+                    "At least one goal must be specified",
+                )
+                .with_suggestion("Define clear, measurable goals for the project"),
             );
         }
 
@@ -336,8 +402,9 @@ pub fn validate_vision_enhanced(vision: &Vision, context: &ValidationContext) ->
                     "target_users",
                     "",
                     ValidationErrorType::Required,
-                    "At least one target user must be specified"
-                ).with_suggestion("Identify who will use or benefit from this project")
+                    "At least one target user must be specified",
+                )
+                .with_suggestion("Identify who will use or benefit from this project"),
             );
         }
 
@@ -347,8 +414,9 @@ pub fn validate_vision_enhanced(vision: &Vision, context: &ValidationContext) ->
                     "success_criteria",
                     "",
                     ValidationErrorType::Required,
-                    "At least one success criterion must be specified"
-                ).with_suggestion("Define how you will measure the success of this project")
+                    "At least one success criterion must be specified",
+                )
+                .with_suggestion("Define how you will measure the success of this project"),
             );
         }
     }
@@ -370,15 +438,16 @@ fn validate_string_list(
 ) {
     for (i, item) in list.iter().enumerate() {
         let item_field = format!("{}[{}]", field_name, i);
-        
+
         if item.trim().is_empty() {
             errors.push(
                 ValidationError::new(
                     &item_field,
                     item,
                     ValidationErrorType::Required,
-                    &format!("{} item cannot be empty", field_name)
-                ).with_suggestion("Remove empty entries or provide valid content")
+                    &format!("{} item cannot be empty", field_name),
+                )
+                .with_suggestion("Remove empty entries or provide valid content"),
             );
         } else if item.len() > max_length {
             errors.push(
@@ -386,8 +455,12 @@ fn validate_string_list(
                     &item_field,
                     item,
                     ValidationErrorType::TooLong,
-                    &format!("{} item cannot exceed {} characters", field_name, max_length)
-                ).with_suggestion("Use shorter, more concise descriptions")
+                    &format!(
+                        "{} item cannot exceed {} characters",
+                        field_name, max_length
+                    ),
+                )
+                .with_suggestion("Use shorter, more concise descriptions"),
             );
         } else if let Err(security_error) = validate_input_security(item) {
             errors.push(
@@ -395,8 +468,9 @@ fn validate_string_list(
                     &item_field,
                     item,
                     ValidationErrorType::SecurityRisk,
-                    &security_error
-                ).with_suggestion("Remove any potentially dangerous content")
+                    &security_error,
+                )
+                .with_suggestion("Remove any potentially dangerous content"),
             );
         }
     }
@@ -406,30 +480,74 @@ fn validate_string_list(
 pub fn validate_input_security(input: &str) -> Result<(), String> {
     // Check for script injection attempts
     let dangerous_patterns = [
-        "<script", "</script>", "javascript:", "data:", "vbscript:",
-        "onload=", "onerror=", "onclick=", "onmouseover=",
-        "eval(", "setTimeout(", "setInterval(",
-        "document.cookie", "document.location", "window.location",
-        "innerHTML", "outerHTML", "document.write",
-        "exec(", "system(", "shell_exec(", "passthru(",
-        "file_get_contents(", "file_put_contents(", "fopen(",
-        "include(", "include_once(", "require(", "require_once(",
-        "<?php", "<?=", "<%", "%>", "<%=",
-        "DROP TABLE", "DELETE FROM", "INSERT INTO", "UPDATE SET",
-        "UNION SELECT", "OR 1=1", "' OR '1'='1", "\" OR \"1\"=\"1",
-        "../", "..\\", "/etc/", "/var/", "/usr/", "/bin/",
-        "C:\\Windows", "C:\\Program Files", "C:\\Users",
+        "<script",
+        "</script>",
+        "javascript:",
+        "data:",
+        "vbscript:",
+        "onload=",
+        "onerror=",
+        "onclick=",
+        "onmouseover=",
+        "eval(",
+        "setTimeout(",
+        "setInterval(",
+        "document.cookie",
+        "document.location",
+        "window.location",
+        "innerHTML",
+        "outerHTML",
+        "document.write",
+        "exec(",
+        "system(",
+        "shell_exec(",
+        "passthru(",
+        "file_get_contents(",
+        "file_put_contents(",
+        "fopen(",
+        "include(",
+        "include_once(",
+        "require(",
+        "require_once(",
+        "<?php",
+        "<?=",
+        "<%",
+        "%>",
+        "<%=",
+        "DROP TABLE",
+        "DELETE FROM",
+        "INSERT INTO",
+        "UPDATE SET",
+        "UNION SELECT",
+        "OR 1=1",
+        "' OR '1'='1",
+        "\" OR \"1\"=\"1",
+        "../",
+        "..\\",
+        "/etc/",
+        "/var/",
+        "/usr/",
+        "/bin/",
+        "C:\\Windows",
+        "C:\\Program Files",
+        "C:\\Users",
     ];
 
     let input_lower = input.to_lowercase();
     for pattern in &dangerous_patterns {
         if input_lower.contains(&pattern.to_lowercase()) {
-            return Err(format!("Input contains potentially dangerous pattern: {}", pattern));
+            return Err(format!(
+                "Input contains potentially dangerous pattern: {}",
+                pattern
+            ));
         }
     }
 
     // Check for unusual Unicode characters that could be used for attacks
-    if input.chars().any(|c| c.is_control() && c != '\n' && c != '\r' && c != '\t') {
+    if input
+        .chars()
+        .any(|c| c.is_control() && c != '\n' && c != '\r' && c != '\t')
+    {
         return Err("Input contains control characters".to_string());
     }
 
