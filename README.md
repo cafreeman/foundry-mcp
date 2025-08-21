@@ -1,10 +1,10 @@
-# Project Manager MCP
+# Foundry MCP
 
 A comprehensive CLI tool and Model Context Protocol (MCP) server that provides deterministic tools for AI coding assistants to manage project context, specifications, and task lists. It solves the persistent problem of context management in long-term software development projects by providing centralized, structured storage outside of project directories.
 
 ## 🆕 CLI Mode Available
 
-As of recent updates, Project Manager MCP now includes a full-featured command-line interface while maintaining complete backward compatibility as an MCP server. You can use it both ways:
+As of recent updates, Foundry MCP now includes a full-featured command-line interface while maintaining complete backward compatibility as an MCP server. You can use it both ways:
 
 - **CLI Mode**: Direct command-line project management and client configuration
 - **MCP Server Mode**: Traditional MCP server for AI assistant integration (default when no command provided)
@@ -20,7 +20,7 @@ Current AI coding assistant workflows suffer from several critical issues:
 
 ## Solution Overview
 
-Project Manager MCP provides a set of MCP tools that enable deterministic project and specification management through a centralized file system outside of project directories.
+Foundry MCP provides a set of MCP tools that enable deterministic project and specification management through a centralized file system outside of project directories.
 
 ### Core Value Propositions
 
@@ -44,7 +44,7 @@ Project Manager MCP provides a set of MCP tools that enable deterministic projec
 ## File System Structure
 
 ```
-~/.project-manager-mcp/
+~/.foundry/
 ├── project-name/
 │   ├── project/
 │   │   ├── tech-stack.md
@@ -65,12 +65,12 @@ Project Manager MCP provides a set of MCP tools that enable deterministic projec
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd project-manager-mcp
+cd foundry
 
 # Build the project
 cargo build --release
 
-# The binary will be available at target/release/project-manager-mcp
+# The binary will be available at target/release/foundry
 ```
 
 ## Quick Start
@@ -79,23 +79,23 @@ cargo build --release
 
 ```bash
 # Get help for all commands
-project-manager-mcp --help
+foundry --help
 
 # Start MCP server (default behavior)
-project-manager-mcp
+foundry
 # or explicitly:
-project-manager-mcp serve
+foundry serve
 
 # Start with enhanced logging
-project-manager-mcp serve --verbose --log-format json
+foundry serve --verbose --log-format json
 
 # Install for Cursor or Claude Desktop
-project-manager-mcp install --client cursor
-project-manager-mcp install --client claude-desktop
+foundry install --client cursor
+foundry install --client claude-desktop
 
 # Project management commands (coming in Phase 5)
-project-manager-mcp list-projects
-project-manager-mcp create-project "My New Project"
+foundry list-projects
+foundry create-project "My New Project"
 ```
 
 ### MCP Server Mode
@@ -122,7 +122,7 @@ Available with all commands:
 
 ```bash
 --verbose              Enable verbose output with detailed logging
---quiet                Suppress non-essential output  
+--quiet                Suppress non-essential output
 --log-level LEVEL      Set log level (trace, debug, info, warn, error)
 --config-dir DIR       Use custom configuration directory
 --help                 Show help information
@@ -130,6 +130,7 @@ Available with all commands:
 ```
 
 Environment variable support:
+
 ```bash
 export LOG_LEVEL=debug  # Set default log level
 ```
@@ -139,12 +140,13 @@ export LOG_LEVEL=debug  # Set default log level
 Start the MCP server (default when no subcommand provided):
 
 ```bash
-project-manager-mcp serve [OPTIONS]
+foundry serve [OPTIONS]
 ```
 
 **Options:**
+
 - `--port PORT` - Port for HTTP transport (default: 3000, future use)
-- `--transport MODE` - Transport mode, currently only "stdio" (default: stdio) 
+- `--transport MODE` - Transport mode, currently only "stdio" (default: stdio)
 - `--host HOST` - Host for HTTP mode (default: localhost, future use)
 - `--max-connections NUM` - Maximum concurrent connections (default: 10)
 - `--timeout SECONDS` - Tool execution timeout (default: 300)
@@ -152,18 +154,19 @@ project-manager-mcp serve [OPTIONS]
 - `--log-format FORMAT` - Log format: pretty, json, compact (default: pretty)
 
 **Examples:**
+
 ```bash
 # Default MCP server
-project-manager-mcp
+foundry
 
 # Explicit serve with custom settings
-project-manager-mcp serve --verbose --max-connections 20 --timeout 600
+foundry serve --verbose --max-connections 20 --timeout 600
 
 # JSON logging for production monitoring
-project-manager-mcp serve --log-format json --log-level info
+foundry serve --log-format json --log-level info
 
 # Quiet mode with minimal output
-project-manager-mcp serve --quiet --log-level warn
+foundry serve --quiet --log-level warn
 ```
 
 ### Install Command
@@ -171,33 +174,37 @@ project-manager-mcp serve --quiet --log-level warn
 Configure AI clients to use this MCP server:
 
 ```bash
-project-manager-mcp install --client CLIENT [OPTIONS]
+foundry install --client CLIENT [OPTIONS]
 ```
 
 **Supported Clients:**
+
 - `cursor` - Configure Cursor IDE
 - `claude-desktop` - Configure Claude Desktop app
 
 **Options:**
+
 - `--global` - Install globally vs project-specific (future use)
 - `--dry-run` - Preview configuration changes without applying (future use)
 - `--force` - Overwrite existing configurations (future use)
 
 **Examples:**
+
 ```bash
 # Install for Cursor
-project-manager-mcp install --client cursor
+foundry install --client cursor
 
-# Install for Claude Desktop  
-project-manager-mcp install --client claude-desktop
+# Install for Claude Desktop
+foundry install --client claude-desktop
 ```
 
 ### Configuration
 
 Configuration precedence (highest to lowest):
+
 1. CLI arguments (`--log-level debug`)
 2. Environment variables (`LOG_LEVEL=debug`)
-3. Configuration file (`~/.project-manager-mcp/config.toml`)
+3. Configuration file (`~/.foundry/config.toml`)
 4. Built-in defaults
 
 ### Backward Compatibility
@@ -209,61 +216,65 @@ Configuration precedence (highest to lowest):
 ### Common Issues
 
 **MCP Server Won't Start:**
+
 ```bash
 # Check with verbose logging
-project-manager-mcp serve --verbose
+foundry serve --verbose
 
 # Verify with minimal configuration
-project-manager-mcp serve --log-level debug
+foundry serve --log-level debug
 ```
 
 **CLI Command Not Found:**
+
 ```bash
 # Verify installation
 cargo build --release
-./target/release/project-manager-mcp --version
+./target/release/foundry --version
 
 # Or run directly with cargo
 cargo run -- --help
 ```
 
 **Configuration Issues:**
+
 ```bash
 # Check current configuration
-project-manager-mcp config list  # (Future Phase 5)
+foundry config list  # (Future Phase 5)
 
 # Use custom config directory
-project-manager-mcp --config-dir ./test-config serve --verbose
+foundry --config-dir ./test-config serve --verbose
 
 # Reset environment
 unset LOG_LEVEL
 ```
 
 **Logging Problems:**
+
 ```bash
 # Different log formats
-project-manager-mcp serve --log-format json     # Machine readable
-project-manager-mcp serve --log-format compact  # Minimal output
-project-manager-mcp serve --log-format pretty   # Human readable (default)
+foundry serve --log-format json     # Machine readable
+foundry serve --log-format compact  # Minimal output
+foundry serve --log-format pretty   # Human readable (default)
 
 # Adjust verbosity
-project-manager-mcp serve --verbose      # Debug level
-project-manager-mcp serve --quiet        # Warnings only
-project-manager-mcp serve --log-level trace  # Maximum detail
+foundry serve --verbose      # Debug level
+foundry serve --quiet        # Warnings only
+foundry serve --log-level trace  # Maximum detail
 ```
 
 ### Getting Help
 
 ```bash
 # General help
-project-manager-mcp --help
+foundry --help
 
 # Command-specific help
-project-manager-mcp serve --help
-project-manager-mcp install --help
+foundry serve --help
+foundry install --help
 
 # Version information
-project-manager-mcp --version
+foundry --version
 ```
 
 ## Development
@@ -291,7 +302,7 @@ cargo test
 # Run as MCP server (default)
 cargo run
 
-# Run specific CLI commands  
+# Run specific CLI commands
 cargo run -- --help
 cargo run -- serve --verbose
 cargo run -- install --client cursor
@@ -339,7 +350,7 @@ The project is organized into the following modules:
 ### ✅ Completed Phases
 
 - **Phase 1**: Core CLI Infrastructure
-- **Phase 2**: Refactor Main Entry Point  
+- **Phase 2**: Refactor Main Entry Point
 - **Phase 3**: MCP Server Mode (Serve Command)
 
 ### 🚧 Current Development
@@ -357,6 +368,7 @@ The project is organized into the following modules:
 ### 🧪 Testing
 
 Current test coverage: **118 tests passing**
+
 - Unit tests for all core modules
 - Integration tests for MCP protocol
 - End-to-end workflow tests

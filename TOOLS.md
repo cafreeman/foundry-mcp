@@ -6,12 +6,12 @@ This document describes all available MCP tools provided by the Project Manager 
 
 The Project Manager MCP server provides four main tools:
 
-| Tool | Purpose | Use Case |
-|------|---------|----------|
-| [`setup_project`](#setup_project) | Create new projects | Starting a new software project |
-| [`create_spec`](#create_spec) | Create specifications | Defining features or requirements |
-| [`load_spec`](#load_spec) | Load project context | Getting context for AI assistance |
-| [`update_spec`](#update_spec) | Update tasks and notes | Tracking implementation progress |
+| Tool                              | Purpose                | Use Case                          |
+| --------------------------------- | ---------------------- | --------------------------------- |
+| [`setup_project`](#setup_project) | Create new projects    | Starting a new software project   |
+| [`create_spec`](#create_spec)     | Create specifications  | Defining features or requirements |
+| [`load_spec`](#load_spec)         | Load project context   | Getting context for AI assistance |
+| [`update_spec`](#update_spec)     | Update tasks and notes | Tracking implementation progress  |
 
 ## Tool Definitions
 
@@ -21,19 +21,19 @@ Creates a new software project with technology stack and business vision.
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `name` | string | Yes | Project name (alphanumeric, dashes, underscores only) |
-| `description` | string | Yes | Brief project description |
-| `languages` | array[string] | Yes | Programming languages (e.g., ["Rust", "TypeScript"]) |
-| `frameworks` | array[string] | No | Frameworks and libraries (e.g., ["React", "Actix-Web"]) |
-| `databases` | array[string] | No | Database systems (e.g., ["PostgreSQL", "Redis"]) |
-| `tools` | array[string] | No | Development tools (e.g., ["Cargo", "npm", "Docker"]) |
-| `deployment` | array[string] | No | Deployment platforms (e.g., ["AWS", "Vercel"]) |
-| `overview` | string | Yes | High-level project vision |
-| `goals` | array[string] | Yes | Specific project goals |
-| `target_users` | array[string] | Yes | Intended user base |
-| `success_criteria` | array[string] | Yes | Measurable success metrics |
+| Parameter          | Type          | Required | Description                                             |
+| ------------------ | ------------- | -------- | ------------------------------------------------------- |
+| `name`             | string        | Yes      | Project name (alphanumeric, dashes, underscores only)   |
+| `description`      | string        | Yes      | Brief project description                               |
+| `languages`        | array[string] | Yes      | Programming languages (e.g., ["Rust", "TypeScript"])    |
+| `frameworks`       | array[string] | No       | Frameworks and libraries (e.g., ["React", "Actix-Web"]) |
+| `databases`        | array[string] | No       | Database systems (e.g., ["PostgreSQL", "Redis"])        |
+| `tools`            | array[string] | No       | Development tools (e.g., ["Cargo", "npm", "Docker"])    |
+| `deployment`       | array[string] | No       | Deployment platforms (e.g., ["AWS", "Vercel"])          |
+| `overview`         | string        | Yes      | High-level project vision                               |
+| `goals`            | array[string] | Yes      | Specific project goals                                  |
+| `target_users`     | array[string] | Yes      | Intended user base                                      |
+| `success_criteria` | array[string] | Yes      | Measurable success metrics                              |
 
 #### Example Usage
 
@@ -49,21 +49,9 @@ Creates a new software project with technology stack and business vision.
     "tools": ["Cargo", "npm", "Docker"],
     "deployment": ["AWS ECS", "CloudFront"],
     "overview": "A high-performance e-commerce backend API",
-    "goals": [
-      "Handle 10,000 concurrent users",
-      "Sub-100ms response times",
-      "99.9% uptime"
-    ],
-    "target_users": [
-      "Online shoppers",
-      "Store administrators",
-      "Third-party integrators"
-    ],
-    "success_criteria": [
-      "Process 1M+ requests per day",
-      "Zero data loss",
-      "PCI DSS compliance"
-    ]
+    "goals": ["Handle 10,000 concurrent users", "Sub-100ms response times", "99.9% uptime"],
+    "target_users": ["Online shoppers", "Store administrators", "Third-party integrators"],
+    "success_criteria": ["Process 1M+ requests per day", "Zero data loss", "PCI DSS compliance"]
   }
 }
 ```
@@ -75,7 +63,7 @@ Creates a new software project with technology stack and business vision.
   "content": [
     {
       "type": "text",
-      "text": "✅ Project 'e-commerce-api' created successfully!\n\nProject Structure:\n- 📁 ~/.project-manager-mcp/e-commerce-api/\n  - 📄 project/metadata.json\n  - 📄 project/tech-stack.md\n  - 📄 project/vision.md\n  - 📁 specs/ (ready for specifications)\n\nNext steps:\n1. Create your first specification with create_spec\n2. Define implementation tasks and requirements\n3. Use load_spec to get project context when coding"
+      "text": "✅ Project 'e-commerce-api' created successfully!\n\nProject Structure:\n- 📁 ~/.foundry/e-commerce-api/\n  - 📄 project/metadata.json\n  - 📄 project/tech-stack.md\n  - 📄 project/vision.md\n  - 📁 specs/ (ready for specifications)\n\nNext steps:\n1. Create your first specification with create_spec\n2. Define implementation tasks and requirements\n3. Use load_spec to get project context when coding"
     }
   ]
 }
@@ -89,12 +77,12 @@ Creates a new specification for a feature, requirement, or component within a pr
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `project_name` | string | Yes | Name of the existing project |
-| `spec_name` | string | Yes | Specification name (snake_case format) |
-| `title` | string | Yes | Human-readable specification title |
-| `description` | string | Yes | Brief description of what the spec covers |
+| Parameter      | Type   | Required | Description                               |
+| -------------- | ------ | -------- | ----------------------------------------- |
+| `project_name` | string | Yes      | Name of the existing project              |
+| `spec_name`    | string | Yes      | Specification name (snake_case format)    |
+| `title`        | string | Yes      | Human-readable specification title        |
+| `description`  | string | Yes      | Brief description of what the spec covers |
 
 #### Example Usage
 
@@ -104,7 +92,7 @@ Creates a new specification for a feature, requirement, or component within a pr
   "arguments": {
     "project_name": "e-commerce-api",
     "spec_name": "user_authentication",
-    "title": "User Authentication System", 
+    "title": "User Authentication System",
     "description": "JWT-based authentication with OAuth2 support for social login"
   }
 }
@@ -117,7 +105,7 @@ Creates a new specification for a feature, requirement, or component within a pr
   "content": [
     {
       "type": "text",
-      "text": "✅ Specification 'user_authentication' created successfully!\n\nSpecification ID: 20240115_user_authentication\nLocation: ~/.project-manager-mcp/e-commerce-api/specs/20240115_user_authentication/\n\nFiles created:\n- 📄 metadata.json (specification metadata)\n- 📄 spec.md (main specification content)\n- 📄 task-list.md (implementation tasks)\n- 📄 notes.md (development notes)\n\nNext steps:\n1. Use update_spec to add implementation tasks\n2. Add development notes and decisions\n3. Use load_spec to get full context when implementing"
+      "text": "✅ Specification 'user_authentication' created successfully!\n\nSpecification ID: 20240115_user_authentication\nLocation: ~/.foundry/e-commerce-api/specs/20240115_user_authentication/\n\nFiles created:\n- 📄 metadata.json (specification metadata)\n- 📄 spec.md (main specification content)\n- 📄 task-list.md (implementation tasks)\n- 📄 notes.md (development notes)\n\nNext steps:\n1. Use update_spec to add implementation tasks\n2. Add development notes and decisions\n3. Use load_spec to get full context when implementing"
     }
   ]
 }
@@ -131,10 +119,10 @@ Loads complete project and specification context for AI coding assistance.
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `project_name` | string | Yes | Name of the project |
-| `spec_id` | string | Yes | Specification ID (e.g., "20240115_user_authentication") |
+| Parameter      | Type   | Required | Description                                             |
+| -------------- | ------ | -------- | ------------------------------------------------------- |
+| `project_name` | string | Yes      | Name of the project                                     |
+| `spec_id`      | string | Yes      | Specification ID (e.g., "20240115_user_authentication") |
 
 #### Example Usage
 
@@ -153,16 +141,19 @@ Loads complete project and specification context for AI coding assistance.
 The response contains a comprehensive context document with:
 
 1. **Project Information**
+
    - Technology stack details
    - Business vision and goals
    - Target users and success criteria
 
 2. **Specification Content**
+
    - Current specification status
    - Detailed requirements and design
    - Implementation guidelines
 
 3. **Task List**
+
    - Current implementation tasks
    - Task status and priorities
    - Dependencies between tasks
@@ -176,7 +167,7 @@ The response contains a comprehensive context document with:
 {
   "content": [
     {
-      "type": "text", 
+      "type": "text",
       "text": "# Project Context: e-commerce-api\n\n## Technology Stack\n\n### Languages\n- Rust\n- TypeScript\n\n### Frameworks\n- Actix-Web\n- React\n\n[... full context continues ...]"
     }
   ]
@@ -191,12 +182,12 @@ Updates the task list and development notes for a specification.
 
 #### Parameters
 
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `project_name` | string | Yes | Name of the project |
-| `spec_id` | string | Yes | Specification ID |
-| `tasks` | array[object] | No | Array of task objects to add/update |
-| `notes` | array[object] | No | Array of note objects to add |
+| Parameter      | Type          | Required | Description                         |
+| -------------- | ------------- | -------- | ----------------------------------- |
+| `project_name` | string        | Yes      | Name of the project                 |
+| `spec_id`      | string        | Yes      | Specification ID                    |
+| `tasks`        | array[object] | No       | Array of task objects to add/update |
+| `notes`        | array[object] | No       | Array of note objects to add        |
 
 #### Task Object Format
 
@@ -206,7 +197,7 @@ Updates the task list and development notes for a specification.
   "title": "Implement JWT token generation",
   "description": "Create function to generate JWT tokens with proper claims",
   "status": "Todo",
-  "priority": "High", 
+  "priority": "High",
   "dependencies": ["task_database_setup"]
 }
 ```
@@ -238,7 +229,7 @@ Updates the task list and development notes for a specification.
         "dependencies": []
       },
       {
-        "id": "task_002", 
+        "id": "task_002",
         "title": "Implement token generation",
         "description": "Create functions to generate access and refresh tokens",
         "status": "Todo",
@@ -249,7 +240,7 @@ Updates the task list and development notes for a specification.
         "id": "task_003",
         "title": "Add OAuth2 endpoints",
         "description": "Implement Google and GitHub OAuth2 integration",
-        "status": "Todo", 
+        "status": "Todo",
         "priority": "Medium",
         "dependencies": ["task_002"]
       }
@@ -287,54 +278,58 @@ Updates the task list and development notes for a specification.
 
 ## Task Status Values
 
-| Status | Description |
-|--------|-------------|
-| `Todo` | Task is ready to be started |
-| `InProgress` | Task is currently being worked on |
-| `Completed` | Task has been finished |
-| `Blocked` | Task cannot proceed due to dependencies |
+| Status       | Description                             |
+| ------------ | --------------------------------------- |
+| `Todo`       | Task is ready to be started             |
+| `InProgress` | Task is currently being worked on       |
+| `Completed`  | Task has been finished                  |
+| `Blocked`    | Task cannot proceed due to dependencies |
 
 ## Task Priority Values
 
-| Priority | Description |
-|----------|-------------|
-| `Low` | Nice-to-have features, non-urgent |
-| `Medium` | Standard development work |
-| `High` | Important features, should be prioritized |
-| `Critical` | Urgent issues, bugs, blockers |
+| Priority   | Description                               |
+| ---------- | ----------------------------------------- |
+| `Low`      | Nice-to-have features, non-urgent         |
+| `Medium`   | Standard development work                 |
+| `High`     | Important features, should be prioritized |
+| `Critical` | Urgent issues, bugs, blockers             |
 
 ## Note Categories
 
-| Category | Description |
-|----------|-------------|
-| `Implementation` | Technical details and code notes |
-| `Decision` | Architectural decisions and rationale |
-| `Question` | Open questions needing clarification |
-| `Bug` | Bug reports and issues |
-| `Enhancement` | Ideas for improvements |
-| `Other` | General notes |
+| Category         | Description                           |
+| ---------------- | ------------------------------------- |
+| `Implementation` | Technical details and code notes      |
+| `Decision`       | Architectural decisions and rationale |
+| `Question`       | Open questions needing clarification  |
+| `Bug`            | Bug reports and issues                |
+| `Enhancement`    | Ideas for improvements                |
+| `Other`          | General notes                         |
 
 ## Best Practices
 
 ### Project Setup
+
 - Use descriptive project names with clear scope
 - Include all relevant technologies in the stack
 - Write specific, measurable goals and success criteria
 - Define clear target user personas
 
 ### Specification Creation
+
 - Use snake_case for specification names
 - Write clear, concise titles and descriptions
 - Break large features into multiple specifications
 - Start with high-level requirements before implementation details
 
 ### Task Management
+
 - Create atomic, actionable tasks
 - Set appropriate priorities based on business value
 - Define clear dependencies between tasks
 - Update task status regularly as work progresses
 
 ### Note Taking
+
 - Categorize notes appropriately for easy filtering
 - Document architectural decisions and rationale
 - Capture questions early for later resolution

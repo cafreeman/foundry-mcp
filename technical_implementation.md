@@ -132,7 +132,7 @@ impl FileSystemManager {
     pub fn new() -> Result<Self> {
         let home_dir = dirs::home_dir()
             .context("Could not determine home directory")?;
-        let base_dir = home_dir.join(".project-manager-mcp");
+        let base_dir = home_dir.join(".foundry");
 
         std::fs::create_dir_all(&base_dir)
             .context("Failed to create base directory")?;

@@ -99,7 +99,7 @@ So that my progress is tracked and resumable.
 ### File System Structure
 
 ```
-~/.project-manager-mcp/
+~/.foundry/
 ├── project-name/
 │   ├── project/
 │   │   ├── tech-stack.md

@@ -34,7 +34,7 @@ This task list outlines the complete implementation plan for the Project Manager
 
 ### 1.1 Project Initialization
 
-- [x] Create new Rust project with `cargo new project-manager-mcp` ✓ Already completed
+- [x] Create new Rust project with `cargo new foundry-mcp` ✓ Already completed
 - [x] Set up workspace structure with appropriate module organization ✓ Already completed
 - [x] Configure `.gitignore` for Rust projects ✓ Already completed
 - [x] Create initial README.md with project overview ✓ Completed
@@ -94,7 +94,7 @@ This task list outlines the complete implementation plan for the Project Manager
 ### 3.1 FileSystemManager Implementation (`src/filesystem/manager.rs`)
 
 - [ ] Implement `new()` method with home directory detection
-- [ ] Implement base directory creation (`~/.project-manager-mcp`)
+- [ ] Implement base directory creation (`~/.foundry`)
 - [ ] Implement `project_dir()` method for project paths
 - [ ] Implement `project_info_dir()` for tech-stack and vision files
 - [ ] Implement `specs_dir()` for specification storage

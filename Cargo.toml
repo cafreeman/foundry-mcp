@@ -1,7 +1,27 @@
 [package]
-name = "project-manager-mcp"
+name = "foundry-mcp"
 version = "0.1.0"
 edition = "2024"
+description = "A comprehensive CLI tool and MCP server for deterministic project management and AI coding assistant integration"
+license = "MIT"
+authors = ["Chris Freeman <cfreeman86@gmail.com>"]
+repository = "https://github.com/cafreeman/foundry-mcp"
+homepage = "https://github.com/cafreeman/foundry-mcp"
+documentation = "https://docs.rs/foundry-mcp"
+readme = "README.md"
+keywords = ["mcp", "ai", "project-management", "cli", "coding-assistant"]
+categories = ["command-line-utilities", "development-tools"]
+exclude = [
+    "task_list.md",
+    "technical_implementation.md", 
+    "product_spec.md",
+    "CLI_TRANSFORMATION_TASKS.md",
+    "AGENTS.md",
+    "TOOLS.md",
+    "INSTALLATION.md",
+    ".cursor/",
+    ".cargo/"
+]
 
 [dependencies]
 anyhow = "1.0.99"

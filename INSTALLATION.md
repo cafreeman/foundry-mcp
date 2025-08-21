@@ -14,10 +14,12 @@ Both modes are **100% backward compatible** with existing installations.
 ## Prerequisites
 
 ### Required
+
 - **Rust 1.70+** - Install from [rustup.rs](https://rustup.rs/)
 - **Git** - For cloning the repository
 
 ### Supported Platforms
+
 - **macOS** (Intel and Apple Silicon)
 - **Linux** (x86_64 and ARM64)
 - **Windows** (x86_64)
@@ -27,44 +29,48 @@ Both modes are **100% backward compatible** with existing installations.
 ### Method 1: Install from Source (Recommended)
 
 1. **Clone the repository:**
+
    ```bash
-   git clone https://github.com/your-org/project-manager-mcp.git
-   cd project-manager-mcp
+   git clone https://github.com/your-org/foundry.git
+   cd foundry
    ```
 
 2. **Build and install:**
+
    ```bash
    cargo build --release
    cargo install --path .
    ```
 
 3. **Verify installation:**
+
    ```bash
    # Check version
-   project-manager-mcp --version
-   
+   foundry --version
+
    # Test CLI mode
-   project-manager-mcp --help
-   
+   foundry --help
+
    # Test MCP server mode (Ctrl+C to exit)
-   project-manager-mcp serve --verbose
+   foundry serve --verbose
    ```
 
 ### Method 2: Install from Crates.io
 
 ```bash
-cargo install project-manager-mcp
+cargo install foundry
 ```
 
 ### Method 3: Download Pre-built Binary
 
-1. Visit the [releases page](https://github.com/your-org/project-manager-mcp/releases)
+1. Visit the [releases page](https://github.com/your-org/foundry/releases)
 2. Download the binary for your platform
 3. Extract and move to a directory in your PATH:
+
    ```bash
    # macOS/Linux
-   sudo mv project-manager-mcp /usr/local/bin/
-   
+   sudo mv foundry /usr/local/bin/
+
    # Windows
    # Move to a directory in your PATH
    ```
@@ -75,10 +81,10 @@ cargo install project-manager-mcp
 
 ```bash
 # Install for Cursor IDE
-project-manager-mcp install --client cursor
+foundry install --client cursor
 
 # Install for Claude Desktop
-project-manager-mcp install --client claude-desktop
+foundry install --client claude-desktop
 ```
 
 This automatically configures the client with the correct binary path and optimal settings.
@@ -97,8 +103,8 @@ Add this configuration to your Claude Desktop config file:
 ```json
 {
   "mcpServers": {
-    "project-manager": {
-      "command": "project-manager-mcp",
+    "foundry": {
+      "command": "foundry",
       "args": [],
       "env": {
         "LOG_LEVEL": "info"
@@ -115,8 +121,8 @@ Add to your Codeium MCP configuration:
 ```json
 {
   "servers": {
-    "project-manager": {
-      "command": ["project-manager-mcp"],
+    "foundry": {
+      "command": ["foundry"],
       "env": {
         "LOG_LEVEL": "info"
       }
@@ -134,8 +140,8 @@ Add to your `config.json`:
   "mcp": {
     "servers": [
       {
-        "name": "project-manager",
-        "command": "project-manager-mcp",
+        "name": "foundry",
+        "command": "foundry",
         "args": [],
         "env": {
           "LOG_LEVEL": "info"
@@ -153,8 +159,8 @@ Add to your Cursor MCP settings:
 ```json
 {
   "mcp.servers": {
-    "project-manager": {
-      "command": "project-manager-mcp",
+    "foundry": {
+      "command": "foundry",
       "args": [],
       "env": {
         "LOG_LEVEL": "info"
@@ -168,23 +174,23 @@ Add to your Cursor MCP settings:
 
 Configure the server behavior using these environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `LOG_LEVEL` | `info` | Logging level (`error`, `warn`, `info`, `debug`, `trace`) |
-| `PROJECT_MANAGER_BASE_DIR` | `~/.project-manager-mcp` | Base directory for project storage |
-| `PROJECT_MANAGER_BACKUP_RETENTION_DAYS` | `7` | Days to keep file backups |
+| Variable                                | Default      | Description                                               |
+| --------------------------------------- | ------------ | --------------------------------------------------------- |
+| `LOG_LEVEL`                             | `info`       | Logging level (`error`, `warn`, `info`, `debug`, `trace`) |
+| `FOUNDRY_BASE_DIR`                      | `~/.foundry` | Base directory for project storage                        |
+| `PROJECT_MANAGER_BACKUP_RETENTION_DAYS` | `7`          | Days to keep file backups                                 |
 
 Example with custom configuration:
 
 ```json
 {
   "mcpServers": {
-    "project-manager": {
-      "command": "project-manager-mcp",
+    "foundry": {
+      "command": "foundry",
       "args": [],
       "env": {
         "LOG_LEVEL": "debug",
-        "PROJECT_MANAGER_BASE_DIR": "/path/to/projects",
+        "FOUNDRY_BASE_DIR": "/path/to/projects",
         "PROJECT_MANAGER_BACKUP_RETENTION_DAYS": "14"
       }
     }
@@ -199,18 +205,20 @@ After installation and configuration:
 1. **Restart your AI coding assistant**
 
 2. **Test the connection** by asking your AI assistant:
+
    ```
    "Can you list the available MCP tools for project management?"
    ```
 
 3. **Create a test project:**
+
    ```
    "Create a new project called 'test-project' with Rust and PostgreSQL"
    ```
 
 4. **Check the file system:**
    ```bash
-   ls ~/.project-manager-mcp/
+   ls ~/.foundry/
    # Should show: test-project/
    ```
 
@@ -219,7 +227,7 @@ After installation and configuration:
 The server creates this directory structure in your home directory:
 
 ```
-~/.project-manager-mcp/
+~/.foundry/
 ├── project-1/
 │   ├── project/
 │   │   ├── metadata.json      # Project metadata
@@ -240,36 +248,40 @@ The server creates this directory structure in your home directory:
 ### Server Won't Start
 
 1. **Check Rust installation:**
+
    ```bash
    rustc --version
    cargo --version
    ```
 
 2. **Verify binary exists:**
+
    ```bash
-   which project-manager-mcp
+   which foundry
    ```
 
 3. **Test manual execution:**
+
    ```bash
    # Test CLI mode
-   project-manager-mcp --help
-   
+   foundry --help
+
    # Test MCP server mode
-   project-manager-mcp serve --verbose
+   foundry serve --verbose
    # Should show: "Starting Project Manager MCP Server..."
    ```
 
 4. **Check logs** with enhanced CLI options:
+
    ```bash
    # Verbose logging
-   project-manager-mcp serve --verbose --log-level debug
-   
+   foundry serve --verbose --log-level debug
+
    # JSON format for monitoring
-   project-manager-mcp serve --log-format json
-   
+   foundry serve --log-format json
+
    # Environment variable (legacy)
-   LOG_LEVEL=debug project-manager-mcp
+   LOG_LEVEL=debug foundry
    ```
 
 ### Client Connection Issues
@@ -281,8 +293,8 @@ The server creates this directory structure in your home directory:
    ```json
    {
      "mcpServers": {
-       "project-manager": {
-         "command": "project-manager-mcp"
+       "foundry": {
+         "command": "foundry"
        }
      }
    }
@@ -291,31 +303,35 @@ The server creates this directory structure in your home directory:
 ### Permission Errors
 
 1. **Check directory permissions:**
+
    ```bash
-   ls -la ~/.project-manager-mcp/
+   ls -la ~/.foundry/
    ```
 
 2. **Fix ownership if needed:**
+
    ```bash
-   sudo chown -R $USER:$USER ~/.project-manager-mcp/
+   sudo chown -R $USER:$USER ~/.foundry/
    ```
 
 3. **Set correct permissions:**
    ```bash
-   chmod 755 ~/.project-manager-mcp/
-   chmod -R 644 ~/.project-manager-mcp/*
+   chmod 755 ~/.foundry/
+   chmod -R 644 ~/.foundry/*
    ```
 
 ### Performance Issues
 
 1. **Check disk space:**
+
    ```bash
-   df -h ~/.project-manager-mcp/
+   df -h ~/.foundry/
    ```
 
 2. **Clean old backups:**
+
    ```bash
-   find ~/.project-manager-mcp/ -name "*.backup.*" -mtime +7 -delete
+   find ~/.foundry/ -name "*.backup.*" -mtime +7 -delete
    ```
 
 3. **Reduce log level:**
@@ -328,34 +344,38 @@ The server creates this directory structure in your home directory:
 ## Updating
 
 ### From Source
+
 ```bash
-cd project-manager-mcp
+cd foundry
 git pull
 cargo build --release
 cargo install --path .
 ```
 
 ### From Crates.io
+
 ```bash
-cargo install project-manager-mcp --force
+cargo install foundry --force
 ```
 
 ### Pre-built Binary
+
 Download the latest release and replace your existing binary.
 
 ## Uninstallation
 
 1. **Remove the binary:**
+
    ```bash
-   cargo uninstall project-manager-mcp
-   # or manually: rm /usr/local/bin/project-manager-mcp
+   cargo uninstall foundry
+   # or manually: rm /usr/local/bin/foundry
    ```
 
 2. **Remove client configuration** from your AI assistant
 
 3. **Optionally remove data** (projects will be lost):
    ```bash
-   rm -rf ~/.project-manager-mcp/
+   rm -rf ~/.foundry/
    ```
 
 ## CLI Usage Examples
@@ -364,31 +384,32 @@ Once installed, explore the CLI capabilities:
 
 ```bash
 # Get help for all commands
-project-manager-mcp --help
+foundry --help
 
 # Start MCP server with custom settings
-project-manager-mcp serve --port 3001 --log-format json --verbose
+foundry serve --port 3001 --log-format json --verbose
 
-# Configure clients automatically  
-project-manager-mcp install --client cursor
-project-manager-mcp install --client claude-desktop
+# Configure clients automatically
+foundry install --client cursor
+foundry install --client claude-desktop
 
 # Project management (upcoming in Phase 5)
-project-manager-mcp list-projects
-project-manager-mcp status --verbose
-project-manager-mcp doctor --fix
+foundry list-projects
+foundry status --verbose
+foundry doctor --fix
 ```
 
 ## Getting Help
 
-- **CLI Help**: `project-manager-mcp --help` or `project-manager-mcp <command> --help`
-- **Issues**: [GitHub Issues](https://github.com/your-org/project-manager-mcp/issues)
+- **CLI Help**: `foundry --help` or `foundry <command> --help`
+- **Issues**: [GitHub Issues](https://github.com/your-org/foundry/issues)
 - **Documentation**: [README.md](./README.md) - Comprehensive CLI and MCP usage guide
 - **API Docs**: `cargo doc --open`
 
 ## Next Steps
 
 Once installed, check out:
+
 - [MCP Tools Documentation](./TOOLS.md) - Learn about available tools
 - [Configuration Guide](./CONFIGURATION.md) - Advanced configuration options
 - [Examples](./examples/) - Sample workflows and use cases

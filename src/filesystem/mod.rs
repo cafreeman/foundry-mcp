@@ -17,7 +17,7 @@
 //! The file system manager creates and maintains this directory structure:
 //!
 //! ```text
-//! ~/.project-manager-mcp/               # Base directory
+//! ~/.foundry/               # Base directory
 //! ├── project-1/                        # Project directory
 //! │   ├── project/                      # Project metadata
 //! │   │   ├── metadata.json            # Project information

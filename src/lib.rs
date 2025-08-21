@@ -11,7 +11,7 @@
 //! The Project Manager MCP server enables AI coding assistants to:
 //!
 //! * **Create and manage projects** with technology stacks and business vision
-//! * **Write detailed specifications** for features and requirements  
+//! * **Write detailed specifications** for features and requirements
 //! * **Track implementation tasks** with dependencies and priorities
 //! * **Capture development notes** and decisions throughout the process
 //! * **Load contextual information** to maintain continuity across coding sessions
@@ -35,7 +35,7 @@
 //!
 //! ```bash
 //! # Run the MCP server
-//! cargo run --bin project-manager-mcp
+//! cargo run --bin foundry-mcp
 //! ```
 //!
 //! ## As a Library
@@ -84,7 +84,7 @@
 //! // Create a specification
 //! let spec = spec_repo.create_spec(
 //!     "my-web-app",
-//!     "user_authentication", 
+//!     "user_authentication",
 //!     "User Authentication System",
 //!     "OAuth2 and JWT-based authentication"
 //! ).await?;
@@ -96,10 +96,10 @@
 //!
 //! # File System Structure
 //!
-//! Projects are stored in `~/.project-manager-mcp/` with the following structure:
+//! Projects are stored in `~/.foundry/` with the following structure:
 //!
 //! ```text
-//! ~/.project-manager-mcp/
+//! ~/.foundry/
 //! ├── project-name/
 //! │   ├── project/
 //! │   │   ├── metadata.json      # Project information

@@ -654,6 +654,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "foundry-mcp"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "clap",
+ "clap_complete",
+ "dashmap",
+ "dirs",
+ "futures",
+ "home",
+ "indicatif",
+ "inquire",
+ "mockall",
+ "rust-mcp-schema",
+ "rust-mcp-sdk",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-test",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "fragile"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1589,34 +1617,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89ae43fd86e4158d6db51ad8e2b80f313af9cc74f5c0e03ccb87de09998732de"
 dependencies = [
  "unicode-ident",
-]
-
-[[package]]
-name = "project-manager-mcp"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "clap",
- "clap_complete",
- "dashmap",
- "dirs",
- "futures",
- "home",
- "indicatif",
- "inquire",
- "mockall",
- "rust-mcp-schema",
- "rust-mcp-sdk",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tokio-test",
- "tracing",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

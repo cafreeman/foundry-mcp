@@ -4,11 +4,11 @@
 //! Provides project management commands and can run as an MCP server.
 
 use clap::Parser;
-use project_manager_mcp::cli::{Cli, Commands};
-use project_manager_mcp::cli::commands::{serve, install, project};
-use project_manager_mcp::cli::args::ServeArgs;
-use project_manager_mcp::cli::config::CliConfig;
-use project_manager_mcp::errors::Result;
+use foundry_mcp::cli::{Cli, Commands};
+use foundry_mcp::cli::commands::{serve, install, project};
+use foundry_mcp::cli::args::ServeArgs;
+use foundry_mcp::cli::config::CliConfig;
+use foundry_mcp::errors::Result;
 use std::env;
 use tracing::{Level, error, info};
 use tracing_subscriber::FmtSubscriber;

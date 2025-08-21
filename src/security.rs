@@ -1,8 +1,8 @@
 //! Security utilities for path sanitization and input validation
 
-use std::path::{Path, PathBuf, Component};
-use std::ffi::OsStr;
 use crate::errors::{ProjectManagerError, Result};
+use std::ffi::OsStr;
+use std::path::{Component, Path, PathBuf};
 
 /// Security configuration for the project manager
 #[derive(Debug, Clone)]
@@ -28,7 +28,7 @@ impl Default for SecurityConfig {
         Self {
             base_directory: dirs::home_dir()
                 .unwrap_or_else(|| PathBuf::from("."))
-                .join(".project-manager-mcp"),
+                .join(".foundry"),
             max_path_depth: 10,
             max_file_size: 50 * 1024 * 1024, // 50MB
             max_file_count: 10000,
@@ -87,22 +87,22 @@ impl PathSanitizer {
 
         // Parse the path
         let path = Path::new(path);
-        
+
         // Resolve the path relative to the base directory
         let full_path = self.config.base_directory.join(path);
-        
+
         // Canonicalize to resolve any relative components
         let canonical_path = self.canonicalize_safely(&full_path)?;
-        
+
         // Ensure the path is within the base directory
         self.ensure_within_base_directory(&canonical_path)?;
-        
+
         // Check path depth
         self.check_path_depth(&canonical_path)?;
-        
+
         // Validate file extension
         self.validate_file_extension(&canonical_path)?;
-        
+
         Ok(canonical_path)
     }
 
@@ -113,23 +113,24 @@ impl PathSanitizer {
             return Err(ProjectManagerError::validation_error(
                 "filename",
                 filename,
-                "Filename contains path separators or null characters"
+                "Filename contains path separators or null characters",
             ));
         }
 
         // Check for reserved names on Windows
         let reserved_names = [
-            "CON", "PRN", "AUX", "NUL",
-            "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9",
-            "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+            "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+            "COM8", "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
         ];
 
         let filename_upper = filename.to_uppercase();
-        if reserved_names.iter().any(|&name| filename_upper == name || filename_upper.starts_with(&format!("{}.", name))) {
+        if reserved_names.iter().any(|&name| {
+            filename_upper == name || filename_upper.starts_with(&format!("{}.", name))
+        }) {
             return Err(ProjectManagerError::validation_error(
                 "filename",
                 filename,
-                "Filename is a reserved system name"
+                "Filename is a reserved system name",
             ));
         }
 
@@ -141,7 +142,7 @@ impl PathSanitizer {
                 return Err(ProjectManagerError::validation_error(
                     "filename",
                     filename,
-                    "Hidden files are not allowed"
+                    "Hidden files are not allowed",
                 ));
             }
         }
@@ -151,26 +152,34 @@ impl PathSanitizer {
             return Err(ProjectManagerError::validation_error(
                 "filename",
                 filename,
-                "Filename too long (max 255 characters)"
+                "Filename too long (max 255 characters)",
             ));
         }
 
         // Validate extension
         if let Some(extension) = Path::new(filename).extension().and_then(OsStr::to_str) {
-            if self.config.blocked_extensions.contains(&extension.to_lowercase()) {
+            if self
+                .config
+                .blocked_extensions
+                .contains(&extension.to_lowercase())
+            {
                 return Err(ProjectManagerError::validation_error(
                     "filename",
                     filename,
-                    &format!("File extension '{}' is not allowed", extension)
+                    &format!("File extension '{}' is not allowed", extension),
                 ));
             }
 
-            if !self.config.allowed_extensions.is_empty() 
-                && !self.config.allowed_extensions.contains(&extension.to_lowercase()) {
+            if !self.config.allowed_extensions.is_empty()
+                && !self
+                    .config
+                    .allowed_extensions
+                    .contains(&extension.to_lowercase())
+            {
                 return Err(ProjectManagerError::validation_error(
                     "filename",
                     filename,
-                    &format!("File extension '{}' is not in the allowed list", extension)
+                    &format!("File extension '{}' is not in the allowed list", extension),
                 ));
             }
         }
@@ -185,7 +194,10 @@ impl PathSanitizer {
             return Err(ProjectManagerError::validation_error(
                 "content",
                 "content",
-                &format!("Content exceeds maximum size of {} bytes", self.config.max_file_size)
+                &format!(
+                    "Content exceeds maximum size of {} bytes",
+                    self.config.max_file_size
+                ),
             ));
         }
 
@@ -194,7 +206,7 @@ impl PathSanitizer {
             return Err(ProjectManagerError::validation_error(
                 "content",
                 "content",
-                "Content contains binary data (null bytes)"
+                "Content contains binary data (null bytes)",
             ));
         }
 
@@ -205,20 +217,36 @@ impl PathSanitizer {
                 return Err(ProjectManagerError::validation_error(
                     "content",
                     "content",
-                    &format!("Line {} exceeds maximum length of {} characters", line_num + 1, MAX_LINE_LENGTH)
+                    &format!(
+                        "Line {} exceeds maximum length of {} characters",
+                        line_num + 1,
+                        MAX_LINE_LENGTH
+                    ),
                 ));
             }
         }
 
         // Check for suspicious patterns that might indicate code injection
         let suspicious_patterns = [
-            "<?php", "<%", "%>", "<?=",
-            "<script", "</script>", "javascript:",
-            "data:text/html", "data:application/",
-            "eval(", "exec(", "system(",
-            "file_get_contents", "file_put_contents",
-            "__import__", "import os", "import sys",
-            "require(", "include(",
+            "<?php",
+            "<%",
+            "%>",
+            "<?=",
+            "<script",
+            "</script>",
+            "javascript:",
+            "data:text/html",
+            "data:application/",
+            "eval(",
+            "exec(",
+            "system(",
+            "file_get_contents",
+            "file_put_contents",
+            "__import__",
+            "import os",
+            "import sys",
+            "require(",
+            "include(",
         ];
 
         let content_lower = content.to_lowercase();
@@ -227,7 +255,7 @@ impl PathSanitizer {
                 return Err(ProjectManagerError::validation_error(
                     "content",
                     "content",
-                    &format!("Content contains suspicious pattern: {}", pattern)
+                    &format!("Content contains suspicious pattern: {}", pattern),
                 ));
             }
         }
@@ -247,7 +275,7 @@ impl PathSanitizer {
             return Err(ProjectManagerError::permission_error(
                 "access",
                 path,
-                "Symbolic links are not allowed"
+                "Symbolic links are not allowed",
             ));
         }
 
@@ -258,7 +286,10 @@ impl PathSanitizer {
                     return Err(ProjectManagerError::validation_error(
                         "file_size",
                         &path.display().to_string(),
-                        &format!("File size exceeds maximum of {} bytes", self.config.max_file_size)
+                        &format!(
+                            "File size exceeds maximum of {} bytes",
+                            self.config.max_file_size
+                        ),
                     ));
                 }
             }
@@ -274,7 +305,7 @@ impl PathSanitizer {
             return Err(ProjectManagerError::validation_error(
                 "path",
                 path,
-                "Path contains null bytes"
+                "Path contains null bytes",
             ));
         }
 
@@ -283,7 +314,7 @@ impl PathSanitizer {
             return Err(ProjectManagerError::validation_error(
                 "path",
                 path,
-                "Path contains directory traversal attempt (..)"
+                "Path contains directory traversal attempt (..)",
             ));
         }
 
@@ -292,7 +323,7 @@ impl PathSanitizer {
             return Err(ProjectManagerError::validation_error(
                 "path",
                 path,
-                "Absolute paths are not allowed"
+                "Absolute paths are not allowed",
             ));
         }
 
@@ -301,7 +332,7 @@ impl PathSanitizer {
             return Err(ProjectManagerError::validation_error(
                 "path",
                 path,
-                "Path is too long (max 1000 characters)"
+                "Path is too long (max 1000 characters)",
             ));
         }
 
@@ -311,15 +342,17 @@ impl PathSanitizer {
     /// Safely canonicalize a path without following symlinks
     fn canonicalize_safely(&self, path: &Path) -> Result<PathBuf> {
         let mut result = PathBuf::new();
-        
+
         // Start with the base directory
         for component in self.config.base_directory.components() {
             result.push(component);
         }
 
         // Process the relative path components
-        let relative_path = path.strip_prefix(&self.config.base_directory).unwrap_or(path);
-        
+        let relative_path = path
+            .strip_prefix(&self.config.base_directory)
+            .unwrap_or(path);
+
         for component in relative_path.components() {
             match component {
                 Component::Normal(name) => {
@@ -337,14 +370,14 @@ impl PathSanitizer {
                     return Err(ProjectManagerError::validation_error(
                         "path",
                         &path.display().to_string(),
-                        "Parent directory references (..) are not allowed"
+                        "Parent directory references (..) are not allowed",
                     ));
                 }
                 _ => {
                     return Err(ProjectManagerError::validation_error(
                         "path",
                         &path.display().to_string(),
-                        "Invalid path component"
+                        "Invalid path component",
                     ));
                 }
             }
@@ -359,7 +392,7 @@ impl PathSanitizer {
             return Err(ProjectManagerError::permission_error(
                 "access",
                 path,
-                "Path is outside the allowed directory"
+                "Path is outside the allowed directory",
             ));
         }
         Ok(())
@@ -367,19 +400,25 @@ impl PathSanitizer {
 
     /// Check if the path depth is within limits
     fn check_path_depth(&self, path: &Path) -> Result<()> {
-        let relative_path = path.strip_prefix(&self.config.base_directory)
-            .map_err(|_| ProjectManagerError::internal_error(
-                "path_depth_check",
-                "Failed to strip base directory prefix",
-                None
-            ))?;
+        let relative_path = path
+            .strip_prefix(&self.config.base_directory)
+            .map_err(|_| {
+                ProjectManagerError::internal_error(
+                    "path_depth_check",
+                    "Failed to strip base directory prefix",
+                    None,
+                )
+            })?;
 
         let depth = relative_path.components().count();
         if depth > self.config.max_path_depth {
             return Err(ProjectManagerError::validation_error(
                 "path_depth",
                 &path.display().to_string(),
-                &format!("Path depth {} exceeds maximum allowed depth of {}", depth, self.config.max_path_depth)
+                &format!(
+                    "Path depth {} exceeds maximum allowed depth of {}",
+                    depth, self.config.max_path_depth
+                ),
             ));
         }
 
@@ -390,21 +429,22 @@ impl PathSanitizer {
     fn validate_file_extension(&self, path: &Path) -> Result<()> {
         if let Some(extension) = path.extension().and_then(OsStr::to_str) {
             let ext_lower = extension.to_lowercase();
-            
+
             if self.config.blocked_extensions.contains(&ext_lower) {
                 return Err(ProjectManagerError::validation_error(
                     "file_extension",
                     &path.display().to_string(),
-                    &format!("File extension '{}' is blocked", extension)
+                    &format!("File extension '{}' is blocked", extension),
                 ));
             }
 
-            if !self.config.allowed_extensions.is_empty() 
-                && !self.config.allowed_extensions.contains(&ext_lower) {
+            if !self.config.allowed_extensions.is_empty()
+                && !self.config.allowed_extensions.contains(&ext_lower)
+            {
                 return Err(ProjectManagerError::validation_error(
                     "file_extension",
                     &path.display().to_string(),
-                    &format!("File extension '{}' is not in the allowed list", extension)
+                    &format!("File extension '{}' is not in the allowed list", extension),
                 ));
             }
         }
@@ -496,10 +536,10 @@ mod tests {
     #[test]
     fn test_sanitize_safe_path() {
         let (sanitizer, _temp_dir) = create_test_sanitizer();
-        
+
         let result = sanitizer.sanitize_path("project1/spec.md");
         assert!(result.is_ok());
-        
+
         let sanitized = result.unwrap();
         assert!(sanitized.ends_with("project1/spec.md"));
     }
@@ -507,7 +547,7 @@ mod tests {
     #[test]
     fn test_reject_directory_traversal() {
         let (sanitizer, _temp_dir) = create_test_sanitizer();
-        
+
         let result = sanitizer.sanitize_path("../etc/passwd");
         assert!(result.is_err());
     }
@@ -515,10 +555,10 @@ mod tests {
     #[test]
     fn test_reject_absolute_path() {
         let (sanitizer, _temp_dir) = create_test_sanitizer();
-        
+
         let result = sanitizer.sanitize_path("/etc/passwd");
         assert!(result.is_err());
-        
+
         let result = sanitizer.sanitize_path("C:\\Windows\\System32");
         assert!(result.is_err());
     }
@@ -526,7 +566,7 @@ mod tests {
     #[test]
     fn test_sanitize_filename() {
         let (sanitizer, _temp_dir) = create_test_sanitizer();
-        
+
         assert!(sanitizer.sanitize_filename("valid-file.md").is_ok());
         assert!(sanitizer.sanitize_filename("file/path.md").is_err());
         assert!(sanitizer.sanitize_filename("CON.txt").is_err());
@@ -536,20 +576,32 @@ mod tests {
     #[test]
     fn test_validate_content() {
         let (sanitizer, _temp_dir) = create_test_sanitizer();
-        
-        assert!(sanitizer.validate_content("# Valid Markdown\n\nThis is safe content.").is_ok());
-        assert!(sanitizer.validate_content("<?php echo 'dangerous'; ?>").is_err());
-        assert!(sanitizer.validate_content("Content with\0null byte").is_err());
+
+        assert!(
+            sanitizer
+                .validate_content("# Valid Markdown\n\nThis is safe content.")
+                .is_ok()
+        );
+        assert!(
+            sanitizer
+                .validate_content("<?php echo 'dangerous'; ?>")
+                .is_err()
+        );
+        assert!(
+            sanitizer
+                .validate_content("Content with\0null byte")
+                .is_err()
+        );
     }
 
     #[test]
     fn test_rate_limiter() {
         let limiter = RateLimiter::new(2, std::time::Duration::from_secs(60));
-        
+
         assert!(limiter.is_allowed("user1"));
         assert!(limiter.is_allowed("user1"));
         assert!(!limiter.is_allowed("user1")); // Third request should be blocked
-        
+
         assert!(limiter.is_allowed("user2")); // Different user should be allowed
     }
 }

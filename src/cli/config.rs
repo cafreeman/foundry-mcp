@@ -26,9 +26,9 @@ impl Default for CliConfig {
 
 impl CliConfig {
     pub fn config_path() -> Result<PathBuf> {
-        let config_dir = dirs::config_dir()
-            .ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?;
-        Ok(config_dir.join("project-manager-mcp").join("config.json"))
+        let config_dir =
+            dirs::config_dir().ok_or_else(|| anyhow::anyhow!("Could not find config directory"))?;
+        Ok(config_dir.join("foundry").join("config.json"))
     }
 
     pub fn load() -> Result<Self> {
@@ -79,8 +79,9 @@ impl CliConfig {
                 }
             }
             "backup_retention_days" => {
-                let days: u32 = value.parse()
-                    .map_err(|_| anyhow::anyhow!("Invalid number for backup_retention_days: {}", value))?;
+                let days: u32 = value.parse().map_err(|_| {
+                    anyhow::anyhow!("Invalid number for backup_retention_days: {}", value)
+                })?;
                 self.backup_retention_days = days;
             }
             "default_output_format" => {
@@ -91,7 +92,8 @@ impl CliConfig {
                 }
             }
             _ => {
-                self.custom_settings.insert(key.to_string(), value.to_string());
+                self.custom_settings
+                    .insert(key.to_string(), value.to_string());
             }
         }
         Ok(())
@@ -101,13 +103,19 @@ impl CliConfig {
         let mut settings = HashMap::new();
         settings.insert("log_level".to_string(), self.log_level.clone());
         settings.insert("log_format".to_string(), self.log_format.clone());
-        settings.insert("backup_retention_days".to_string(), self.backup_retention_days.to_string());
-        settings.insert("default_output_format".to_string(), self.default_output_format.clone());
-        
+        settings.insert(
+            "backup_retention_days".to_string(),
+            self.backup_retention_days.to_string(),
+        );
+        settings.insert(
+            "default_output_format".to_string(),
+            self.default_output_format.clone(),
+        );
+
         for (key, value) in &self.custom_settings {
             settings.insert(key.clone(), value.clone());
         }
-        
+
         settings
     }
 

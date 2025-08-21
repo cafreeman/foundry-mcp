@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "project-manager-mcp")]
+#[command(name = "foundry")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(about = "A CLI tool for project management with MCP server capabilities")]
 #[command(long_about = None)]
