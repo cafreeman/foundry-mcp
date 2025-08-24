@@ -75,6 +75,13 @@ pub struct LoadSpecArgs {
     pub spec_name: Option<String>,
 }
 
+/// Arguments for load_project command
+#[derive(Args, Debug)]
+pub struct LoadProjectArgs {
+    /// Project name to load context from (must exist in ~/.foundry/)
+    pub project_name: String,
+}
+
 /// Arguments for list_projects command
 #[derive(Args, Debug)]
 pub struct ListProjectsArgs;

@@ -50,6 +50,22 @@ pub struct ProjectInfo {
     pub path: String,
 }
 
+/// Response for load_project command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoadProjectResponse {
+    pub project: ProjectContext,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectContext {
+    pub name: String,
+    pub vision: String,
+    pub tech_stack: String,
+    pub summary: String,
+    pub specs_available: Vec<String>,
+    pub created_at: String,
+}
+
 /// Response for create_spec command
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CreateSpecResponse {

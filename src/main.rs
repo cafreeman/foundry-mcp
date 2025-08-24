@@ -25,6 +25,8 @@ enum Commands {
     AnalyzeProject(cli::args::AnalyzeProjectArgs),
     /// Create a new specification for a project
     CreateSpec(cli::args::CreateSpecArgs),
+    /// Load a project's complete context (vision, tech-stack, summary)
+    LoadProject(cli::args::LoadProjectArgs),
     /// Load an existing specification
     LoadSpec(cli::args::LoadSpecArgs),
     /// List all available projects
@@ -47,6 +49,9 @@ async fn main() -> Result<()> {
             .await
             .map(|r| serde_json::to_value(r).unwrap()),
         Commands::CreateSpec(args) => cli::commands::create_spec::execute(args)
+            .await
+            .map(|r| serde_json::to_value(r).unwrap()),
+        Commands::LoadProject(args) => cli::commands::load_project::execute(args)
             .await
             .map(|r| serde_json::to_value(r).unwrap()),
         Commands::LoadSpec(args) => cli::commands::load_spec::execute(args)
