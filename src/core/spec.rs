@@ -1,11 +1,12 @@
 //! Spec management core logic
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use chrono::{Datelike, Timelike, Utc};
 use std::fs;
 
 use crate::core::filesystem;
 use crate::types::spec::{Spec, SpecConfig, SpecMetadata};
+use crate::utils::timestamp;
 
 /// Generate timestamped spec name
 pub fn generate_spec_name(feature_name: &str) -> String {
@@ -51,7 +52,47 @@ pub fn create_spec(config: SpecConfig) -> Result<Spec> {
     })
 }
 
-/// List specs for a project
+/// Validate spec directory name format
+pub fn validate_spec_name(spec_name: &str) -> Result<()> {
+    if timestamp::parse_spec_timestamp(spec_name).is_none() {
+        return Err(anyhow::anyhow!(
+            "Invalid spec name format. Expected: YYYYMMDD_HHMMSS_feature_name, got: {}",
+            spec_name
+        ));
+    }
+
+    // Validate feature name part
+    if let Some(feature_name) = timestamp::extract_feature_name(spec_name) {
+        if feature_name.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Spec name must include a feature name after the timestamp"
+            ));
+        }
+
+        // Validate feature name follows snake_case convention
+        if !feature_name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+            || feature_name.starts_with('_')
+            || feature_name.ends_with('_')
+            || feature_name.contains("__")
+        {
+            return Err(anyhow::anyhow!(
+                "Feature name must be in snake_case format: {}",
+                feature_name
+            ));
+        }
+    } else {
+        return Err(anyhow::anyhow!(
+            "Could not extract feature name from spec name: {}",
+            spec_name
+        ));
+    }
+
+    Ok(())
+}
+
+/// List specs for a project with enhanced validation
 pub fn list_specs(project_name: &str) -> Result<Vec<SpecMetadata>> {
     let foundry_dir = filesystem::foundry_dir()?;
     let specs_dir = foundry_dir.join(project_name).join("project").join("specs");
@@ -67,18 +108,22 @@ pub fn list_specs(project_name: &str) -> Result<Vec<SpecMetadata>> {
         if entry.file_type()?.is_dir() {
             let spec_name = entry.file_name().to_string_lossy().to_string();
 
-            // Parse timestamp and feature name from spec name
-            if let Some((timestamp_str, feature_name)) = spec_name.split_once('_')
-                && timestamp_str.len() >= 15
-            {
-                // YYYYMMDD_HHMMSS is 15 chars
-                specs.push(SpecMetadata {
-                    name: spec_name.clone(),
-                    created_at: timestamp_str.to_string(),
-                    feature_name: feature_name.to_string(),
-                    project_name: project_name.to_string(),
-                });
+            // Use enhanced timestamp parsing
+            if let Some(timestamp_str) = timestamp::parse_spec_timestamp(&spec_name) {
+                if let Some(feature_name) = timestamp::extract_feature_name(&spec_name) {
+                    // Convert timestamp to ISO format for consistent storage
+                    let created_at = timestamp::spec_timestamp_to_iso(&timestamp_str)
+                        .unwrap_or_else(|_| timestamp::iso_timestamp());
+
+                    specs.push(SpecMetadata {
+                        name: spec_name.clone(),
+                        created_at,
+                        feature_name,
+                        project_name: project_name.to_string(),
+                    });
+                }
             }
+            // Skip invalid spec directories (they'll be ignored but won't cause errors)
         }
     }
 
@@ -88,8 +133,11 @@ pub fn list_specs(project_name: &str) -> Result<Vec<SpecMetadata>> {
     Ok(specs)
 }
 
-/// Load a specific spec
+/// Load a specific spec with validation
 pub fn load_spec(project_name: &str, spec_name: &str) -> Result<Spec> {
+    // Validate spec name format first
+    validate_spec_name(spec_name).with_context(|| format!("Invalid spec name: {}", spec_name))?;
+
     let foundry_dir = filesystem::foundry_dir()?;
     let spec_path = foundry_dir
         .join(project_name)
@@ -110,12 +158,26 @@ pub fn load_spec(project_name: &str, spec_name: &str) -> Result<Spec> {
     let notes = filesystem::read_file(spec_path.join("notes.md"))?;
     let task_list = filesystem::read_file(spec_path.join("task-list.md"))?;
 
-    // Get creation time from directory metadata
-    let created_at = fs::metadata(&spec_path)?
-        .created()?
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs()
-        .to_string();
+    // Get creation time from spec name timestamp (more reliable than filesystem metadata)
+    let created_at = if let Some(timestamp_str) = timestamp::parse_spec_timestamp(spec_name) {
+        timestamp::spec_timestamp_to_iso(&timestamp_str)
+            .unwrap_or_else(|_| timestamp::iso_timestamp())
+    } else {
+        // Fallback to filesystem metadata if timestamp parsing fails
+        fs::metadata(&spec_path)
+            .and_then(|metadata| metadata.created())
+            .map_err(anyhow::Error::from)
+            .and_then(|time| {
+                time.duration_since(std::time::UNIX_EPOCH)
+                    .map_err(anyhow::Error::from)
+            })
+            .map(|duration| {
+                chrono::DateTime::from_timestamp(duration.as_secs() as i64, 0)
+                    .unwrap_or_else(chrono::Utc::now)
+                    .to_rfc3339()
+            })
+            .unwrap_or_else(|_| timestamp::iso_timestamp())
+    };
 
     Ok(Spec {
         name: spec_name.to_string(),

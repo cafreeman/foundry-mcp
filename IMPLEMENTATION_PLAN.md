@@ -168,12 +168,15 @@ src/
 
 **Estimated Time**: Week 2
 
-#### Timestamp Utilities
+#### Timestamp Utilities ✅ COMPLETED
 
-- [ ] Implement ISO timestamp generation in `utils/timestamp.rs`
-- [ ] Create spec name formatting (`YYYYMMDD_HHMMSS_feature_name`)
-- [ ] Add timestamp parsing utilities for existing specs
-- [ ] Implement spec directory name validation
+- [x] Implement ISO timestamp generation in `utils/timestamp.rs`
+- [x] Create spec name formatting (`YYYYMMDD_HHMMSS_feature_name`)
+- [x] Add timestamp parsing utilities for existing specs with validation
+- [x] Implement spec directory name validation with enhanced error handling
+- [x] Add timestamp format conversion between ISO, spec format, and display format
+- [x] Enhanced feature name extraction and validation
+- [x] Comprehensive test coverage for all timestamp utilities
 
 #### `create_spec` Command ✅ COMPLETED
 
