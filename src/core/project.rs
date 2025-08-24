@@ -48,44 +48,56 @@ pub fn project_exists(project_name: &str) -> Result<bool> {
 /// List all projects
 pub fn list_projects() -> Result<Vec<ProjectMetadata>> {
     let foundry_dir = filesystem::foundry_dir()?;
-    let mut projects = Vec::new();
 
     if !foundry_dir.exists() {
-        return Ok(projects);
+        return Ok(Vec::new());
     }
 
-    for entry in fs::read_dir(foundry_dir)? {
-        let entry = entry?;
-        if entry.file_type()?.is_dir() {
+    let projects: Vec<ProjectMetadata> = fs::read_dir(foundry_dir)?
+        .filter_map(|entry| {
+            let entry = entry.ok()?;
+            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                Some(entry)
+            } else {
+                None
+            }
+        })
+        .map(|entry| {
             let project_name = entry.file_name().to_string_lossy().to_string();
             let project_path = entry.path();
 
-            // Count specs
+            // Count specs using fold
             let specs_dir = project_path.join("project").join("specs");
             let spec_count = if specs_dir.exists() {
-                fs::read_dir(specs_dir)?
-                    .filter_map(|e| e.ok())
-                    .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-                    .count()
+                fs::read_dir(specs_dir)
+                    .ok()
+                    .map(|dir| {
+                        dir.filter_map(|e| e.ok())
+                            .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
+                            .fold(0, |acc, _| acc + 1)
+                    })
+                    .unwrap_or(0)
             } else {
                 0
             };
 
             // Get creation time (use directory creation time as fallback)
             let created_at = entry
-                .metadata()?
-                .created()?
-                .duration_since(std::time::UNIX_EPOCH)?
-                .as_secs();
+                .metadata()
+                .ok()
+                .and_then(|m| m.created().ok())
+                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
 
-            projects.push(ProjectMetadata {
+            ProjectMetadata {
                 name: project_name,
-                created_at: format!("{}", created_at),
+                created_at: created_at.to_string(),
                 spec_count,
-                last_modified: format!("{}", created_at), // TODO: Use actual last modified time
-            });
-        }
-    }
+                last_modified: created_at.to_string(), // TODO: Use actual last modified time
+            }
+        })
+        .collect();
 
     Ok(projects)
 }

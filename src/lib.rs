@@ -25,8 +25,8 @@ pub use crate::utils::timestamp::*;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Get the foundry directory path (~/.foundry)
-pub fn foundry_dir() -> std::path::PathBuf {
+pub fn foundry_dir() -> anyhow::Result<std::path::PathBuf> {
     dirs::home_dir()
-        .expect("Could not determine home directory")
-        .join(".foundry")
+        .ok_or_else(|| anyhow::anyhow!("Could not determine home directory"))
+        .map(|home| home.join(".foundry"))
 }

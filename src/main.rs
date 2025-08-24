@@ -44,28 +44,28 @@ async fn main() -> Result<()> {
     let result: Result<Value> = match args.command {
         Commands::CreateProject(args) => cli::commands::create_project::execute(args)
             .await
-            .map(|r| serde_json::to_value(r).unwrap()),
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         Commands::AnalyzeProject(args) => cli::commands::analyze_project::execute(args)
             .await
-            .map(|r| serde_json::to_value(r).unwrap()),
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         Commands::CreateSpec(args) => cli::commands::create_spec::execute(args)
             .await
-            .map(|r| serde_json::to_value(r).unwrap()),
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         Commands::LoadProject(args) => cli::commands::load_project::execute(args)
             .await
-            .map(|r| serde_json::to_value(r).unwrap()),
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         Commands::LoadSpec(args) => cli::commands::load_spec::execute(args)
             .await
-            .map(|r| serde_json::to_value(r).unwrap()),
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         Commands::ListProjects(args) => cli::commands::list_projects::execute(args)
             .await
-            .map(|r| serde_json::to_value(r).unwrap()),
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         Commands::GetFoundryHelp(args) => cli::commands::get_foundry_help::execute(args)
             .await
-            .map(|r| serde_json::to_value(r).unwrap()),
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         Commands::ValidateContent(args) => cli::commands::validate_content::execute(args)
             .await
-            .map(|r| serde_json::to_value(r).unwrap()),
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
     };
 
     match result {

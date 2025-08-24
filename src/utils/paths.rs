@@ -50,9 +50,18 @@ pub fn validate_project_name(name: &str) -> Result<()> {
     }
 
     // Check that it starts and ends with alphanumeric
-    if !name.chars().next().unwrap().is_alphanumeric()
-        || !name.chars().last().unwrap().is_alphanumeric()
-    {
+    let first_char_valid = name
+        .chars()
+        .next()
+        .map(|c| c.is_alphanumeric())
+        .unwrap_or(false);
+    let last_char_valid = name
+        .chars()
+        .last()
+        .map(|c| c.is_alphanumeric())
+        .unwrap_or(false);
+
+    if !first_char_valid || !last_char_valid {
         return Err(anyhow::anyhow!(
             "Project name must start and end with alphanumeric characters"
         ));

@@ -3,42 +3,62 @@
 use crate::cli::args::CreateProjectArgs;
 use crate::core::{project, validation};
 use crate::types::project::ProjectConfig;
-use crate::types::responses::{CreateProjectResponse, FoundryResponse, ValidationStatus};
+use crate::types::responses::{CreateProjectResponse, FoundryResponse};
+use crate::utils::response::{build_incomplete_response, build_success_response};
 use anyhow::{Context, Result};
 
 pub async fn execute(args: CreateProjectArgs) -> Result<FoundryResponse<CreateProjectResponse>> {
-    // Validate project name format (kebab-case)
-    validate_project_name(&args.project_name)?;
+    // Validate project preconditions
+    validate_project_preconditions(&args.project_name)?;
 
-    // Check if project already exists
-    if project::project_exists(&args.project_name)? {
-        return Err(anyhow::anyhow!(
-            "Project '{}' already exists",
-            args.project_name
-        ));
+    // Validate and process content
+    let suggestions = process_content_validation(&args)?;
+
+    // Create the project
+    let project_config = build_project_config(args);
+    let created_project =
+        project::create_project(project_config).context("Failed to create project structure")?;
+
+    // Build and return response
+    Ok(build_response(created_project, suggestions))
+}
+
+/// Validate project preconditions (name format and existence)
+fn validate_project_preconditions(project_name: &str) -> Result<()> {
+    validate_project_name(project_name)?;
+
+    if project::project_exists(project_name)? {
+        return Err(anyhow::anyhow!("Project '{}' already exists", project_name));
     }
 
-    // Validate content according to schema requirements
-    let validation_results = validate_content(&args)?;
-    let mut validation_errors = Vec::new();
-    let mut suggestions = Vec::new();
+    Ok(())
+}
 
-    for (content_type, result) in validation_results {
-        if !result.is_valid {
-            validation_errors.extend(
-                result
-                    .errors
-                    .into_iter()
-                    .map(|e| format!("{}: {}", content_type, e)),
-            );
-        }
-        suggestions.extend(
-            result
-                .suggestions
-                .into_iter()
-                .map(|s| format!("{}: {}", content_type, s)),
+/// Process content validation and return suggestions
+fn process_content_validation(args: &CreateProjectArgs) -> Result<Vec<String>> {
+    let validation_results = validate_content(args)?;
+
+    let (validation_errors, suggestions): (Vec<String>, Vec<String>) =
+        validation_results.into_iter().fold(
+            (Vec::new(), Vec::new()),
+            |(mut errors, mut suggestions), (content_type, result)| {
+                if !result.is_valid {
+                    errors.extend(
+                        result
+                            .errors
+                            .into_iter()
+                            .map(|e| format!("{}: {}", content_type, e)),
+                    );
+                }
+                suggestions.extend(
+                    result
+                        .suggestions
+                        .into_iter()
+                        .map(|s| format!("{}: {}", content_type, s)),
+                );
+                (errors, suggestions)
+            },
         );
-    }
 
     // If there are validation errors, return them
     if !validation_errors.is_empty() {
@@ -48,19 +68,24 @@ pub async fn execute(args: CreateProjectArgs) -> Result<FoundryResponse<CreatePr
         ));
     }
 
-    // Create project configuration
-    let project_config = ProjectConfig {
-        name: args.project_name.clone(),
+    Ok(suggestions)
+}
+
+/// Build project configuration from args
+fn build_project_config(args: CreateProjectArgs) -> ProjectConfig {
+    ProjectConfig {
+        name: args.project_name,
         vision: args.vision,
         tech_stack: args.tech_stack,
         summary: args.summary,
-    };
+    }
+}
 
-    // Create the project
-    let created_project =
-        project::create_project(project_config).context("Failed to create project structure")?;
-
-    // Build response
+/// Build the final response
+fn build_response(
+    created_project: crate::types::project::Project,
+    suggestions: Vec<String>,
+) -> FoundryResponse<CreateProjectResponse> {
     let files_created = vec![
         "project/vision.md".to_string(),
         "project/tech-stack.md".to_string(),
@@ -75,12 +100,6 @@ pub async fn execute(args: CreateProjectArgs) -> Result<FoundryResponse<CreatePr
         files_created,
     };
 
-    let validation_status = if suggestions.is_empty() {
-        ValidationStatus::Complete
-    } else {
-        ValidationStatus::Incomplete
-    };
-
     let next_steps = vec![
         format!("Project '{}' created successfully", created_project.name),
         "You can now create specifications using: foundry create_spec".to_string(),
@@ -88,7 +107,7 @@ pub async fn execute(args: CreateProjectArgs) -> Result<FoundryResponse<CreatePr
     ];
 
     let workflow_hints = if !suggestions.is_empty() {
-        suggestions
+        suggestions.clone()
     } else {
         vec![
             "Consider creating your first specification to start development".to_string(),
@@ -96,12 +115,11 @@ pub async fn execute(args: CreateProjectArgs) -> Result<FoundryResponse<CreatePr
         ]
     };
 
-    Ok(FoundryResponse {
-        data: response_data,
-        next_steps,
-        validation_status,
-        workflow_hints,
-    })
+    if suggestions.is_empty() {
+        build_success_response(response_data, next_steps, workflow_hints)
+    } else {
+        build_incomplete_response(response_data, next_steps, workflow_hints)
+    }
 }
 
 /// Validate project name format (kebab-case)
@@ -157,4 +175,129 @@ fn validate_content(
     ];
 
     Ok(validations)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Mock project args for testing
+    fn create_test_args() -> CreateProjectArgs {
+        CreateProjectArgs {
+            project_name: "test-project".to_string(),
+            vision: "This is a test vision that is long enough to meet the minimum requirements. It should contain at least 200 characters to pass validation. This includes multiple sentences and provides comprehensive coverage of what the project aims to achieve.".to_string(),
+            tech_stack: "This project uses Rust as the primary language with tokio for async runtime, serde for serialization, and clap for command line argument parsing. It follows functional programming principles and modern Rust 2024 practices.".to_string(),
+            summary: "A comprehensive CLI tool for deterministic project management and AI coding assistant integration with modern Rust patterns.".to_string(),
+        }
+    }
+
+    #[test]
+    fn test_validate_project_name_valid() {
+        let valid_names = vec!["my-project", "project123", "my-awesome-project", "test"];
+
+        for name in valid_names {
+            assert!(
+                validate_project_name(name).is_ok(),
+                "Name '{}' should be valid",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_project_name_invalid() {
+        let invalid_names = vec![
+            "",            // empty
+            "-project",    // starts with hyphen
+            "project-",    // ends with hyphen
+            "my--project", // consecutive hyphens
+            "MyProject",   // uppercase
+            "my project",  // space
+            "my.project",  // invalid character
+        ];
+
+        for name in invalid_names {
+            assert!(
+                validate_project_name(name).is_err(),
+                "Name '{}' should be invalid",
+                name
+            );
+        }
+    }
+
+    #[test]
+    fn test_validate_content_structure() {
+        let args = create_test_args();
+        let validations = validate_content(&args).unwrap();
+
+        assert_eq!(validations.len(), 3);
+
+        // Check that all content types are present
+        let content_types: Vec<&str> = validations.iter().map(|(t, _)| *t).collect();
+        assert!(content_types.contains(&"Vision"));
+        assert!(content_types.contains(&"Tech Stack"));
+        assert!(content_types.contains(&"Summary"));
+    }
+
+    #[test]
+    fn test_build_project_config() {
+        let args = create_test_args();
+        let config = build_project_config(args);
+
+        assert_eq!(config.name, "test-project");
+        assert!(!config.vision.is_empty());
+        assert!(!config.tech_stack.is_empty());
+        assert!(!config.summary.is_empty());
+    }
+
+    #[test]
+    fn test_build_response_without_suggestions() {
+        let project = crate::types::project::Project {
+            name: "test-project".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            path: std::path::PathBuf::from("/tmp/test"),
+            vision: Some("test vision".to_string()),
+            tech_stack: Some("test tech".to_string()),
+            summary: Some("test summary".to_string()),
+        };
+
+        let suggestions = Vec::new();
+        let response = build_response(project, suggestions);
+
+        // Should be a success response (no suggestions)
+        assert!(matches!(
+            response.validation_status,
+            crate::types::responses::ValidationStatus::Complete
+        ));
+        assert_eq!(response.data.project_name, "test-project");
+        assert_eq!(response.data.files_created.len(), 4);
+        assert!(
+            response
+                .next_steps
+                .iter()
+                .any(|s| s.contains("created successfully"))
+        );
+    }
+
+    #[test]
+    fn test_build_response_with_suggestions() {
+        let project = crate::types::project::Project {
+            name: "test-project".to_string(),
+            created_at: "2024-01-01T00:00:00Z".to_string(),
+            path: std::path::PathBuf::from("/tmp/test"),
+            vision: Some("test vision".to_string()),
+            tech_stack: Some("test tech".to_string()),
+            summary: Some("test summary".to_string()),
+        };
+
+        let suggestions = vec!["Add more detail".to_string()];
+        let response = build_response(project, suggestions);
+
+        // Should be an incomplete response (has suggestions)
+        assert!(matches!(
+            response.validation_status,
+            crate::types::responses::ValidationStatus::Incomplete
+        ));
+        assert_eq!(response.workflow_hints, vec!["Add more detail"]);
+    }
 }

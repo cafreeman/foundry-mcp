@@ -1,5 +1,9 @@
 //! Content validation logic
 
+use crate::utils::validation::{
+    conditional_error, conditional_suggestion, conditional_suggestions,
+};
+
 /// Content types that can be validated
 #[derive(Debug, Clone, Copy)]
 pub enum ContentType {
@@ -30,34 +34,32 @@ pub fn validate_content(content_type: ContentType, content: &str) -> ValidationR
 
 /// Validate vision content (2-4 paragraphs, 200+ characters)
 fn validate_vision_content(content: &str) -> ValidationResult {
-    let mut errors = Vec::new();
-    let mut suggestions = Vec::new();
+    let errors = conditional_error(
+        content.len() < 200,
+        "Vision content must be at least 200 characters",
+    );
 
-    // Check length
-    if content.len() < 200 {
-        errors.push("Vision content must be at least 200 characters".to_string());
-    }
-
-    // Check for multiple paragraphs
-    let paragraphs: Vec<&str> = content
+    let paragraphs_count = content
         .split("\n\n")
         .filter(|p| !p.trim().is_empty())
-        .collect();
-    if paragraphs.len() < 2 {
-        suggestions.push(
-            "Consider adding more paragraphs to provide comprehensive vision coverage".to_string(),
-        );
-    }
+        .count();
 
-    // Check for key elements
     let lower_content = content.to_lowercase();
-    if !lower_content.contains("problem") && !lower_content.contains("solve") {
-        suggestions.push("Consider including what problem this solves".to_string());
-    }
 
-    if !lower_content.contains("target") || !lower_content.contains("user") {
-        suggestions.push("Consider specifying target users or audience".to_string());
-    }
+    let suggestions = conditional_suggestions(&[
+        (
+            paragraphs_count < 2,
+            "Consider adding more paragraphs to provide comprehensive vision coverage",
+        ),
+        (
+            !lower_content.contains("problem") && !lower_content.contains("solve"),
+            "Consider including what problem this solves",
+        ),
+        (
+            !lower_content.contains("target") && !lower_content.contains("user"),
+            "Consider specifying target users or audience",
+        ),
+    ]);
 
     ValidationResult {
         is_valid: errors.is_empty(),
@@ -68,15 +70,11 @@ fn validate_vision_content(content: &str) -> ValidationResult {
 
 /// Validate tech stack content (150+ characters)
 fn validate_tech_stack_content(content: &str) -> ValidationResult {
-    let mut errors = Vec::new();
-    let mut suggestions = Vec::new();
+    let errors = conditional_error(
+        content.len() < 150,
+        "Tech stack content must be at least 150 characters",
+    );
 
-    // Check length
-    if content.len() < 150 {
-        errors.push("Tech stack content must be at least 150 characters".to_string());
-    }
-
-    // Check for technology mentions
     let lower_content = content.to_lowercase();
     let tech_keywords = [
         "language",
@@ -89,12 +87,10 @@ fn validate_tech_stack_content(content: &str) -> ValidationResult {
         .iter()
         .any(|&keyword| lower_content.contains(keyword));
 
-    if !has_tech {
-        suggestions.push(
-            "Consider including specific technologies, frameworks, or deployment platforms"
-                .to_string(),
-        );
-    }
+    let suggestions = conditional_suggestion(
+        !has_tech,
+        "Consider including specific technologies, frameworks, or deployment platforms",
+    );
 
     ValidationResult {
         is_valid: errors.is_empty(),
@@ -105,18 +101,15 @@ fn validate_tech_stack_content(content: &str) -> ValidationResult {
 
 /// Validate summary content (100+ characters, concise)
 fn validate_summary_content(content: &str) -> ValidationResult {
-    let mut errors = Vec::new();
-    let mut suggestions = Vec::new();
+    let errors = conditional_error(
+        content.len() < 100,
+        "Summary content must be at least 100 characters",
+    );
 
-    // Check length
-    if content.len() < 100 {
-        errors.push("Summary content must be at least 100 characters".to_string());
-    }
-
-    if content.len() > 500 {
-        suggestions
-            .push("Consider making the summary more concise (under 500 characters)".to_string());
-    }
+    let suggestions = conditional_suggestion(
+        content.len() > 500,
+        "Consider making the summary more concise (under 500 characters)",
+    );
 
     ValidationResult {
         is_valid: errors.is_empty(),
@@ -127,26 +120,21 @@ fn validate_summary_content(content: &str) -> ValidationResult {
 
 /// Validate spec content
 fn validate_spec_content(content: &str) -> ValidationResult {
-    let mut errors = Vec::new();
-    let mut suggestions = Vec::new();
+    let errors = conditional_error(
+        content.len() < 100,
+        "Spec content must be at least 100 characters",
+    );
 
-    // Check length
-    if content.len() < 100 {
-        errors.push("Spec content must be at least 100 characters".to_string());
-    }
-
-    // Check for structure
     let lower_content = content.to_lowercase();
     let structure_keywords = ["requirements", "functionality", "behavior", "interface"];
     let has_structure = structure_keywords
         .iter()
         .any(|&keyword| lower_content.contains(keyword));
 
-    if !has_structure {
-        suggestions.push(
-            "Consider adding requirements, functionality, or behavioral specifications".to_string(),
-        );
-    }
+    let suggestions = conditional_suggestion(
+        !has_structure,
+        "Consider adding requirements, functionality, or behavioral specifications",
+    );
 
     ValidationResult {
         is_valid: errors.is_empty(),
@@ -157,13 +145,12 @@ fn validate_spec_content(content: &str) -> ValidationResult {
 
 /// Validate notes content
 fn validate_notes_content(content: &str) -> ValidationResult {
-    let mut errors = Vec::new();
-    let suggestions = Vec::new();
+    let errors = conditional_error(
+        content.len() < 50,
+        "Notes content must be at least 50 characters",
+    );
 
-    // Notes can be shorter but should have some substance
-    if content.len() < 50 {
-        errors.push("Notes content must be at least 50 characters".to_string());
-    }
+    let suggestions = Vec::new();
 
     ValidationResult {
         is_valid: errors.is_empty(),
@@ -181,5 +168,104 @@ pub fn parse_content_type(content_type: &str) -> anyhow::Result<ContentType> {
         "spec" => Ok(ContentType::Spec),
         "notes" => Ok(ContentType::Notes),
         _ => Err(anyhow::anyhow!("Unknown content type: {}", content_type)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_vision_content_too_short() {
+        let content = "Too short";
+        let result = validate_vision_content(content);
+
+        assert!(!result.is_valid);
+        assert_eq!(result.errors.len(), 1);
+        assert!(result.errors[0].contains("200 characters"));
+    }
+
+    #[test]
+    fn test_validate_tech_stack_content_too_short() {
+        let content = "Too short";
+        let result = validate_tech_stack_content(content);
+
+        assert!(!result.is_valid);
+        assert_eq!(result.errors.len(), 1);
+        assert!(result.errors[0].contains("150 characters"));
+    }
+
+    #[test]
+    fn test_validate_summary_content_too_short() {
+        let content = "Too short";
+        let result = validate_summary_content(content);
+
+        assert!(!result.is_valid);
+        assert_eq!(result.errors.len(), 1);
+        assert!(result.errors[0].contains("100 characters"));
+    }
+
+    #[test]
+    fn test_validate_spec_content_too_short() {
+        let content = "Too short";
+        let result = validate_spec_content(content);
+
+        assert!(!result.is_valid);
+        assert_eq!(result.errors.len(), 1);
+        assert!(result.errors[0].contains("100 characters"));
+    }
+
+    #[test]
+    fn test_validate_notes_content_too_short() {
+        let content = "Too short";
+        let result = validate_notes_content(content);
+
+        assert!(!result.is_valid);
+        assert_eq!(result.errors.len(), 1);
+        assert!(result.errors[0].contains("50 characters"));
+    }
+
+    #[test]
+    fn test_parse_content_type_valid() {
+        assert!(matches!(
+            parse_content_type("vision"),
+            Ok(ContentType::Vision)
+        ));
+        assert!(matches!(
+            parse_content_type("tech-stack"),
+            Ok(ContentType::TechStack)
+        ));
+        assert!(matches!(
+            parse_content_type("summary"),
+            Ok(ContentType::Summary)
+        ));
+        assert!(matches!(parse_content_type("spec"), Ok(ContentType::Spec)));
+        assert!(matches!(
+            parse_content_type("notes"),
+            Ok(ContentType::Notes)
+        ));
+    }
+
+    #[test]
+    fn test_parse_content_type_case_insensitive() {
+        assert!(matches!(
+            parse_content_type("VISION"),
+            Ok(ContentType::Vision)
+        ));
+        assert!(matches!(
+            parse_content_type("Tech-Stack"),
+            Ok(ContentType::TechStack)
+        ));
+        assert!(matches!(
+            parse_content_type("SUMMARY"),
+            Ok(ContentType::Summary)
+        ));
+    }
+
+    #[test]
+    fn test_parse_content_type_invalid() {
+        assert!(parse_content_type("invalid").is_err());
+        assert!(parse_content_type("").is_err());
+        assert!(parse_content_type("random").is_err());
     }
 }

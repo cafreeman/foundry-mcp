@@ -2,9 +2,9 @@
 
 use crate::cli::args::ListProjectsArgs;
 use crate::core::project;
-use crate::types::responses::{
-    FoundryResponse, ListProjectsResponse, ProjectInfo, ValidationStatus,
-};
+use crate::types::responses::{FoundryResponse, ListProjectsResponse, ProjectInfo};
+use crate::utils::formatting::format_count;
+use crate::utils::response::build_success_response;
 use anyhow::{Context, Result};
 
 pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProjectsResponse>> {
@@ -47,7 +47,7 @@ pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProj
         let project_count = response_data.projects.len();
         (
             vec![
-                format!("Found {} project(s)", project_count),
+                format_count(project_count, "project", "projects"),
                 "Use 'foundry create-spec <project_name> <feature_name>' to add specifications"
                     .to_string(),
                 "Use 'foundry load-spec <project_name>' to view existing specifications"
@@ -61,10 +61,9 @@ pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProj
         )
     };
 
-    Ok(FoundryResponse {
-        data: response_data,
+    Ok(build_success_response(
+        response_data,
         next_steps,
-        validation_status: ValidationStatus::Complete,
         workflow_hints,
-    })
+    ))
 }

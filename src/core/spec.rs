@@ -68,16 +68,16 @@ pub fn list_specs(project_name: &str) -> Result<Vec<SpecMetadata>> {
             let spec_name = entry.file_name().to_string_lossy().to_string();
 
             // Parse timestamp and feature name from spec name
-            if let Some((timestamp_str, feature_name)) = spec_name.split_once('_') {
-                if timestamp_str.len() >= 15 {
-                    // YYYYMMDD_HHMMSS is 15 chars
-                    specs.push(SpecMetadata {
-                        name: spec_name.clone(),
-                        created_at: timestamp_str.to_string(),
-                        feature_name: feature_name.to_string(),
-                        project_name: project_name.to_string(),
-                    });
-                }
+            if let Some((timestamp_str, feature_name)) = spec_name.split_once('_')
+                && timestamp_str.len() >= 15
+            {
+                // YYYYMMDD_HHMMSS is 15 chars
+                specs.push(SpecMetadata {
+                    name: spec_name.clone(),
+                    created_at: timestamp_str.to_string(),
+                    feature_name: feature_name.to_string(),
+                    project_name: project_name.to_string(),
+                });
             }
         }
     }
