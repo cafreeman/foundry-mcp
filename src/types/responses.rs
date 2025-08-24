@@ -1,0 +1,118 @@
+//! JSON response structures for CLI commands
+
+use serde::{Deserialize, Serialize};
+
+/// Generic response wrapper for all CLI commands
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FoundryResponse<T> {
+    /// Command-specific data payload
+    pub data: T,
+    /// Suggested next actions for LLM consumption
+    pub next_steps: Vec<String>,
+    /// Validation status of the operation
+    pub validation_status: ValidationStatus,
+    /// Optional workflow guidance hints
+    pub workflow_hints: Vec<String>,
+}
+
+/// Validation status for operations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ValidationStatus {
+    /// Operation completed successfully with all validations passing
+    Complete,
+    /// Operation completed but with some validation warnings
+    Incomplete,
+    /// Operation failed due to validation errors
+    Error,
+}
+
+/// Response for create_project command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateProjectResponse {
+    pub project_name: String,
+    pub created_at: String,
+    pub project_path: String,
+    pub files_created: Vec<String>,
+}
+
+/// Response for list_projects command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListProjectsResponse {
+    pub projects: Vec<ProjectInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectInfo {
+    pub name: String,
+    pub created_at: String,
+    pub spec_count: usize,
+    pub path: String,
+}
+
+/// Response for create_spec command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateSpecResponse {
+    pub project_name: String,
+    pub spec_name: String,
+    pub created_at: String,
+    pub spec_path: String,
+    pub files_created: Vec<String>,
+}
+
+/// Response for load_spec command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoadSpecResponse {
+    pub project_name: String,
+    pub spec_name: String,
+    pub created_at: String,
+    pub spec_content: SpecContent,
+    pub project_summary: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecContent {
+    pub spec: String,
+    pub notes: String,
+    pub tasks: String,
+}
+
+/// Response for analyze_project command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AnalyzeProjectResponse {
+    pub project_name: String,
+    pub analysis: ProjectAnalysis,
+    pub files_created: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProjectAnalysis {
+    pub detected_technologies: Vec<String>,
+    pub project_structure: Vec<String>,
+    pub dependencies: Vec<String>,
+    pub recommendations: Vec<String>,
+}
+
+/// Response for get_foundry_help command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GetFoundryHelpResponse {
+    pub topic: String,
+    pub content: HelpContent,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HelpContent {
+    pub title: String,
+    pub description: String,
+    pub examples: Vec<String>,
+    pub workflow_guide: Vec<String>,
+}
+
+/// Response for validate_content command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ValidateContentResponse {
+    pub content_type: String,
+    pub is_valid: bool,
+    pub validation_errors: Vec<String>,
+    pub suggestions: Vec<String>,
+}
