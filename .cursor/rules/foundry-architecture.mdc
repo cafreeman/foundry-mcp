@@ -1,0 +1,47 @@
+---
+alwaysApply: true
+---
+
+# Foundry MCP Architecture
+
+## Project Overview
+
+Foundry MCP: CLI tool and MCP server for deterministic project management and AI coding assistant integration. Manages project specifications in `~/.foundry/` directory structure.
+
+## Module Organization
+
+- **[src/main.rs](mdc:src/main.rs)** - CLI entry point
+- **[src/lib.rs](mdc:src/lib.rs)** - Library exports and foundry_dir() utility
+- **[src/cli/](mdc:src/cli/)** - CLI arguments and commands
+- **[src/core/](mdc:src/core/)** - Core business logic
+- **[src/types/](mdc:src/types/)** - Type definitions
+- **[src/utils/](mdc:src/utils/)** - Utility functions
+
+## Project Structure
+
+```
+~/.foundry/PROJECT_NAME/
+├── project/
+│   ├── vision.md      # High-level product vision
+│   ├── tech-stack.md  # Technology decisions
+│   └── summary.md     # Concise summary for context loading
+└── specs/
+    └── YYYYMMDD_HHMMSS_FEATURE_NAME/
+        ├── spec.md        # Feature specification
+        ├── task-list.md   # Implementation checklist
+        └── notes.md       # Additional context
+```
+
+## Core Principles
+
+- **Content Agnostic**: Foundry manages structure, NOT content opinions
+- **LLM-Driven**: LLMs provide file content as arguments, not file paths
+- **User-Controlled**: Users control content, CLI manages structure
+- **Workflow-Aware**: Tools provide next-steps guidance for LLM decision-making
+
+## Development Priorities
+
+1. CLI functionality first, then MCP server
+2. Identical functionality between CLI and MCP interfaces
+3. JSON responses with workflow guidance
+4. Support iterative spec evolution

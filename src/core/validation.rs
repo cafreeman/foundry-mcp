@@ -12,6 +12,7 @@ pub enum ContentType {
     Summary,
     Spec,
     Notes,
+    Tasks,
 }
 
 /// Validation result
@@ -29,6 +30,7 @@ pub fn validate_content(content_type: ContentType, content: &str) -> ValidationR
         ContentType::Summary => validate_summary_content(content),
         ContentType::Spec => validate_spec_content(content),
         ContentType::Notes => validate_notes_content(content),
+        ContentType::Tasks => validate_tasks_content(content),
     }
 }
 
@@ -159,6 +161,31 @@ fn validate_notes_content(content: &str) -> ValidationResult {
     }
 }
 
+/// Validate tasks content
+fn validate_tasks_content(content: &str) -> ValidationResult {
+    let errors = conditional_error(
+        content.len() < 30,
+        "Tasks content must be at least 30 characters",
+    );
+
+    let lower_content = content.to_lowercase();
+    let task_keywords = ["todo", "task", "implement", "create", "add", "-", "*"];
+    let has_task_format = task_keywords
+        .iter()
+        .any(|&keyword| lower_content.contains(keyword));
+
+    let suggestions = conditional_suggestion(
+        !has_task_format,
+        "Consider using task list format with - or * bullets or TODO items",
+    );
+
+    ValidationResult {
+        is_valid: errors.is_empty(),
+        errors,
+        suggestions,
+    }
+}
+
 /// Convert content type string to enum
 pub fn parse_content_type(content_type: &str) -> anyhow::Result<ContentType> {
     match content_type.to_lowercase().as_str() {
@@ -167,6 +194,7 @@ pub fn parse_content_type(content_type: &str) -> anyhow::Result<ContentType> {
         "summary" => Ok(ContentType::Summary),
         "spec" => Ok(ContentType::Spec),
         "notes" => Ok(ContentType::Notes),
+        "tasks" => Ok(ContentType::Tasks),
         _ => Err(anyhow::anyhow!("Unknown content type: {}", content_type)),
     }
 }

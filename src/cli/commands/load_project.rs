@@ -3,7 +3,7 @@
 use crate::cli::args::LoadProjectArgs;
 use crate::core::{filesystem, project};
 use crate::types::responses::{FoundryResponse, LoadProjectResponse, ProjectContext};
-use crate::utils::response::build_success_response;
+
 use anyhow::{Context, Result};
 use std::fs;
 
@@ -21,11 +21,19 @@ pub async fn execute(args: LoadProjectArgs) -> Result<FoundryResponse<LoadProjec
         project: project_context,
     };
 
-    Ok(build_success_response(
-        response_data,
-        generate_next_steps(&args.project_name, &specs_available),
-        generate_workflow_hints(&specs_available),
-    ))
+    // Determine validation status based on specs availability
+    let validation_status = if specs_available.is_empty() {
+        crate::types::responses::ValidationStatus::Incomplete
+    } else {
+        crate::types::responses::ValidationStatus::Complete
+    };
+
+    Ok(crate::types::responses::FoundryResponse {
+        data: response_data,
+        next_steps: generate_next_steps(&args.project_name, &specs_available),
+        validation_status,
+        workflow_hints: generate_workflow_hints(&specs_available),
+    })
 }
 
 /// Validate that project exists
@@ -97,33 +105,204 @@ fn load_project_context(
 fn generate_next_steps(project_name: &str, specs_available: &[String]) -> Vec<String> {
     if specs_available.is_empty() {
         vec![
-            format!("Loaded project '{}' context successfully", project_name),
-            "No specifications found. Create your first spec with: foundry create-spec".to_string(),
-            "Continue development using the loaded project context".to_string(),
+            "Project loaded successfully but contains no specifications".to_string(),
+            format!(
+                "Create your first specification: foundry create-spec {} <feature_name>",
+                project_name
+            ),
+            "Use the loaded project context to guide development".to_string(),
         ]
     } else {
         vec![
             format!(
-                "Loaded project '{}' with {} specification(s)",
-                project_name,
+                "Project loaded with {} specification(s)",
                 specs_available.len()
             ),
-            "Load a specific spec with: foundry load-spec <project_name> <spec_name>".to_string(),
-            "Create a new spec with: foundry create-spec".to_string(),
+            format!(
+                "Load a specific spec: foundry load-spec {} <spec_name>",
+                project_name
+            ),
+            format!(
+                "Create a new spec: foundry create-spec {} <feature_name>",
+                project_name
+            ),
         ]
     }
 }
 
 /// Generate workflow hints based on available specs
 fn generate_workflow_hints(specs_available: &[String]) -> Vec<String> {
-    vec![
+    let mut hints = vec![
         "Use project summary for quick context in conversations".to_string(),
         "Full vision provides comprehensive background and goals".to_string(),
         "Tech stack details guide implementation decisions".to_string(),
-        if !specs_available.is_empty() {
-            format!("Available specs: {}", specs_available.join(", "))
-        } else {
-            "Consider creating specifications to track specific features".to_string()
-        },
-    ]
+    ];
+
+    if specs_available.is_empty() {
+        hints.push("Consider creating specifications to track specific features".to_string());
+    } else {
+        hints.push(format!("Available specs: {}", specs_available.join(", ")));
+        hints.push("Load individual specs to see detailed implementation plans".to_string());
+    }
+
+    hints
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::filesystem;
+    use tempfile::TempDir;
+
+    fn create_test_args(project_name: &str) -> LoadProjectArgs {
+        LoadProjectArgs {
+            project_name: project_name.to_string(),
+        }
+    }
+
+    #[test]
+    fn test_validate_project_exists_missing_project() {
+        let result = validate_project_exists("non-existent-project-12345");
+
+        assert!(result.is_err());
+        let error_message = result.unwrap_err().to_string();
+        assert!(error_message.contains("not found"));
+        assert!(error_message.contains("list-projects"));
+    }
+
+    #[test]
+    fn test_generate_next_steps_no_specs() {
+        let project_name = "test-project";
+        let specs_available = Vec::<String>::new();
+        let steps = generate_next_steps(project_name, &specs_available);
+
+        assert_eq!(steps.len(), 3);
+        assert!(steps[0].contains("contains no specifications"));
+        assert!(steps[1].contains("foundry create-spec"));
+        assert!(steps[1].contains(project_name));
+        assert!(steps[2].contains("guide development"));
+    }
+
+    #[test]
+    fn test_generate_next_steps_with_specs() {
+        let project_name = "test-project";
+        let specs_available = vec![
+            "20240824_120000_feature1".to_string(),
+            "20240824_130000_feature2".to_string(),
+        ];
+        let steps = generate_next_steps(project_name, &specs_available);
+
+        assert_eq!(steps.len(), 3);
+        assert!(steps[0].contains("loaded with 2 specification"));
+        assert!(steps[1].contains("foundry load-spec"));
+        assert!(steps[1].contains(project_name));
+        assert!(steps[2].contains("foundry create-spec"));
+        assert!(steps[2].contains(project_name));
+    }
+
+    #[test]
+    fn test_generate_workflow_hints_no_specs() {
+        let specs_available = Vec::<String>::new();
+        let hints = generate_workflow_hints(&specs_available);
+
+        assert!(hints.len() >= 4);
+        assert!(hints.iter().any(|h| h.contains("project summary")));
+        assert!(hints.iter().any(|h| h.contains("Full vision")));
+        assert!(hints.iter().any(|h| h.contains("Tech stack")));
+        assert!(
+            hints
+                .iter()
+                .any(|h| h.contains("Consider creating specifications"))
+        );
+        // Should not contain spec-specific hints
+        assert!(!hints.iter().any(|h| h.contains("Available specs")));
+        assert!(!hints.iter().any(|h| h.contains("Load individual specs")));
+    }
+
+    #[test]
+    fn test_generate_workflow_hints_with_specs() {
+        let specs_available = vec![
+            "20240824_120000_feature1".to_string(),
+            "20240824_130000_feature2".to_string(),
+        ];
+        let hints = generate_workflow_hints(&specs_available);
+
+        assert!(hints.len() >= 5);
+        assert!(hints.iter().any(|h| h.contains("project summary")));
+        assert!(hints.iter().any(|h| h.contains("Full vision")));
+        assert!(hints.iter().any(|h| h.contains("Tech stack")));
+        assert!(hints.iter().any(|h| h.contains("Available specs")));
+        assert!(hints.iter().any(|h| h.contains("feature1")));
+        assert!(hints.iter().any(|h| h.contains("feature2")));
+        assert!(hints.iter().any(|h| h.contains("Load individual specs")));
+        // Should not contain no-specs hints
+        assert!(
+            !hints
+                .iter()
+                .any(|h| h.contains("Consider creating specifications"))
+        );
+    }
+
+    #[tokio::test]
+    async fn test_execute_with_missing_project() {
+        let args = create_test_args("non-existent-project");
+        let result = execute(args).await;
+
+        assert!(result.is_err());
+        let error_message = result.unwrap_err().to_string();
+        assert!(error_message.contains("not found"));
+    }
+
+    #[test]
+    fn test_load_project_context_missing_files() {
+        let temp_dir = TempDir::new().unwrap();
+        let project_name = "test-project-incomplete";
+        let project_path = temp_dir.path().join("project");
+
+        // Create minimal project structure without files
+        filesystem::create_dir_all(&project_path).unwrap();
+        filesystem::create_dir_all(project_path.join("specs")).unwrap();
+
+        let context = load_project_context(project_name, &project_path).unwrap();
+
+        assert_eq!(context.name, project_name);
+        // Should handle missing files gracefully with empty strings
+        assert!(context.vision.is_empty());
+        assert!(context.tech_stack.is_empty());
+        assert!(context.summary.is_empty());
+        assert!(context.specs_available.is_empty());
+        assert!(!context.created_at.is_empty()); // Should still have timestamp
+    }
+
+    #[test]
+    fn test_load_project_context_with_specs() {
+        let temp_dir = TempDir::new().unwrap();
+        let project_name = "test-project-with-specs";
+        let project_path = temp_dir.path().join("project");
+        let specs_dir = project_path.join("specs");
+
+        // Create project structure with specs
+        filesystem::create_dir_all(&specs_dir).unwrap();
+
+        // Create spec directories
+        let spec1_dir = specs_dir.join("20240824_120000_feature1");
+        let spec2_dir = specs_dir.join("20240824_130000_feature2");
+        filesystem::create_dir_all(&spec1_dir).unwrap();
+        filesystem::create_dir_all(&spec2_dir).unwrap();
+
+        let context = load_project_context(project_name, &project_path).unwrap();
+
+        assert_eq!(context.name, project_name);
+        assert_eq!(context.specs_available.len(), 2);
+        assert!(
+            context
+                .specs_available
+                .contains(&"20240824_120000_feature1".to_string())
+        );
+        assert!(
+            context
+                .specs_available
+                .contains(&"20240824_130000_feature2".to_string())
+        );
+    }
 }

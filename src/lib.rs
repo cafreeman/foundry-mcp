@@ -11,6 +11,9 @@ pub mod core;
 pub mod types;
 pub mod utils;
 
+#[cfg(test)]
+pub mod test_utils;
+
 pub use crate::core::filesystem::*;
 pub use crate::core::project::*;
 pub use crate::core::spec::*;

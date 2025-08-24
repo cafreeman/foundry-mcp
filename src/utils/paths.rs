@@ -82,13 +82,32 @@ pub fn validate_feature_name(name: &str) -> Result<()> {
         ));
     }
 
-    // Feature names should be snake_case
+    // Feature names should be snake_case (lowercase alphanumeric with underscores)
     for c in name.chars() {
         if !c.is_alphanumeric() && c != '_' {
             return Err(anyhow::anyhow!(
                 "Feature name can only contain alphanumeric characters and underscores"
             ));
         }
+        if c.is_alphabetic() && c.is_uppercase() {
+            return Err(anyhow::anyhow!(
+                "Feature name must be in snake_case (lowercase letters, numbers, and underscores only)"
+            ));
+        }
+    }
+
+    // Can't start or end with underscore
+    if name.starts_with('_') || name.ends_with('_') {
+        return Err(anyhow::anyhow!(
+            "Feature name cannot start or end with an underscore"
+        ));
+    }
+
+    // Can't have consecutive underscores
+    if name.contains("__") {
+        return Err(anyhow::anyhow!(
+            "Feature name cannot contain consecutive underscores"
+        ));
     }
 
     Ok(())

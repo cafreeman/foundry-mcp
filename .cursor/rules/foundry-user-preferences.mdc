@@ -1,0 +1,162 @@
+---
+alwaysApply: true
+---
+
+# Foundry User Preferences & Memory Guidelines
+
+## User-Specific Development Preferences
+
+Based on established user memories and preferences, these guidelines ensure consistent alignment with user expectations and workflow patterns.
+
+## Function Return Philosophy
+
+**User Memory #7066344**: Functions should only return what is needed, avoiding unused return values.
+
+### Implementation Guidelines
+
+- Design response structs with only essential fields
+- Use `#[serde(skip_serializing_if = "Option::is_none")]` for optional fields
+- Avoid "kitchen sink" response objects that include unused data
+- Focus responses on immediate workflow needs
+
+### Response Design Pattern
+
+```rust
+#[derive(Serialize, Debug)]
+pub struct ProjectResponse {
+    // Essential data
+    pub project: ProjectData,
+    pub validation_status: String,
+    pub next_steps: Vec<String>,
+
+    // Optional fields only when needed
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workflow_hints: Option<Vec<String>>,
+
+    // Avoid: unused metadata, verbose debugging info, redundant data
+}
+```
+
+### Examples of Preferred Returns
+
+```rust
+// ✅ Good: Returns only what's needed
+pub fn load_project_summary(name: &str) -> Result<String> {
+    // Returns just the summary content
+}
+
+// ❌ Avoid: Returns unnecessary data
+pub fn load_project_summary(name: &str) -> Result<(String, PathBuf, Metadata, Vec<String>)> {
+    // Summary, path, metadata, and file list - too much!
+}
+```
+
+## Content Creation Philosophy
+
+**User Memory #7065075**: For the Foundry CLI project, the summary must be provided as an argument by the LLM when initiating a project; the CLI should not perform any summarization itself.
+
+### Implementation Requirements
+
+- **Never** implement automatic content generation or summarization
+- **Always** require LLMs to provide complete content as arguments
+- **Never** derive content from other content (e.g., auto-generate summary from vision)
+- **Always** validate content format and length, but not content quality
+
+### CLI Parameter Design
+
+```rust
+#[derive(Parser, Debug)]
+pub struct CreateProjectArgs {
+    pub project_name: String,
+
+    // LLM provides complete content - CLI stores as-is
+    pub vision: String,      // Full vision content from LLM
+    pub tech_stack: String,  // Complete tech stack from LLM
+    // No summary field - LLM will provide it in a separate call
+}
+
+#[derive(Parser, Debug)]
+pub struct AnalyzeProjectArgs {
+    pub project_name: String,
+
+    // LLM analyzes codebase and provides these
+    pub vision: String,      // LLM's analysis-based vision
+    pub tech_stack: String,  // LLM's detected tech stack
+    pub summary: String,     // LLM's created summary
+}
+```
+
+### Content Validation Boundaries
+
+```rust
+// ✅ Appropriate validation
+pub fn validate_content_length(content: &str, min_length: usize) -> Result<()> {
+    if content.trim().len() < min_length {
+        anyhow::bail!("Content must be at least {} characters", min_length);
+    }
+    Ok(())
+}
+
+// ❌ Inappropriate content generation
+pub fn generate_summary_from_vision(vision: &str) -> String {
+    // Never implement this - LLM provides summary
+}
+```
+
+## Git Workflow Preferences
+
+**User Rules**: Never git commit unless explicitly asked to. Use `gh` CLI for GitHub interactions.
+
+### Development Workflow
+
+- Make code changes without automatic commits
+- Let user control when to commit changes
+- Use `gh` CLI for any GitHub API interactions
+- Provide commit-ready state but don't execute commits
+
+## CLI Design Philosophy
+
+### User Experience Priorities
+
+- **Deterministic**: Same inputs always produce same outputs
+- **Transparent**: Clear file organization and structure
+- **LLM-Friendly**: Designed for LLM consumption and workflow
+- **User-Controlled**: Users control content, CLI manages structure
+
+### Interface Consistency
+
+- JSON responses for both CLI and future MCP server
+- Identical functionality across interfaces
+- Workflow guidance in responses for LLM decision-making
+- Clear error messages with actionable suggestions
+
+## Development Priorities
+
+### Implementation Order (Per PRD)
+
+1. **CLI functionality first** - Build and validate core features
+2. **MCP server second** - Expose CLI functionality through MCP tools
+3. **Maintain identical functionality** between CLI and MCP interfaces
+
+### Code Quality Standards
+
+- Follow existing Rust functional programming guidelines
+- Maintain comprehensive test coverage
+- Use strict Clippy lints and quality standards
+- Prioritize maintainability and extensibility
+
+## LLM Integration Considerations
+
+### Workflow Support
+
+- Provide `next_steps` guidance in all responses
+- Include `workflow_hints` for complex operations
+- Support iterative spec evolution through agent updates
+- Maintain context continuity across tool calls
+
+### Content Boundaries
+
+- LLMs provide all content as arguments
+- CLI validates format and structure only
+- No content opinions or transformations
+- Support for structured content through parameter schemas
