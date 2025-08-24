@@ -80,17 +80,29 @@ pub struct CreateSpecResponse {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoadSpecResponse {
     pub project_name: String,
-    pub spec_name: String,
-    pub created_at: String,
-    pub spec_content: SpecContent,
     pub project_summary: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spec_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spec_content: Option<SpecContent>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub available_specs: Vec<SpecInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SpecInfo {
+    pub name: String,
+    pub feature_name: String,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecContent {
     pub spec: String,
     pub notes: String,
-    pub tasks: String,
+    pub task_list: String,
 }
 
 /// Response for analyze_project command

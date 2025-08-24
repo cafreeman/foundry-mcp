@@ -94,7 +94,7 @@ impl Drop for TestEnvironment {
     }
 }
 
-use foundry_mcp::cli::commands::{create_project, create_spec, load_project};
+use foundry_mcp::cli::commands::{create_project, create_spec, load_project, load_spec};
 use foundry_mcp::types::responses::ValidationStatus;
 
 /// Test the complete project creation workflow
@@ -423,6 +423,336 @@ async fn test_filesystem_isolation() -> Result<()> {
         // Project creation succeeded (validation_status may be Incomplete due to content warnings)
         assert_eq!(response.data.project_name, project_name);
     }
+
+    Ok(())
+}
+
+/// Test load_spec listing functionality (no spec_name provided)
+#[tokio::test]
+async fn test_load_spec_list_empty_project() -> Result<()> {
+    let env = TestEnvironment::new()?;
+    let project_name = "spec-list-test";
+
+    // Create project first
+    let project_args = env.create_project_args(project_name);
+    create_project::execute(project_args).await?;
+
+    // Load specs (should be empty)
+    let load_args = foundry_mcp::cli::args::LoadSpecArgs {
+        project_name: project_name.to_string(),
+        spec_name: None,
+    };
+
+    let response = load_spec::execute(load_args).await?;
+
+    // Verify response structure
+    assert_eq!(response.data.project_name, project_name);
+    assert!(response.data.spec_name.is_none());
+    assert!(response.data.created_at.is_none());
+    assert!(response.data.spec_content.is_none());
+    assert!(response.data.available_specs.is_empty());
+    assert!(!response.data.project_summary.is_empty());
+
+    // Should be incomplete due to no specs
+    assert!(matches!(
+        response.validation_status,
+        ValidationStatus::Incomplete
+    ));
+
+    // Check next steps mention creating specs
+    assert!(
+        response
+            .next_steps
+            .iter()
+            .any(|step| step.contains("No specifications found"))
+    );
+    assert!(
+        response
+            .next_steps
+            .iter()
+            .any(|step| step.contains("create-spec"))
+    );
+
+    Ok(())
+}
+
+/// Test load_spec listing with available specs
+#[tokio::test]
+async fn test_load_spec_list_with_specs() -> Result<()> {
+    let env = TestEnvironment::new()?;
+    let project_name = "spec-list-populated";
+
+    // Create project
+    let project_args = env.create_project_args(project_name);
+    create_project::execute(project_args).await?;
+
+    // Create two specs
+    let spec1_args = env.create_spec_args(project_name, "auth_system");
+    create_spec::execute(spec1_args).await?;
+
+    let spec2_args = env.create_spec_args(project_name, "user_profile");
+    create_spec::execute(spec2_args).await?;
+
+    // Load specs list
+    let load_args = foundry_mcp::cli::args::LoadSpecArgs {
+        project_name: project_name.to_string(),
+        spec_name: None,
+    };
+
+    let response = load_spec::execute(load_args).await?;
+
+    // Verify response structure
+    assert_eq!(response.data.project_name, project_name);
+    assert!(response.data.spec_name.is_none());
+    assert!(response.data.created_at.is_none());
+    assert!(response.data.spec_content.is_none());
+    assert_eq!(response.data.available_specs.len(), 2);
+    assert!(!response.data.project_summary.is_empty());
+
+    // Should be complete with specs available
+    assert!(matches!(
+        response.validation_status,
+        ValidationStatus::Complete
+    ));
+
+    // Verify spec info structure
+    let spec_names: Vec<String> = response
+        .data
+        .available_specs
+        .iter()
+        .map(|spec| spec.feature_name.clone())
+        .collect();
+    assert!(spec_names.contains(&"auth_system".to_string()));
+    assert!(spec_names.contains(&"user_profile".to_string()));
+
+    // Check next steps mention loading specific specs
+    assert!(
+        response
+            .next_steps
+            .iter()
+            .any(|step| step.contains("Found 2 specification"))
+    );
+    assert!(
+        response
+            .next_steps
+            .iter()
+            .any(|step| step.contains("load-spec"))
+    );
+
+    Ok(())
+}
+
+/// Test load_spec with specific spec name
+#[tokio::test]
+async fn test_load_spec_specific_spec() -> Result<()> {
+    let env = TestEnvironment::new()?;
+    let project_name = "spec-load-test";
+
+    // Create project
+    let project_args = env.create_project_args(project_name);
+    create_project::execute(project_args).await?;
+
+    // Create a spec
+    let spec_args = env.create_spec_args(project_name, "payment_system");
+    let spec_response = create_spec::execute(spec_args).await?;
+    let spec_name = spec_response.data.spec_name;
+
+    // Load the specific spec
+    let load_args = foundry_mcp::cli::args::LoadSpecArgs {
+        project_name: project_name.to_string(),
+        spec_name: Some(spec_name.clone()),
+    };
+
+    let response = load_spec::execute(load_args).await?;
+
+    // Verify response structure
+    assert_eq!(response.data.project_name, project_name);
+    assert_eq!(response.data.spec_name, Some(spec_name.clone()));
+    assert!(response.data.created_at.is_some());
+    assert!(response.data.spec_content.is_some());
+    assert!(response.data.available_specs.is_empty()); // Empty when loading specific spec
+    assert!(!response.data.project_summary.is_empty());
+
+    // Should be complete
+    assert!(matches!(
+        response.validation_status,
+        ValidationStatus::Complete
+    ));
+
+    // Verify spec content structure
+    let spec_content = response.data.spec_content.unwrap();
+    assert_eq!(
+        spec_content.spec,
+        "This specification defines a comprehensive feature implementation that includes detailed requirements, functional specifications, and behavioral expectations. The feature should integrate seamlessly with existing system architecture while providing robust error handling and user-friendly interfaces. Implementation should follow established patterns and include proper testing coverage."
+    );
+    assert_eq!(
+        spec_content.notes,
+        "Implementation notes include important considerations for security, performance, and maintainability. Special attention should be paid to error handling and edge cases. Consider using established libraries where appropriate and ensure compatibility with existing system components."
+    );
+    assert_eq!(
+        spec_content.task_list,
+        "Create feature scaffolding and basic structure, Implement core functionality with proper error handling, Add comprehensive test coverage for all scenarios, Update documentation and user guides, Perform integration testing with existing features, Conduct code review and optimization"
+    );
+
+    // Check workflow hints match PRD requirements
+    assert!(
+        response
+            .workflow_hints
+            .iter()
+            .any(|hint| hint.contains("Update task-list.md as work progresses"))
+    );
+    assert!(
+        response
+            .workflow_hints
+            .iter()
+            .any(|hint| hint.contains("Add notes for design decisions"))
+    );
+
+    // Check next steps
+    assert!(
+        response
+            .next_steps
+            .iter()
+            .any(|step| step.contains("loaded successfully"))
+    );
+
+    Ok(())
+}
+
+/// Test load_spec error handling for missing project
+#[tokio::test]
+async fn test_load_spec_missing_project() -> Result<()> {
+    let _env = TestEnvironment::new()?;
+
+    let load_args = foundry_mcp::cli::args::LoadSpecArgs {
+        project_name: "non-existent-project".to_string(),
+        spec_name: None,
+    };
+
+    let result = load_spec::execute(load_args).await;
+    assert!(result.is_err());
+
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("not found"));
+    assert!(error_msg.contains("list-projects"));
+
+    Ok(())
+}
+
+/// Test load_spec error handling for missing spec
+#[tokio::test]
+async fn test_load_spec_missing_spec() -> Result<()> {
+    let env = TestEnvironment::new()?;
+    let project_name = "missing-spec-test";
+
+    // Create project but no specs
+    let project_args = env.create_project_args(project_name);
+    create_project::execute(project_args).await?;
+
+    // Try to load non-existent spec
+    let load_args = foundry_mcp::cli::args::LoadSpecArgs {
+        project_name: project_name.to_string(),
+        spec_name: Some("20240101_120000_nonexistent".to_string()),
+    };
+
+    let result = load_spec::execute(load_args).await;
+    assert!(result.is_err());
+
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("Failed to load spec"));
+
+    Ok(())
+}
+
+/// Test load_spec with invalid spec name format
+#[tokio::test]
+async fn test_load_spec_invalid_spec_name() -> Result<()> {
+    let env = TestEnvironment::new()?;
+    let project_name = "invalid-spec-test";
+
+    // Create project
+    let project_args = env.create_project_args(project_name);
+    create_project::execute(project_args).await?;
+
+    // Try to load spec with invalid name format
+    let load_args = foundry_mcp::cli::args::LoadSpecArgs {
+        project_name: project_name.to_string(),
+        spec_name: Some("invalid-spec-name".to_string()),
+    };
+
+    let result = load_spec::execute(load_args).await;
+    assert!(result.is_err());
+
+    let error_msg = result.unwrap_err().to_string();
+    assert!(error_msg.contains("Failed to load spec"));
+
+    Ok(())
+}
+
+/// Test complete workflow: create project -> create spec -> load spec
+#[tokio::test]
+async fn test_load_spec_end_to_end_workflow() -> Result<()> {
+    let env = TestEnvironment::new()?;
+    let project_name = "e2e-spec-workflow";
+
+    // Step 1: Create project
+    let project_args = env.create_project_args(project_name);
+    create_project::execute(project_args).await?;
+
+    // Step 2: List specs (should be empty)
+    let list_args = foundry_mcp::cli::args::LoadSpecArgs {
+        project_name: project_name.to_string(),
+        spec_name: None,
+    };
+    let list_response = load_spec::execute(list_args).await?;
+    assert!(list_response.data.available_specs.is_empty());
+    assert!(matches!(
+        list_response.validation_status,
+        ValidationStatus::Incomplete
+    ));
+
+    // Step 3: Create spec
+    let spec_args = env.create_spec_args(project_name, "notification_system");
+    let spec_response = create_spec::execute(spec_args).await?;
+    let spec_name = spec_response.data.spec_name;
+
+    // Step 4: List specs (should have one)
+    let list_args2 = foundry_mcp::cli::args::LoadSpecArgs {
+        project_name: project_name.to_string(),
+        spec_name: None,
+    };
+    let list_response2 = load_spec::execute(list_args2).await?;
+    assert_eq!(list_response2.data.available_specs.len(), 1);
+    assert!(matches!(
+        list_response2.validation_status,
+        ValidationStatus::Complete
+    ));
+
+    // Step 5: Load specific spec
+    let load_args = foundry_mcp::cli::args::LoadSpecArgs {
+        project_name: project_name.to_string(),
+        spec_name: Some(spec_name.clone()),
+    };
+    let load_response = load_spec::execute(load_args).await?;
+    assert_eq!(load_response.data.spec_name, Some(spec_name));
+    assert!(load_response.data.spec_content.is_some());
+    assert!(matches!(
+        load_response.validation_status,
+        ValidationStatus::Complete
+    ));
+
+    // Step 6: Verify file system state
+    let foundry_dir = env.foundry_dir();
+    let spec_dir = foundry_dir
+        .join(project_name)
+        .join("project")
+        .join("specs")
+        .join(load_response.data.spec_name.unwrap());
+
+    assert!(spec_dir.exists());
+    assert!(spec_dir.join("spec.md").exists());
+    assert!(spec_dir.join("notes.md").exists());
+    assert!(spec_dir.join("task-list.md").exists());
 
     Ok(())
 }

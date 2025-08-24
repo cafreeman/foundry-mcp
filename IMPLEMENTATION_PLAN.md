@@ -36,7 +36,7 @@ Focus on the 7 core CLI commands identified in the PRD, saving the MCP server im
 **Remaining Commands:**
 
 - `foundry analyze_project` - Codebase analysis
-- `foundry load_spec` - Spec content retrieval
+- ✅ `foundry load_spec` - Spec content retrieval (COMPLETED)
 - `foundry get_foundry_help` - Workflow guidance
 - `foundry validate_content` - Content validation
 
@@ -190,14 +190,16 @@ src/
 - [x] Enhanced validation with snake_case feature name requirements
 - [x] Comprehensive content validation and error handling
 
-#### `load_spec` Command
+#### `load_spec` Command ✅ COMPLETED
 
-- [ ] Implement spec discovery (list available specs if none specified)
-- [ ] Add spec directory parsing and validation
-- [ ] Read all spec files (spec.md, task-list.md, notes.md)
-- [ ] Load project summary for context
-- [ ] Return comprehensive JSON with spec content and workflow hints
-- [ ] Handle missing files gracefully
+- [x] Implement spec discovery (list available specs if none specified)
+- [x] Add spec directory parsing and validation
+- [x] Read all spec files (spec.md, task-list.md, notes.md)
+- [x] Load project summary for context
+- [x] Return comprehensive JSON with spec content and workflow hints
+- [x] Handle missing files gracefully
+- [x] PRD-compliant response format with task_list field naming
+- [x] Comprehensive testing with 7 integration tests covering all scenarios
 
 #### Spec Management Core Logic
 
@@ -278,7 +280,7 @@ src/
 - [x] **Error Scenario Testing**: Real error conditions with proper error handling verification
 - [x] **CLI Testing Best Practices**: Following industry standards for CLI application testing
 - [x] Refactored unit tests to focus on business logic rather than trivial validation
-- [x] 40 total tests (32 unit + 8 integration) - all passing ✅
+- [x] 52 total tests (37 unit + 15 integration) - all passing ✅
 
 #### Documentation and Examples
 
@@ -553,14 +555,14 @@ All commands return consistent JSON structure:
 - [x] CLI framework with command routing
 - [x] Required field validation for LLM content
 
-### Phase 2 Commands 🔄 MOSTLY COMPLETE (4/7 commands done)
+### Phase 2 Commands 🔄 MOSTLY COMPLETE (5/7 commands done)
 
-- [x] **4/7 CLI commands implemented and functional** (create_project, list_projects, load_project, create_spec)
+- [x] **5/7 CLI commands implemented and functional** (create_project, list_projects, load_project, create_spec, load_spec)
 - [x] Consistent JSON response format across all commands
 - [x] Proper file structure creation in `~/.foundry/`
 - [x] Robust error handling and validation
 - [x] Rich parameter schemas with embedded LLM guidance
-- [x] **Comprehensive testing coverage** (8 integration tests + 32 unit tests)
+- [x] **Comprehensive testing coverage** (15 integration tests + 37 unit tests)
 - [ ] Clear help documentation and examples (3 commands remaining)
 - [ ] Ready for MCP server wrapper implementation (after remaining commands)
 
