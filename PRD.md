@@ -48,14 +48,23 @@ Foundry is a **scaffolding and file management tool** that:
 
 1. **`create_project`** - Create new project structure for brand new codebases
 2. **`analyze_project`** - Create project structure by analyzing existing codebase
-3. **`create_spec`** - Generate new timestamped spec directories with content
-4. **`load_spec`** - Load specific spec context into memory
+3. **`load_project`** - Load complete project context (vision, tech-stack, summary) for LLM sessions
+4. **`create_spec`** - Generate new timestamped spec directories with content
+5. **`load_spec`** - Load specific spec context into memory
 
 ### Meta-Tools for LLM Guidance
 
-5. **`get_foundry_help`** - Provide workflow guidance, content examples, and usage patterns
-6. **`list_projects`** - Discover existing projects and their status
-7. **`validate_content`** - Pre-creation validation and improvement suggestions
+6. **`get_foundry_help`** - Provide workflow guidance, content examples, and usage patterns
+7. **`list_projects`** - Discover existing projects and their status
+8. **`validate_content`** - Pre-creation validation and improvement suggestions
+
+## Critical LLM Workflow Gap Discovery
+
+**Issue Identified**: The original 7-tool design had a fundamental gap - projects could be created but not loaded back into LLM context. The `load_project` command is essential for completing the basic LLM workflow: create → list → **load** → work.
+
+**Impact**: Without `load_project`, foundry projects become write-only for LLMs, preventing effective context resumption and collaborative development sessions.
+
+**Solution**: Added `load_project` as tool #3, making it a core primary workflow tool rather than a meta-tool, since loading project context is fundamental to LLM-assisted development.
 
 ## Tool Specifications
 
@@ -104,6 +113,30 @@ All tools return JSON with full file contents and workflow guidance:
     "summary": "<content of project/summary.md>"
   },
   "next_steps": ["Create your first spec with create_spec", "Review project structure"],
+  "validation_status": "complete"
+}
+```
+
+**`load_project`** - **CRITICAL for LLM workflow completion**:
+
+```json
+{
+  "project": {
+    "name": "foundry-development",
+    "vision": "<content of project/vision.md>",
+    "tech_stack": "<content of project/tech-stack.md>",
+    "summary": "<content of project/summary.md>",
+    "specs_available": ["20240824_120000_phase3_implementation"],
+    "created_at": "2025-08-24T03:38:11Z"
+  },
+  "next_steps": [
+    "Load a specific spec with: foundry load_spec",
+    "Create new specs with: foundry create_spec"
+  ],
+  "workflow_hints": [
+    "Use project summary for quick context",
+    "Full vision provides comprehensive background"
+  ],
   "validation_status": "complete"
 }
 ```

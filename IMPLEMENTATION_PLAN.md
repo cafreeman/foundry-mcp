@@ -20,17 +20,30 @@ Focus on the 7 core CLI commands identified in the PRD, saving the MCP server im
 - **CLI Framework**: Full command structure with clap integration
 - **Validation**: Required fields properly enforced (LLM content must be provided)
 
-### 🔄 Phase 2: Core Commands Implementation - READY TO START
+### ✅ Phase 2: Core Commands Implementation - PARTIALLY COMPLETED
 
-All 7 CLI commands are stubbed and ready for implementation:
+**CRITICAL DISCOVERY**: Original 7-command design had a fundamental LLM workflow gap!
 
-- `foundry create_project` - Project creation with LLM content
+**Completed Commands:**
+
+- ✅ `foundry create_project` - Project creation with LLM content (DONE)
+- ✅ `foundry list_projects` - Project discovery (DONE)
+
+**Critical Missing Command Identified:**
+
+- 🔴 `foundry load_project` - **CRITICAL**: Load project context for LLM sessions (MISSING)
+
+**Remaining Commands:**
+
 - `foundry analyze_project` - Codebase analysis
 - `foundry create_spec` - Timestamped spec creation
 - `foundry load_spec` - Spec content retrieval
-- `foundry list_projects` - Project discovery
 - `foundry get_foundry_help` - Workflow guidance
 - `foundry validate_content` - Content validation
+
+**🚨 Gap Analysis**: Without `load_project`, foundry projects become write-only for LLMs. LLMs can create projects but cannot load the context back to continue work. This breaks the fundamental workflow: create → list → **LOAD** → work.
+
+**Priority Adjustment**: `load_project` is now the #1 priority to complete basic LLM workflow before continuing with spec management.
 
 **Key Architectural Decision**: All content fields that LLMs must provide are **required** fields, ensuring the "pure file management" principle is maintained.
 
@@ -112,31 +125,44 @@ src/
 
 **Estimated Time**: Week 2
 
-#### `create_project` Command
+#### `create_project` Command ✅ COMPLETED
 
-- [ ] Define rich parameter schema for LLM guidance
-- [ ] Implement CLI argument parsing for project_name, vision, tech_stack, summary
-- [ ] Add parameter validation (minimum lengths, format checks)
-- [ ] Create project directory structure (`~/.foundry/{project_name}/project/`)
-- [ ] Implement file writing for vision.md, tech-stack.md, summary.md
-- [ ] Create empty specs/ directory
-- [ ] Return structured JSON response with next_steps
-- [ ] Add comprehensive error handling and user-friendly messages
+- [x] Define rich parameter schema for LLM guidance
+- [x] Implement CLI argument parsing for project_name, vision, tech_stack, summary
+- [x] Add parameter validation (minimum lengths, format checks)
+- [x] Create project directory structure (`~/.foundry/{project_name}/project/`)
+- [x] Implement file writing for vision.md, tech-stack.md, summary.md
+- [x] Create empty specs/ directory
+- [x] Return structured JSON response with next_steps
+- [x] Add comprehensive error handling and user-friendly messages
 
-#### `list_projects` Command
+#### `list_projects` Command ✅ COMPLETED
 
-- [ ] Implement directory scanning of `~/.foundry/`
-- [ ] Extract project metadata (creation date, spec count)
-- [ ] Create JSON response format for project listing
-- [ ] Handle empty foundry directory gracefully
-- [ ] Add sorting by creation date/name options
+- [x] Implement directory scanning of `~/.foundry/`
+- [x] Extract project metadata (creation date, spec count)
+- [x] Create JSON response format for project listing
+- [x] Handle empty foundry directory gracefully
+- [x] Add sorting by creation date/name options
 
-#### Project Management Core Logic
+#### `load_project` Command 🔴 CRITICAL PRIORITY
 
-- [ ] Implement project validation in `core/project.rs`
-- [ ] Create project structure management utilities
-- [ ] Add project existence checking functions
-- [ ] Implement project metadata extraction
+- [ ] Implement CLI argument parsing for project_name
+- [ ] Add project existence validation
+- [ ] Read project/vision.md content
+- [ ] Read project/tech-stack.md content
+- [ ] Read project/summary.md content
+- [ ] Scan specs/ directory for available specifications
+- [ ] Create comprehensive JSON response with all project context
+- [ ] Handle missing files gracefully (return empty strings)
+- [ ] Add workflow guidance for next steps
+- [ ] Test with foundry-development project
+
+#### Project Management Core Logic ✅ COMPLETED
+
+- [x] Implement project validation in `core/project.rs`
+- [x] Create project structure management utilities
+- [x] Add project existence checking functions
+- [x] Implement project metadata extraction
 
 ### Phase 3: Spec Management
 
@@ -311,6 +337,67 @@ foundry create_project <project_name> --vision <content> --tech-stack <content> 
 - [ ] Write summary.md with provided content
 - [ ] Create empty specs/ directory
 - [ ] Return JSON response with success confirmation
+
+### `foundry load_project` - **CRITICAL MISSING COMMAND**
+
+**Purpose**: Load complete project context for LLM sessions - **ESSENTIAL for workflow completion**
+
+**CLI Usage:**
+
+```bash
+foundry load_project <project_name>
+```
+
+**Parameter Schema (for MCP integration):**
+
+```json
+{
+  "project_name": {
+    "type": "string",
+    "description": "Project name to load context from (must exist in ~/.foundry/)"
+  }
+}
+```
+
+**Expected Response Format:**
+
+```json
+{
+  "data": {
+    "project": {
+      "name": "foundry-development",
+      "vision": "<full content of project/vision.md>",
+      "tech_stack": "<full content of project/tech-stack.md>",
+      "summary": "<full content of project/summary.md>",
+      "specs_available": ["20240824_120000_phase3_implementation"],
+      "created_at": "2025-08-24T03:38:11Z"
+    }
+  },
+  "next_steps": [
+    "Load a specific spec with: foundry load_spec",
+    "Create new specs with: foundry create_spec"
+  ],
+  "workflow_hints": [
+    "Use project summary for quick context",
+    "Full vision provides comprehensive background"
+  ],
+  "validation_status": "complete"
+}
+```
+
+**Implementation Checklist:**
+
+- [ ] Parse and validate project_name parameter
+- [ ] Check if project exists in ~/.foundry/
+- [ ] Read project/vision.md content
+- [ ] Read project/tech-stack.md content
+- [ ] Read project/summary.md content
+- [ ] Scan specs/ directory for available specifications
+- [ ] Return comprehensive JSON response with all project context
+- [ ] Handle missing files gracefully (empty strings for missing content)
+- [ ] Provide workflow guidance for next steps
+
+**Critical Gap Resolution**: This command completes the basic LLM workflow: create → list → **load** → work. Without it, foundry projects are write-only for LLMs.
 
 ### `foundry analyze_project`
 
