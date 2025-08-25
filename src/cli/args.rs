@@ -24,21 +24,25 @@ pub struct CreateProjectArgs {
 /// Arguments for analyze_project command
 #[derive(Args, Debug)]
 pub struct AnalyzeProjectArgs {
-    /// Project name to analyze
+    /// Project name to create with your analyzed content
     pub project_name: String,
 
-    /// Path to codebase to analyze (defaults to current directory)
-    pub codebase_path: Option<String>,
-
-    /// High-level product vision content
+    /// High-level product vision content (2-4 paragraphs) based on your codebase analysis.
+    /// Use codebase_search, grep_search, and read_file to understand the project first.
+    /// Consider: existing code patterns, project scope, apparent goals, user-facing features.
+    /// Goes into project/vision.md
     #[arg(long, required = true)]
     pub vision: String,
 
-    /// Technology stack and architecture decisions
+    /// Technology stack and architecture decisions based on your codebase exploration.
+    /// Use your analysis tools to detect languages/frameworks, build systems, deployment patterns, dependencies.
+    /// Include rationale for existing choices and recommendations. Goes into project/tech-stack.md
     #[arg(long, required = true)]
     pub tech_stack: String,
 
-    /// Concise summary of vision and tech stack
+    /// Concise summary combining vision and tech stack from your analysis.
+    /// Should capture key insights from your codebase exploration for quick context loading.
+    /// Goes into project/summary.md
     #[arg(long, required = true)]
     pub summary: String,
 }

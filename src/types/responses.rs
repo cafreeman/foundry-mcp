@@ -109,16 +109,7 @@ pub struct SpecContent {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalyzeProjectResponse {
     pub project_name: String,
-    pub analysis: ProjectAnalysis,
     pub files_created: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ProjectAnalysis {
-    pub detected_technologies: Vec<String>,
-    pub project_structure: Vec<String>,
-    pub dependencies: Vec<String>,
-    pub recommendations: Vec<String>,
 }
 
 /// Response for get_foundry_help command
