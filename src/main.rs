@@ -12,7 +12,20 @@ use foundry_mcp::{cli, mcp};
 #[command(
     about = "A CLI tool for deterministic project management and AI coding assistant integration"
 )]
-#[command(long_about = None)]
+#[command(
+    long_about = "Foundry helps LLMs maintain context about software projects through structured specifications.
+
+The core workflow is: create → list → load → create spec → validate → get help → work
+
+Examples:
+  foundry create-project my-app --vision '...' --tech-stack '...' --summary '...'
+  foundry load-project my-app                    # Load complete project context
+  foundry create-spec my-app user-auth --spec '...' --notes '...' --tasks '...'
+  foundry list-projects                          # Discover available projects
+  foundry get-foundry-help workflows             # Get detailed workflow guidance
+
+For more help on any command, use: foundry <COMMAND> --help"
+)]
 struct Args {
     #[command(subcommand)]
     command: Commands,
