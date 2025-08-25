@@ -107,3 +107,137 @@ pub struct ValidateContentArgs {
     #[arg(long, required = true)]
     pub content: String,
 }
+
+// MCP parameter conversion implementations
+impl CreateProjectArgs {
+    /// Convert MCP parameters to CLI arguments
+    pub fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            project_name: params["project_name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing project_name parameter"))?
+                .to_string(),
+            vision: params["vision"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing vision parameter"))?
+                .to_string(),
+            tech_stack: params["tech_stack"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing tech_stack parameter"))?
+                .to_string(),
+            summary: params["summary"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing summary parameter"))?
+                .to_string(),
+        })
+    }
+}
+
+impl AnalyzeProjectArgs {
+    /// Convert MCP parameters to CLI arguments
+    pub fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            project_name: params["project_name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing project_name parameter"))?
+                .to_string(),
+            vision: params["vision"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing vision parameter"))?
+                .to_string(),
+            tech_stack: params["tech_stack"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing tech_stack parameter"))?
+                .to_string(),
+            summary: params["summary"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing summary parameter"))?
+                .to_string(),
+        })
+    }
+}
+
+impl CreateSpecArgs {
+    /// Convert MCP parameters to CLI arguments
+    pub fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            project_name: params["project_name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing project_name parameter"))?
+                .to_string(),
+            feature_name: params["feature_name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing feature_name parameter"))?
+                .to_string(),
+            spec: params["spec"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing spec parameter"))?
+                .to_string(),
+            notes: params["notes"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing notes parameter"))?
+                .to_string(),
+            tasks: params["task_list"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing task_list parameter"))?
+                .to_string(),
+        })
+    }
+}
+
+impl LoadSpecArgs {
+    /// Convert MCP parameters to CLI arguments
+    pub fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            project_name: params["project_name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing project_name parameter"))?
+                .to_string(),
+            spec_name: params["spec_name"].as_str().map(|s| s.to_string()),
+        })
+    }
+}
+
+impl LoadProjectArgs {
+    /// Convert MCP parameters to CLI arguments
+    pub fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            project_name: params["project_name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing project_name parameter"))?
+                .to_string(),
+        })
+    }
+}
+
+impl ListProjectsArgs {
+    /// Convert MCP parameters to CLI arguments
+    pub fn from_mcp_params(_params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self)
+    }
+}
+
+impl GetFoundryHelpArgs {
+    /// Convert MCP parameters to CLI arguments
+    pub fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            topic: params["topic"].as_str().map(|s| s.to_string()),
+        })
+    }
+}
+
+impl ValidateContentArgs {
+    /// Convert MCP parameters to CLI arguments
+    pub fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            content_type: params["content_type"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing content_type parameter"))?
+                .to_string(),
+            content: params["content"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing content parameter"))?
+                .to_string(),
+        })
+    }
+}

@@ -1,9 +1,10 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use serde_json::Value;
+use std::env;
 use std::process;
 
-use foundry_mcp::cli;
+use foundry_mcp::{cli, mcp};
 
 #[derive(Parser)]
 #[command(name = "foundry")]
@@ -39,6 +40,28 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Initialize tracing
+    tracing_subscriber::fmt::init();
+
+    // Check if we should run in MCP server mode vs CLI mode
+    // MCP server mode: no CLI arguments provided (or explicit --mcp flag)
+    // CLI mode: CLI subcommands provided
+    let cli_args: Vec<String> = env::args().collect();
+
+    // If only the binary name is provided (no arguments), start MCP server
+    if cli_args.len() == 1 {
+        tracing::info!("No CLI arguments provided, starting in MCP server mode");
+        return mcp::FoundryMcpServer::start().await;
+    }
+
+    // Check for explicit MCP server flag
+    if cli_args.len() == 2 && (cli_args[1] == "--mcp" || cli_args[1] == "mcp") {
+        tracing::info!("Explicit MCP mode requested, starting MCP server");
+        return mcp::FoundryMcpServer::start().await;
+    }
+
+    // Otherwise, parse CLI arguments and run in CLI mode
+    tracing::debug!("CLI arguments provided, running in CLI mode");
     let args = Args::parse();
 
     let result: Result<Value> = match args.command {
