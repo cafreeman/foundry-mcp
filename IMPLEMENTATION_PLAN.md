@@ -433,25 +433,28 @@ foundry load_project <project_name>
 
 **✅ Critical Gap Resolved**: This command completes the basic LLM workflow: create → list → **load** → work. LLMs can now maintain full project context across sessions.
 
-### `foundry analyze_project`
+### ✅ `foundry analyze_project` - COMPLETED
 
-**Purpose**: Provide codebase analysis to inform LLM, then write LLM-provided content
+**Purpose**: Pure file management for LLM-analyzed projects (follows core principle: LLMs provide content, Foundry manages files)
 
 **CLI Usage:**
 
 ```bash
-foundry analyze_project <project_name> [codebase_path] --vision <content> --tech-stack <content> --summary <content>
+foundry analyze-project <project_name> --vision <content> --tech-stack <content> --summary <content>
 ```
 
 **Implementation Checklist:**
 
-- [ ] Scan codebase directory (default to current dir)
-- [ ] Detect technology stack from file extensions and config files
-- [ ] Analyze project structure and dependencies
-- [ ] Generate analysis report data
-- [ ] Validate LLM-provided content parameters
-- [ ] Write LLM content to project structure (no auto-generation)
-- [ ] Return JSON with analysis data + written file confirmation
+- [x] **Enhanced input validation** - Project name validation, content size limits
+- [x] **LLM-provided content acceptance** - Vision, tech-stack, summary as required parameters
+- [x] **Project structure creation** - Create ~/.foundry/PROJECT/project/ and specs/ directories
+- [x] **File management** - Write LLM content to vision.md, tech-stack.md, summary.md
+- [x] **Enhanced error handling** - Detailed error messages with actionable guidance
+- [x] **CLI parameter guidance** - Rich descriptions guide LLM on expected content
+- [x] **Workflow hints** - Direct LLMs to use their superior analysis tools (codebase_search, etc.)
+- [x] **Return file confirmation** - JSON response with created files and next steps
+
+**Key Design Decision**: No scanning or analysis performed by Foundry. LLMs use their existing superior tools (codebase_search, grep_search, read_file) for analysis, then provide Foundry with the resulting content for structured file management.
 
 ### `foundry create_spec`
 
