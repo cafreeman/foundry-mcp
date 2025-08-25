@@ -24,6 +24,12 @@ Examples:
   foundry list-projects                          # Discover available projects
   foundry get-foundry-help workflows             # Get detailed workflow guidance
 
+Common Usage Patterns:
+  • New Project: create-project → create-spec → work
+  • Existing Code: analyze-project → create-spec → work
+  • Resume Work: list-projects → load-project → load-spec → work
+  • Content Check: validate-content before creating projects/specs
+
 For more help on any command, use: foundry <COMMAND> --help"
 )]
 struct Args {
@@ -34,20 +40,51 @@ struct Args {
 #[derive(Subcommand)]
 enum Commands {
     /// Create a new project with vision, tech stack, and summary
+    ///
+    /// Creates ~/.foundry/PROJECT_NAME/ with project/vision.md, tech-stack.md, and summary.md
+    /// All content must be provided by LLMs - Foundry manages structure only
     CreateProject(cli::args::CreateProjectArgs),
-    /// Analyze an existing project and write LLM-provided content
+
+    /// Analyze an existing codebase and create project structure
+    ///
+    /// Use this when you have existing code to analyze. LLMs provide vision, tech-stack,
+    /// and summary based on codebase exploration
     AnalyzeProject(cli::args::AnalyzeProjectArgs),
-    /// Create a new specification for a project
+
+    /// Create a timestamped specification for a feature
+    ///
+    /// Creates YYYYMMDD_HHMMSS_FEATURE_NAME/ with spec.md, notes.md, and task-list.md
+    /// Task-list.md serves as implementation checklist for agents
     CreateSpec(cli::args::CreateSpecArgs),
-    /// Load a project's complete context (vision, tech-stack, summary)
+
+    /// Load complete project context for LLM sessions
+    ///
+    /// Returns vision, tech-stack, summary, and available specs
+    /// Essential for resuming work on existing projects
     LoadProject(cli::args::LoadProjectArgs),
-    /// Load an existing specification
+
+    /// Load specification content with project context
+    ///
+    /// If spec_name is omitted, lists all available specs for the project
+    /// Returns spec content, project summary, and workflow hints
     LoadSpec(cli::args::LoadSpecArgs),
-    /// List all available projects
+
+    /// List all available projects with metadata
+    ///
+    /// Shows project names, creation dates, spec counts, and validation status
+    /// Use this to discover existing projects
     ListProjects(cli::args::ListProjectsArgs),
-    /// Get Foundry help and workflow guidance
+
+    /// Get comprehensive workflow guidance and examples
+    ///
+    /// Topics: workflows, content-examples, project-structure, parameter-guidance
+    /// Essential for understanding Foundry usage patterns
     GetFoundryHelp(cli::args::GetFoundryHelpArgs),
+
     /// Validate content against schema requirements
+    ///
+    /// Check content quality before creating projects/specs
+    /// Provides improvement suggestions and next steps
     ValidateContent(cli::args::ValidateContentArgs),
 }
 
@@ -111,6 +148,27 @@ async fn main() -> Result<()> {
         }
         Err(e) => {
             eprintln!("Error: {}", e);
+
+            // Provide helpful error recovery suggestions
+            let error_msg = e.to_string();
+            if error_msg.contains("Project name must be in kebab-case") {
+                eprintln!(
+                    "\n💡 Try using kebab-case format: my-awesome-project (not 'my awesome project' or 'MyProject')"
+                );
+            } else if error_msg.contains("Content validation failed") {
+                eprintln!(
+                    "\n💡 Use 'foundry validate-content <type> --content <content>' to check content before creating"
+                );
+            } else if error_msg.contains("already exists") {
+                eprintln!(
+                    "\n💡 Use 'foundry list-projects' to see existing projects, or choose a different name"
+                );
+            } else if error_msg.contains("not found") || error_msg.contains("does not exist") {
+                eprintln!("\n💡 Use 'foundry list-projects' to see available projects");
+            }
+
+            eprintln!("\n💡 For help: foundry --help");
+            eprintln!("💡 For workflow guidance: foundry get-foundry-help workflows");
             process::exit(1);
         }
     }

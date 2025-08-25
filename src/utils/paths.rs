@@ -29,23 +29,29 @@ pub fn validate_project_name(name: &str) -> Result<()> {
 
     if name.len() > 50 {
         return Err(anyhow::anyhow!(
-            "Project name cannot be longer than 50 characters"
+            "Project name cannot be longer than 50 characters (current: {} characters)",
+            name.len()
         ));
     }
 
-    // Check for valid characters (alphanumeric, hyphens, underscores)
+    // Check for valid characters (alphanumeric, hyphens only - kebab-case)
     for c in name.chars() {
-        if !c.is_alphanumeric() && c != '-' && c != '_' {
+        if !c.is_alphanumeric() && c != '-' {
             return Err(anyhow::anyhow!(
-                "Project name can only contain alphanumeric characters, hyphens, and underscores"
+                "Project name can only contain lowercase letters, numbers, and hyphens (kebab-case format)"
+            ));
+        }
+        if c.is_alphabetic() && c.is_uppercase() {
+            return Err(anyhow::anyhow!(
+                "Project name must be in kebab-case format (lowercase letters, numbers, and hyphens only)"
             ));
         }
     }
 
-    // Check for consecutive special characters
-    if name.contains("--") || name.contains("__") || name.contains("_-") || name.contains("-_") {
+    // Check for consecutive hyphens
+    if name.contains("--") {
         return Err(anyhow::anyhow!(
-            "Project name cannot contain consecutive special characters"
+            "Project name cannot contain consecutive hyphens (e.g., 'my--project' is invalid)"
         ));
     }
 
@@ -63,7 +69,7 @@ pub fn validate_project_name(name: &str) -> Result<()> {
 
     if !first_char_valid || !last_char_valid {
         return Err(anyhow::anyhow!(
-            "Project name must start and end with alphanumeric characters"
+            "Project name must start and end with alphanumeric characters (e.g., '-my-project' and 'my-project-' are invalid)"
         ));
     }
 
