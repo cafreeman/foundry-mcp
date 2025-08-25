@@ -40,6 +40,8 @@ Focus on the 7 core CLI commands identified in the PRD, saving the MCP server im
 - `foundry get_foundry_help` - Workflow guidance
 - `foundry validate_content` - Content validation
 
+**✅ Spec Management Core Logic COMPLETED**: All spec validation, directory management, listing/filtering, and content operations are now fully implemented and tested.
+
 **✅ Gap Resolved**: `load_project` has been implemented and tested! LLMs can now create projects and load context back to continue work. The fundamental workflow is complete: create → list → **LOAD** → work.
 
 **Current Priority**: Continue with remaining commands to complete full spec management workflow.
@@ -164,9 +166,9 @@ src/
 - [x] Add project existence checking functions
 - [x] Implement project metadata extraction
 
-### Phase 3: Spec Management
+### Phase 3: Spec Management ✅ COMPLETED
 
-**Estimated Time**: Week 2
+**Estimated Time**: Week 2 → **COMPLETED EARLY**
 
 #### Timestamp Utilities ✅ COMPLETED
 
@@ -201,12 +203,24 @@ src/
 - [x] PRD-compliant response format with task_list field naming
 - [x] Comprehensive testing with 7 integration tests covering all scenarios
 
-#### Spec Management Core Logic
+#### Spec Management Core Logic ✅ COMPLETED
 
-- [ ] Implement spec validation in `core/spec.rs`
-- [ ] Create spec directory management utilities
-- [ ] Add spec listing and filtering functions
-- [ ] Implement spec content reading/writing
+- [x] **Implement spec validation in `core/spec.rs`** - COMPLETED
+  - Enhanced spec name validation with timestamp and snake_case enforcement
+  - Comprehensive file validation with `validate_spec_files()` function
+  - Detailed validation reporting via `SpecValidationResult` type
+- [x] **Create spec directory management utilities** - COMPLETED
+  - Path management: `get_spec_path()`, `get_specs_directory()`, `ensure_specs_directory()`
+  - Existence checking: `spec_exists()` function
+  - Safe deletion: `delete_spec()` with validation
+- [x] **Add spec listing and filtering functions** - COMPLETED
+  - Advanced filtering: `list_specs_filtered()` with `SpecFilter` type
+  - Utility functions: `get_latest_spec()`, `count_specs()`
+  - Support for feature name matching, date ranges, and result limiting
+- [x] **Implement spec content reading/writing** - COMPLETED
+  - Content updates: `update_spec_content()` for individual files
+  - Atomic file operations with proper validation
+  - Support for spec.md, notes.md, and task-list.md updates
 
 ### Phase 4: Analysis and Validation Tools
 
@@ -562,7 +576,8 @@ All commands return consistent JSON structure:
 - [x] Proper file structure creation in `~/.foundry/`
 - [x] Robust error handling and validation
 - [x] Rich parameter schemas with embedded LLM guidance
-- [x] **Comprehensive testing coverage** (15 integration tests + 37 unit tests)
+- [x] **Comprehensive testing coverage** (15 integration tests + 43 unit tests)
+- [x] **Core spec management logic fully implemented** - All validation, directory management, filtering, and content operations
 - [ ] Clear help documentation and examples (3 commands remaining)
 - [ ] Ready for MCP server wrapper implementation (after remaining commands)
 
