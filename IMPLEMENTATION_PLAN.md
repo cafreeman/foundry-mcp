@@ -6,287 +6,77 @@ Building a Rust CLI tool that manages project structure in `~/.foundry/` to help
 
 **Core Principle**: Foundry is a **pure file management tool** - LLMs provide ALL content as arguments, we just write it to the correct structured locations with rich parameter guidance.
 
-## MVP Scope: CLI Commands Only
+## Current Status: CLI MVP COMPLETE ✅
 
-Focus on the 7 core CLI commands identified in the PRD, saving the MCP server implementation for later.
+**8/8 CLI Commands Implemented and Tested**
 
-## Current Status
+The core LLM workflow is complete: **create → list → load → create spec → validate → get help → work**
 
-### ✅ Phase 1: Foundation & Core Infrastructure - COMPLETED
+### ✅ Completed Implementation (Phases 1-5)
 
-- **Project Structure**: Complete module hierarchy (cli/, core/, types/, utils/)
-- **Core Types**: All data structures defined with proper validation
-- **File System**: Atomic file operations and foundry directory management
-- **CLI Framework**: Full command structure with clap integration
-- **Validation**: Required fields properly enforced (LLM content must be provided)
+**Foundation & Architecture:**
 
-### ✅ Phase 2: Core Commands Implementation - COMPLETED
+- Complete module hierarchy (cli/, core/, types/, utils/) with proper separation of concerns
+- All data structures defined with validation, atomic file operations, CLI framework with clap
+- Required fields enforced (LLMs must provide content, Foundry manages structure)
 
-**CRITICAL DISCOVERY RESOLVED**: The fundamental LLM workflow gap has been closed!
+**8 CLI Commands Completed:**
 
-**Completed Commands:**
+- `foundry create_project` - Project creation with LLM-provided content (vision, tech-stack, summary)
+- `foundry list_projects` - Project discovery and metadata extraction
+- `foundry load_project` - Load complete project context for LLM sessions
+- `foundry create_spec` - Timestamped spec creation with LLM content
+- `foundry load_spec` - Spec content retrieval with project context
+- `foundry analyze_project` - Pure file management for LLM-analyzed existing projects
+- `foundry validate_content` - Content validation with structured feedback and improvement suggestions
+- `foundry get_foundry_help` - Comprehensive workflow guidance and content examples
 
-- ✅ `foundry create_project` - Project creation with LLM content (DONE)
-- ✅ `foundry list_projects` - Project discovery (DONE)
-- ✅ `foundry load_project` - Load project context for LLM sessions (DONE)
-- ✅ `foundry create_spec` - Timestamped spec creation (DONE)
-- ✅ `foundry load_spec` - Spec content retrieval (COMPLETED)
-- ✅ `foundry analyze_project` - Pure file management for LLM-analyzed projects (COMPLETED)
-- ✅ `foundry validate_content` - Content validation with structured feedback (COMPLETED)
+**Core Infrastructure:**
 
-**✅ Core Workflow Complete**: create → list → load → create spec → validate → get help → work
+- Spec management: validation, directory management, listing/filtering, content operations
+- Timestamp utilities: ISO format, spec naming (YYYYMMDD_HHMMSS_feature_name)
+- Content validation engine with type-specific rules and suggestions
+- Comprehensive testing: 52 total tests (37 unit + 15 integration) - all passing
+- JSON response format with next_steps and workflow_hints for LLM guidance
 
-**✅ All CLI Commands Complete (8/8):**
+**Key Design Decisions:**
 
-- ✅ `foundry get_foundry_help` - Workflow guidance with comprehensive help topics (COMPLETED)
+- Content-agnostic: No content generation or analysis by Foundry
+- LLM-provided content as required parameters ensures pure file management
+- Rich parameter schemas guide LLM behavior without enforcing content opinions
 
-**✅ Spec Management Core Logic COMPLETED**: All spec validation, directory management, listing/filtering, and content operations are now fully implemented and tested.
+## Project Structure
 
-**✅ Gap Resolved**: `load_project` has been implemented and tested! LLMs can now create projects and load context back to continue work. The fundamental workflow is complete: create → list → **LOAD** → work.
+```
+~/.foundry/PROJECT_NAME/
+├── project/
+│   ├── vision.md      # High-level product vision (LLM-provided)
+│   ├── tech-stack.md  # Technology decisions (LLM-provided)
+│   └── summary.md     # Concise summary for context loading (LLM-provided)
+└── specs/
+    └── YYYYMMDD_HHMMSS_FEATURE_NAME/
+        ├── spec.md        # Feature specification (LLM-provided)
+        ├── task-list.md   # Implementation checklist (LLM-provided)
+        └── notes.md       # Additional context (LLM-provided)
+```
 
-**✅ CLI MVP COMPLETE**: All 8 CLI commands implemented with comprehensive testing. Ready for Phase 2: MCP Server implementation.
-
-**Key Architectural Decision**: All content fields that LLMs must provide are **required** fields, ensuring the "pure file management" principle is maintained.
-
-## Implementation Architecture
-
-### Core Project Structure
+**Module Architecture:**
 
 ```
 src/
-├── main.rs              # CLI entry point and argument parsing
-├── lib.rs               # Library exports and common types
-├── cli/
-│   ├── mod.rs           # CLI command definitions and routing
-│   ├── commands/        # Individual command implementations
-│   │   ├── mod.rs
-│   │   ├── create_project.rs
-│   │   ├── analyze_project.rs
-│   │   ├── create_spec.rs
-│   │   ├── load_spec.rs
-│   │   ├── list_projects.rs
-│   │   ├── get_foundry_help.rs
-│   │   └── validate_content.rs
-│   └── args.rs          # CLI argument structures
-├── core/
-│   ├── mod.rs           # Core business logic
-│   ├── project.rs       # Project structure management
-│   ├── spec.rs          # Spec management
-│   ├── filesystem.rs    # File operations
-│   └── validation.rs    # Content validation logic
-├── types/
-│   ├── mod.rs           # Shared type definitions
-│   ├── project.rs       # Project-related types
-│   ├── spec.rs          # Spec-related types
-│   └── responses.rs     # JSON response structures
-└── utils/
-    ├── mod.rs           # Utility functions
-    ├── timestamp.rs     # ISO timestamp generation
-    └── paths.rs         # Path manipulation utilities
+├── main.rs              # CLI entry point
+├── lib.rs               # Library exports
+├── cli/                 # CLI commands and argument parsing
+├── core/                # Business logic (project, spec, validation, filesystem)
+├── types/               # Data structures and response formats
+└── utils/               # Utilities (timestamps, paths, formatting)
 ```
 
-## Implementation Phases
+## Outstanding Tasks (Phase 6: Polish)
 
-### Phase 1: Foundation & Core Infrastructure
+While the CLI MVP is functionally complete, these polish items remain for production readiness:
 
-**Estimated Time**: Week 1
-
-#### Setup and Project Structure
-
-- [x] Set up basic Rust project structure
-- [x] Configure Cargo.toml with required dependencies
-- [x] Create module structure (cli/, core/, types/, utils/)
-- [x] Set up main.rs with basic CLI framework using clap
-- [x] Create lib.rs with public exports
-
-#### Core Types and Data Structures
-
-- [x] Define Project struct in `types/project.rs`
-- [x] Define Spec struct in `types/spec.rs` (with required fields: spec_content, notes, tasks)
-- [x] Create FoundryResponse<T> generic response type in `types/responses.rs`
-- [x] Define CLI argument structures in `cli/args.rs`
-- [x] Create error types using anyhow for consistent error handling
-
-#### Basic File System Operations
-
-- [x] Implement foundry directory detection/creation (`~/.foundry/`)
-- [x] Create basic file writing utilities in `core/filesystem.rs`
-- [x] Implement directory creation with proper error handling
-- [x] Add file existence checking utilities
-- [x] Create atomic file writing functions
-
-#### CLI Framework Setup
-
-- [x] Set up clap command structure in `cli/mod.rs`
-- [x] Create basic command routing
-- [x] Implement help system integration
-- [x] Add common CLI utilities (output formatting, etc.)
-
-### Phase 2: Core Commands Implementation
-
-**Estimated Time**: Week 2
-
-#### `create_project` Command ✅ COMPLETED
-
-- [x] Define rich parameter schema for LLM guidance
-- [x] Implement CLI argument parsing for project_name, vision, tech_stack, summary
-- [x] Add parameter validation (minimum lengths, format checks)
-- [x] Create project directory structure (`~/.foundry/{project_name}/project/`)
-- [x] Implement file writing for vision.md, tech-stack.md, summary.md
-- [x] Create empty specs/ directory
-- [x] Return structured JSON response with next_steps
-- [x] Add comprehensive error handling and user-friendly messages
-
-#### `list_projects` Command ✅ COMPLETED
-
-- [x] Implement directory scanning of `~/.foundry/`
-- [x] Extract project metadata (creation date, spec count)
-- [x] Create JSON response format for project listing
-- [x] Handle empty foundry directory gracefully
-- [x] Add sorting by creation date/name options
-
-#### `load_project` Command ✅ COMPLETED
-
-- [x] Implement CLI argument parsing for project_name
-- [x] Add project existence validation
-- [x] Read project/vision.md content
-- [x] Read project/tech-stack.md content
-- [x] Read project/summary.md content
-- [x] Scan specs/ directory for available specifications
-- [x] Create comprehensive JSON response with all project context
-- [x] Handle missing files gracefully (return empty strings)
-- [x] Add workflow guidance for next steps
-- [x] Enhanced validation status based on specs availability
-- [x] Comprehensive testing with integration tests
-
-#### Project Management Core Logic ✅ COMPLETED
-
-- [x] Implement project validation in `core/project.rs`
-- [x] Create project structure management utilities
-- [x] Add project existence checking functions
-- [x] Implement project metadata extraction
-
-### Phase 3: Spec Management ✅ COMPLETED
-
-**Estimated Time**: Week 2 → **COMPLETED EARLY**
-
-#### Timestamp Utilities ✅ COMPLETED
-
-- [x] Implement ISO timestamp generation in `utils/timestamp.rs`
-- [x] Create spec name formatting (`YYYYMMDD_HHMMSS_feature_name`)
-- [x] Add timestamp parsing utilities for existing specs with validation
-- [x] Implement spec directory name validation with enhanced error handling
-- [x] Add timestamp format conversion between ISO, spec format, and display format
-- [x] Enhanced feature name extraction and validation
-- [x] Comprehensive test coverage for all timestamp utilities
-
-#### `create_spec` Command ✅ COMPLETED
-
-- [x] Define parameter schema for spec content, notes, task-list
-- [x] Implement CLI argument parsing
-- [x] Add project existence validation
-- [x] Generate timestamped spec directory
-- [x] Write spec.md, notes.md files with LLM-provided content
-- [x] Create task-list.md with LLM-provided content
-- [x] Return JSON response with spec details
-- [x] Enhanced validation with snake_case feature name requirements
-- [x] Comprehensive content validation and error handling
-
-#### `load_spec` Command ✅ COMPLETED
-
-- [x] Implement spec discovery (list available specs if none specified)
-- [x] Add spec directory parsing and validation
-- [x] Read all spec files (spec.md, task-list.md, notes.md)
-- [x] Load project summary for context
-- [x] Return comprehensive JSON with spec content and workflow hints
-- [x] Handle missing files gracefully
-- [x] PRD-compliant response format with task_list field naming
-- [x] Comprehensive testing with 7 integration tests covering all scenarios
-
-#### Spec Management Core Logic ✅ COMPLETED
-
-- [x] **Implement spec validation in `core/spec.rs`** - COMPLETED
-  - Enhanced spec name validation with timestamp and snake_case enforcement
-  - Comprehensive file validation with `validate_spec_files()` function
-  - Detailed validation reporting via `SpecValidationResult` type
-- [x] **Create spec directory management utilities** - COMPLETED
-  - Path management: `get_spec_path()`, `get_specs_directory()`, `ensure_specs_directory()`
-  - Existence checking: `spec_exists()` function
-  - Safe deletion: `delete_spec()` with validation
-- [x] **Add spec listing and filtering functions** - COMPLETED
-  - Advanced filtering: `list_specs_filtered()` with `SpecFilter` type
-  - Utility functions: `get_latest_spec()`, `count_specs()`
-  - Support for feature name matching, date ranges, and result limiting
-- [x] **Implement spec content reading/writing** - COMPLETED
-  - Content updates: `update_spec_content()` for individual files
-  - Atomic file operations with proper validation
-  - Support for spec.md, notes.md, and task-list.md updates
-
-### ✅ Phase 4: Analysis and Validation Tools - COMPLETED
-
-**Estimated Time**: Week 1 → **COMPLETED**
-
-**CRITICAL DESIGN CORRECTION**: During implementation, we discovered that providing scanning utilities violates Foundry's core principle of being content-agnostic. LLMs already have superior analysis tools (codebase_search, grep_search, read_file), so we pivoted to pure file management following the "LLMs provide content, Foundry manages files" principle.
-
-#### ✅ `analyze_project` Command - COMPLETED
-
-- [x] **Pure file management implementation** - No scanning, follows core principles
-- [x] **Enhanced input validation** - Project name validation, content size limits
-- [x] **LLM-provided content acceptance** - Requires vision, tech_stack, summary parameters
-- [x] **Project structure creation** - Write LLM content to structured format
-- [x] **Enhanced error handling** - Detailed error messages with actionable guidance
-- [x] **CLI parameter guidance** - Rich descriptions guide LLM behavior
-- [x] **Workflow hints** - Directs LLMs to use their superior analysis tools
-
-#### ✅ `validate_content` Command - COMPLETED
-
-- [x] **Content validation rules** - All content types (vision, tech-stack, spec, notes, tasks)
-- [x] **Length validation** - Minimum/maximum size checking with clear error messages
-- [x] **Content quality suggestions** - Improvement recommendations for each type
-- [x] **Enhanced error reporting** - Structured validation results with counts
-- [x] **Content-type specific guidance** - Tailored hints for each content type
-- [x] **Input validation** - Size limits, binary detection, empty content handling
-- [x] **Enhanced user experience** - Dynamic next steps based on validation results
-
-#### ✅ Validation Core Logic - COMPLETED
-
-- [x] **Comprehensive validation in `core/validation.rs`** - All content types supported
-- [x] **Validation rule engine** - Flexible rules with structured feedback
-- [x] **Error and suggestion system** - Clear separation of errors vs improvements
-- [x] **Content type parsing** - Robust parsing with enhanced error messages
-
-#### ✅ Architecture Cleanup - COMPLETED
-
-- [x] **Removed obsolete `analysis.rs`** - 363 lines of dead code eliminated
-- [x] **Clean module structure** - No redundant scanning functionality
-- [x] **Aligned with core principles** - Pure file management, no content generation
-
-### ✅ Phase 5: Help and Documentation System - COMPLETED
-
-**Estimated Time**: 3 days → **COMPLETED**
-
-#### ✅ `get_foundry_help` Command - COMPLETED
-
-- [x] **Create help topic system** - Implemented 5 topics: overview, workflows, content-examples, project-structure, parameter-guidance
-- [x] **Implement workflow guidance content** - Comprehensive LLM development workflows with step-by-step instructions
-- [x] **Add content examples for each file type** - Templates and examples for vision, tech-stack, summary, specs, notes, tasks
-- [x] **Create parameter guidance documentation** - Detailed parameter schemas and validation rules for all commands
-- [x] **Implement topic-based help routing** - Smart routing with fallback to overview for invalid topics
-- [x] **Format help output for both human and LLM consumption** - JSON responses with structured content optimized for programmatic use
-
-#### ✅ Help Content Creation - COMPLETED
-
-- [x] **Write workflow examples and best practices** - New project, existing codebase analysis, context loading workflows
-- [x] **Create template content examples** - Comprehensive examples for all content types with placeholders and guidance
-- [x] **Document parameter schemas and expectations** - Complete parameter documentation with validation rules
-- [x] **Add troubleshooting guides** - Error handling guidance and workflow hints in all responses
-- [x] **Create getting started examples** - Core LLM workflow examples and command usage patterns
-
-### ✅ Phase 6: Polish and Testing - SIGNIFICANTLY ADVANCED
-
-**Estimated Time**: Week 1 → **COMPLETED EARLY**
-
-#### Error Handling and Validation
+### Error Handling and Validation
 
 - [ ] Implement comprehensive error messages
 - [ ] Add input validation for all commands
@@ -294,18 +84,7 @@ src/
 - [ ] Handle edge cases (missing directories, permissions, etc.)
 - [ ] Add validation for file paths and names
 
-#### Testing Implementation ✅ SIGNIFICANTLY ENHANCED
-
-- [x] **Comprehensive Integration Tests**: 8 integration tests covering full command workflows
-- [x] **Real Filesystem Operations**: Tests use actual file creation/validation with temporary directories
-- [x] **Test Environment Isolation**: Thread-safe test environment with proper cleanup
-- [x] **End-to-End Workflows**: Complete test coverage from create → load → create spec → load
-- [x] **Error Scenario Testing**: Real error conditions with proper error handling verification
-- [x] **CLI Testing Best Practices**: Following industry standards for CLI application testing
-- [x] Refactored unit tests to focus on business logic rather than trivial validation
-- [x] 52 total tests (37 unit + 15 integration) - all passing ✅
-
-#### Documentation and Examples
+### Documentation and Examples
 
 - [ ] Write comprehensive CLI help documentation
 - [ ] Create usage examples for each command
@@ -313,7 +92,7 @@ src/
 - [ ] Write troubleshooting guide
 - [ ] Create getting started tutorial
 
-#### Performance and Reliability
+### Performance and Reliability
 
 - [ ] Optimize file operations for performance
 - [ ] Add proper file locking for concurrent access
@@ -321,240 +100,50 @@ src/
 - [ ] Add progress indicators for long operations
 - [ ] Optimize JSON response generation
 
-## Command Specifications with Parameter Schemas
+**Note**: Testing is complete (52 tests passing), core functionality is robust, and all commands work as designed.
 
-### `foundry create_project`
+## Command Reference
 
-**Purpose**: Write LLM-provided content to new project structure
+### Core Commands (All Implemented ✅)
 
-**CLI Usage:**
+**`foundry create_project`** - Create new project with LLM-provided content
 
-```bash
-foundry create_project <project_name> --vision <content> --tech-stack <content> --summary <content>
-```
+- Parameters: project_name, vision (200+ chars), tech_stack (150+ chars), summary (100+ chars)
+- Creates: `~/.foundry/PROJECT_NAME/project/` with vision.md, tech-stack.md, summary.md
 
-**Parameter Schema (for MCP integration):**
+**`foundry list_projects`** - List all projects with metadata
 
-```json
-{
-  "project_name": {
-    "type": "string",
-    "description": "Descriptive project name using kebab-case"
-  },
-  "vision": {
-    "type": "string",
-    "description": "High-level product vision (2-4 paragraphs) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Goes into project/vision.md",
-    "minLength": 200
-  },
-  "tech_stack": {
-    "type": "string",
-    "description": "Comprehensive technology decisions including languages, frameworks, databases, deployment platforms, and rationale. Include constraints, preferences, or team standards. Goes into project/tech-stack.md",
-    "minLength": 150
-  },
-  "summary": {
-    "type": "string",
-    "description": "Concise summary of vision and tech-stack for context loading. Should be brief but capture key points for LLM context. Goes into project/summary.md",
-    "minLength": 100
-  }
-}
-```
+- Returns: Project names, creation dates, spec counts, validation status
 
-**Implementation Checklist:**
+**`foundry load_project`** - Load complete project context for LLM sessions
 
-- [ ] Parse and validate all required parameters
-- [ ] Check project_name format (kebab-case)
-- [ ] Validate content length requirements
-- [ ] Create project directory structure
-- [ ] Write vision.md with provided content
-- [ ] Write tech-stack.md with provided content
-- [ ] Write summary.md with provided content
-- [ ] Create empty specs/ directory
-- [ ] Return JSON response with success confirmation
+- Parameters: project_name
+- Returns: All project content, available specs, workflow guidance
 
-### `foundry load_project` - **CRITICAL MISSING COMMAND**
+**`foundry create_spec`** - Create timestamped specification
 
-**Purpose**: Load complete project context for LLM sessions - **ESSENTIAL for workflow completion**
+- Parameters: project_name, feature_name, spec, notes, task_list
+- Creates: `~/.foundry/PROJECT/specs/YYYYMMDD_HHMMSS_FEATURE_NAME/`
 
-**CLI Usage:**
+**`foundry load_spec`** - Load specification content with project context
 
-```bash
-foundry load_project <project_name>
-```
+- Parameters: project_name, [spec_name] (lists if omitted)
+- Returns: Spec content, project summary, workflow hints
 
-**Parameter Schema (for MCP integration):**
+**`foundry analyze_project`** - Pure file management for LLM-analyzed existing projects
 
-```json
-{
-  "project_name": {
-    "type": "string",
-    "description": "Project name to load context from (must exist in ~/.foundry/)"
-  }
-}
-```
+- Parameters: project_name, vision, tech_stack, summary
+- Creates: Project structure from LLM analysis results
 
-**Expected Response Format:**
+**`foundry validate_content`** - Validate content against schemas
 
-```json
-{
-  "data": {
-    "project": {
-      "name": "foundry-development",
-      "vision": "<full content of project/vision.md>",
-      "tech_stack": "<full content of project/tech-stack.md>",
-      "summary": "<full content of project/summary.md>",
-      "specs_available": ["20240824_120000_phase3_implementation"],
-      "created_at": "2025-08-24T03:38:11Z"
-    }
-  },
-  "next_steps": [
-    "Load a specific spec with: foundry load_spec",
-    "Create new specs with: foundry create_spec"
-  ],
-  "workflow_hints": [
-    "Use project summary for quick context",
-    "Full vision provides comprehensive background"
-  ],
-  "validation_status": "complete"
-}
-```
+- Parameters: content_type (vision|tech-stack|summary|spec|notes), content
+- Returns: Validation results, improvement suggestions, next steps
 
-**Implementation Checklist:**
+**`foundry get_foundry_help`** - Comprehensive workflow guidance
 
-- [x] Parse and validate project_name parameter
-- [x] Check if project exists in ~/.foundry/
-- [x] Read project/vision.md content
-- [x] Read project/tech-stack.md content
-- [x] Read project/summary.md content
-- [x] Scan specs/ directory for available specifications
-- [x] Return comprehensive JSON response with all project context
-- [x] Handle missing files gracefully (empty strings for missing content)
-- [x] Provide workflow guidance for next steps
-- [x] Enhanced validation status based on specs availability
-
-**✅ Critical Gap Resolved**: This command completes the basic LLM workflow: create → list → **load** → work. LLMs can now maintain full project context across sessions.
-
-### ✅ `foundry analyze_project` - COMPLETED
-
-**Purpose**: Pure file management for LLM-analyzed projects (follows core principle: LLMs provide content, Foundry manages files)
-
-**CLI Usage:**
-
-```bash
-foundry analyze-project <project_name> --vision <content> --tech-stack <content> --summary <content>
-```
-
-**Implementation Checklist:**
-
-- [x] **Enhanced input validation** - Project name validation, content size limits
-- [x] **LLM-provided content acceptance** - Vision, tech-stack, summary as required parameters
-- [x] **Project structure creation** - Create ~/.foundry/PROJECT/project/ and specs/ directories
-- [x] **File management** - Write LLM content to vision.md, tech-stack.md, summary.md
-- [x] **Enhanced error handling** - Detailed error messages with actionable guidance
-- [x] **CLI parameter guidance** - Rich descriptions guide LLM on expected content
-- [x] **Workflow hints** - Direct LLMs to use their superior analysis tools (codebase_search, etc.)
-- [x] **Return file confirmation** - JSON response with created files and next steps
-
-**Key Design Decision**: No scanning or analysis performed by Foundry. LLMs use their existing superior tools (codebase_search, grep_search, read_file) for analysis, then provide Foundry with the resulting content for structured file management.
-
-### `foundry create_spec`
-
-**Purpose**: Write LLM-provided spec content to timestamped directory
-
-**CLI Usage:**
-
-```bash
-foundry create_spec <project_name> <feature_name> --spec <content> --notes <content> [--task-list <content>]
-```
-
-**Implementation Checklist:**
-
-- [x] Validate project exists
-- [x] Generate ISO timestamp (YYYYMMDD_HHMMSS_feature_name)
-- [x] Create spec directory
-- [x] Write spec.md with provided content
-- [x] Write notes.md with provided content
-- [x] Write task-list.md with provided content
-- [x] Return JSON response with spec details
-- [x] Enhanced feature name validation (snake_case enforcement)
-- [x] Comprehensive content validation and error handling
-- [x] Integration with project loading workflow
-
-### `foundry load_spec`
-
-**Purpose**: Return existing spec content for LLM context
-
-**CLI Usage:**
-
-```bash
-foundry load_spec <project_name> [spec_name]
-```
-
-**Implementation Checklist:**
-
-- [ ] Validate project exists
-- [ ] List available specs if spec_name not provided
-- [ ] Load specified spec directory
-- [ ] Read spec.md, task-list.md, notes.md files
-- [ ] Load project summary for context
-- [ ] Return JSON with all content and workflow hints
-
-### `foundry list_projects`
-
-**Purpose**: Return available projects for LLM discovery
-
-**CLI Usage:**
-
-```bash
-foundry list_projects
-```
-
-**Implementation Checklist:**
-
-- [ ] Scan ~/.foundry/ directory
-- [ ] Extract project metadata (creation date, spec count)
-- [ ] Format project list for display
-- [ ] Return JSON with project information
-- [ ] Handle empty directory gracefully
-
-### `foundry get_foundry_help`
-
-**Purpose**: Provide workflow guidance and content examples to LLMs
-
-**CLI Usage:**
-
-```bash
-foundry get_foundry_help [topic]
-```
-
-**Topics**: workflows, content-examples, project-structure, parameter-guidance
-
-**Implementation Checklist:**
-
-- [ ] Create help topic routing system
-- [ ] Write workflow guidance content
-- [ ] Create content examples for each file type
-- [ ] Add parameter schema documentation
-- [ ] Format help for both human and LLM consumption
-
-### `foundry validate_content`
-
-**Purpose**: Validate LLM-provided content against schema requirements
-
-**CLI Usage:**
-
-```bash
-foundry validate_content <content_type> --content <content>
-```
-
-**Content Types**: vision, tech-stack, summary, spec, notes
-
-**Implementation Checklist:**
-
-- [ ] Define validation rules for each content type
-- [ ] Check length requirements
-- [ ] Validate format and structure
-- [ ] Generate improvement suggestions
-- [ ] Return validation results and recommendations
+- Parameters: [topic] (workflows|content-examples|project-structure|parameter-guidance)
+- Returns: Topic-specific help, examples, parameter schemas
 
 ## JSON Response Format
 
@@ -563,7 +152,7 @@ All commands return consistent JSON structure:
 ```json
 {
   "data": {
-    // Command-specific data
+    /* Command-specific data */
   },
   "next_steps": ["Suggested next actions for LLM"],
   "validation_status": "complete|incomplete|error",
@@ -571,55 +160,201 @@ All commands return consistent JSON structure:
 }
 ```
 
-## Success Criteria for MVP
+## MCP Server Implementation Phases
 
-### Phase 1 Foundation ✅ COMPLETED
+**Status**: Ready to implement - CLI foundation is complete and battle-tested.
 
-- [x] Complete module structure and project organization
-- [x] Core type definitions with proper validation
-- [x] File system utilities and atomic operations
-- [x] CLI framework with command routing
-- [x] Required field validation for LLM content
+**Implementation Strategy**: Direct CLI command mapping following PRD guidance: "MCP tools map directly to CLI commands"
 
-### ✅ Phase 2 Commands COMPLETED (8/8 commands done)
+### MCP Server Architecture Overview
 
-- [x] **8/8 CLI commands implemented and functional** (create_project, list_projects, load_project, create_spec, load_spec, analyze_project, validate_content, get_foundry_help)
-- [x] Consistent JSON response format across all commands
-- [x] Proper file structure creation in `~/.foundry/`
-- [x] **Enhanced error handling and validation** - Detailed error messages with actionable guidance
-- [x] Rich parameter schemas with embedded LLM guidance
-- [x] **Comprehensive testing coverage** (16 integration tests + 43 unit tests)
-- [x] **Core spec management logic fully implemented** - All validation, directory management, filtering, and content operations
-- [x] **Phase 4 commands completed** - analyze_project and validate_content with enhanced error handling
-- [x] **Phase 5 commands completed** - get_foundry_help with comprehensive topic-based help system
-- [x] **Ready for MCP server wrapper implementation** - CLI MVP complete with full workflow support
+**Core Design Principles (from PRD):**
 
-**Status**: **🎉 CLI MVP COMPLETE** - All 8 commands implemented and tested. LLMs can create projects, load context, manage specs, analyze codebases, validate content, and access comprehensive help. Ready for Phase 2: MCP Server development.
+- ✅ **Identical functionality** between CLI and MCP interfaces
+- ✅ **Same JSON response format** for both CLI and MCP
+- ✅ **Rich parameter schemas** with embedded behavioral guidance
+- ✅ **LLMs provide content as arguments**, not file paths
+- ✅ **Direct mapping**: MCP tools call existing CLI command functions
 
-## Technical Implementation Notes
+**Module Structure:**
 
-### Key Dependencies
+```
+src/
+├── main.rs              # Entry point with CLI/MCP mode detection
+├── lib.rs               # Library exports
+├── cli/                 # CLI commands (existing)
+├── mcp/                 # NEW: MCP server implementation
+│   ├── mod.rs           # MCP server module exports
+│   ├── server.rs        # MCP server startup and configuration
+│   ├── tools.rs         # MCP tool definitions and registration
+│   └── handlers.rs      # Request routing to CLI commands
+├── core/                # Business logic (existing)
+├── types/               # Data structures (existing)
+└── utils/               # Utilities (existing)
+```
 
-- `clap` - CLI argument parsing with derive features
-- `serde_json` - JSON response formatting
-- `anyhow` - Error handling and context
-- `chrono` - Timestamp generation
-- `dirs` - Home directory detection
+### Phase 7: MCP Module Foundation
 
-### Error Handling Strategy
+**Estimated Time**: Week 1
 
-- Use `anyhow::Result<T>` for all fallible operations
-- Provide rich error context for debugging
-- Return user-friendly error messages
-- Handle file system errors gracefully
-- Validate all inputs before processing
+**`src/mcp/mod.rs` - Module exports and structure**
 
-### File System Design
+- [ ] Create MCP module with public exports
+- [ ] Define MCP-specific types and interfaces
+- [ ] Set up module integration with main.rs
 
-- Atomic file operations where possible
-- Proper error handling for permissions issues
-- Cross-platform path handling
-- UTF-8 content encoding
-- Preserve file metadata when possible
+**`src/mcp/server.rs` - MCP server startup**
 
-This implementation plan provides a clear roadmap for building the Foundry CLI MVP with LLM-centric design principles, focusing on pure file management operations with rich parameter guidance for LLM consumption.
+- [ ] Implement MCP server initialization using rust-mcp-sdk
+- [ ] Configure async tokio runtime for MCP requests
+- [ ] Add server shutdown handling and cleanup
+- [ ] Implement stdio transport for MCP communication
+
+**Binary Mode Detection in `src/main.rs`:**
+
+- [ ] Detect CLI vs MCP server mode (default: MCP server if no CLI args)
+- [ ] Route to appropriate execution path (CLI commands vs MCP server)
+- [ ] Maintain existing CLI functionality unchanged
+
+### Phase 8: MCP Tool Registration
+
+**Estimated Time**: Week 1
+
+**`src/mcp/tools.rs` - Tool definitions using PRD parameter schemas**
+
+- [ ] **`create_project` MCP tool** - Use existing CreateProjectArgs parameter structure
+- [ ] **`analyze_project` MCP tool** - Use existing AnalyzeProjectArgs parameter structure
+- [ ] **`load_project` MCP tool** - Use existing LoadProjectArgs parameter structure
+- [ ] **`create_spec` MCP tool** - Use existing CreateSpecArgs parameter structure
+- [ ] **`load_spec` MCP tool** - Use existing LoadSpecArgs parameter structure
+- [ ] **`list_projects` MCP tool** - Use existing ListProjectsArgs parameter structure
+- [ ] **`validate_content` MCP tool** - Use existing ValidateContentArgs parameter structure
+- [ ] **`get_foundry_help` MCP tool** - Use existing GetFoundryHelpArgs parameter structure
+
+**Parameter Schema Implementation:**
+
+- [ ] **Rich MCP parameter schemas** - Embed behavioral guidance in descriptions (from PRD)
+- [ ] **Validation constraints** - Use same validation as CLI (minLength, format requirements)
+- [ ] **Type definitions** - Map CLI argument types to MCP parameter types
+
+### Phase 9: Request Routing and Response Handling
+
+**Estimated Time**: Week 1
+
+**`src/mcp/handlers.rs` - Route MCP requests to CLI command functions**
+
+- [ ] **Direct function calls** - Route MCP tool requests to existing CLI command execute() functions
+- [ ] **Parameter conversion** - Convert MCP request parameters to CLI Args structs
+- [ ] **Response formatting** - Return existing CLI JSON responses unchanged (per PRD requirement)
+- [ ] **Error handling** - Convert CLI errors to appropriate MCP error responses
+
+**Integration with Existing CLI Logic:**
+
+- [ ] **Zero duplication** - Reuse all existing CLI command implementations
+- [ ] **Identical validation** - Use same parameter validation logic
+- [ ] **Same file operations** - Use same core business logic for all operations
+- [ ] **Consistent responses** - Return identical JSON structure for CLI and MCP
+
+### Phase 10: MCP Testing and Validation
+
+**Estimated Time**: Week 1
+
+**MCP Integration Tests:**
+
+- [ ] **End-to-end MCP workflows** - Test complete LLM workflow through MCP tools
+- [ ] **Parameter validation testing** - Ensure MCP parameter validation matches CLI
+- [ ] **Response format verification** - Verify identical JSON responses between CLI and MCP
+- [ ] **Error handling tests** - Test error scenarios and response formatting
+
+**CLI Compatibility Verification:**
+
+- [ ] **Regression testing** - Ensure existing CLI functionality unchanged
+- [ ] **Binary mode switching** - Test CLI vs MCP server mode detection
+- [ ] **Parameter consistency** - Verify identical behavior between CLI and MCP interfaces
+
+### Phase 11: MCP Documentation and Deployment
+
+**Estimated Time**: Week 1
+
+**MCP Server Documentation:**
+
+- [ ] **Setup instructions** - How to configure MCP server for Claude/Cursor integration
+- [ ] **Tool documentation** - Complete parameter schemas and usage examples
+- [ ] **Configuration guide** - MCP server configuration options
+- [ ] **Troubleshooting** - Common issues and debugging guidance
+
+**Production Readiness:**
+
+- [ ] **Binary optimization** - Single binary supporting both CLI and MCP modes
+- [ ] **Configuration management** - Environment-based configuration for MCP server
+- [ ] **Logging and monitoring** - Structured logging for MCP server operations
+- [ ] **Performance optimization** - Optimize for MCP request/response cycles
+
+### Technical Implementation Details
+
+**MCP Tool Definition Pattern (following PRD):**
+
+```rust
+// Example: create_project MCP tool
+pub fn create_project_tool() -> Tool {
+    Tool {
+        name: "create_project".to_string(),
+        description: "Create new project structure with LLM-provided content".to_string(),
+        parameters: json!({
+            "type": "object",
+            "properties": {
+                "project_name": {
+                    "type": "string",
+                    "description": "Descriptive project name using kebab-case"
+                },
+                "vision": {
+                    "type": "string",
+                    "description": "High-level product vision (2-4 paragraphs) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Goes into project/vision.md",
+                    "minLength": 200
+                },
+                // ... identical to PRD parameter schemas
+            },
+            "required": ["project_name", "vision", "tech_stack", "summary"]
+        })
+    }
+}
+```
+
+**Request Routing Pattern:**
+
+```rust
+// Route MCP requests to existing CLI command functions
+async fn handle_create_project(params: Value) -> Result<Value> {
+    let args = CreateProjectArgs::from_mcp_params(params)?;
+    let response = cli::commands::create_project::execute(args).await?;
+    Ok(serde_json::to_value(response)?)
+}
+```
+
+### Dependencies (Already Available)
+
+- ✅ `rust-mcp-schema = "0.7.2"` - MCP protocol schemas
+- ✅ `rust-mcp-sdk = "0.5.1"` - MCP server development kit
+- ✅ `tokio = "1.47.1"` - Async runtime for MCP server
+- ✅ `serde_json = "1.0.142"` - JSON handling for MCP requests/responses
+- ✅ All CLI infrastructure - Complete foundation to build upon
+
+### Success Criteria
+
+**Functional Requirements:**
+
+- [ ] **8 MCP tools** working identically to CLI commands
+- [ ] **Identical JSON responses** between CLI and MCP interfaces
+- [ ] **Complete LLM workflow** supported: create → list → load → create spec → validate → get help
+- [ ] **Binary mode switching** between CLI and MCP server modes
+
+**Quality Requirements:**
+
+- [ ] **Zero regression** - All existing CLI functionality preserved
+- [ ] **Comprehensive testing** - MCP integration tests covering all workflows
+- [ ] **Production ready** - Logging, error handling, configuration management
+- [ ] **Documentation complete** - Setup, usage, and troubleshooting guides
+
+**Timeline**: 5 phases (7-11) over 5 weeks for complete MCP server implementation with testing and documentation.
+
+**Key Dependencies:** clap, serde_json, anyhow, chrono, dirs, rust-mcp-sdk, rust-mcp-schema, tokio
