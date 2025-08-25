@@ -756,3 +756,44 @@ async fn test_load_spec_end_to_end_workflow() -> Result<()> {
 
     Ok(())
 }
+
+/// Test the get_foundry_help command functionality
+#[test]
+fn test_get_foundry_help_command() -> Result<()> {
+    use foundry_mcp::cli::commands::get_foundry_help;
+
+    // Test overview (default topic)
+    let result = tokio_test::block_on(get_foundry_help::execute(GetFoundryHelpArgs {
+        topic: None,
+    }))?;
+
+    assert_eq!(result.data.topic, "overview");
+    assert_eq!(
+        result.data.content.title,
+        "Foundry - Project Management for AI Coding Assistants"
+    );
+    assert!(!result.data.content.examples.is_empty());
+    assert!(!result.data.content.workflow_guide.is_empty());
+
+    // Test specific topics
+    let topics = vec![
+        "workflows",
+        "content-examples",
+        "project-structure",
+        "parameter-guidance",
+    ];
+
+    for topic in topics {
+        let result = tokio_test::block_on(get_foundry_help::execute(GetFoundryHelpArgs {
+            topic: Some(topic.to_string()),
+        }))?;
+
+        assert_eq!(result.data.topic, topic);
+        assert!(!result.data.content.title.is_empty());
+        assert!(!result.data.content.description.is_empty());
+        assert!(!result.data.content.examples.is_empty());
+        assert!(!result.data.content.workflow_guide.is_empty());
+    }
+
+    Ok(())
+}
