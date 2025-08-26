@@ -13,13 +13,14 @@ Building a Rust CLI tool that manages project structure in `~/.foundry/` to help
 **CLI Polish and User Experience** (Completed in commit `28b81d3`)
 **Error Handling Architecture** (Completed in commit `33e5b4e`)
 **Phase 13: MCP Tool Definition Architecture** - 8/8 tools converted ✅ COMPLETE
+**Serve Command Improvement** - Clean `foundry serve` command replaces magic mode detection ✅ COMPLETE
 
 The core LLM workflow is complete: **create → list → load → create spec → validate → get help → work**
 
 **MCP Server Status**: Functional MVP with rust-mcp-sdk 0.6.0 integration ✅
 **Procedural Macro Status**: Fully functional `#[mcp_tool]` derive macro with code quality improvements ✅
 
-- ✅ **Binary mode detection** - Automatically switches between CLI and MCP server modes
+- ✅ **Serve command** - Clean `foundry serve` command to start MCP server
 - ✅ **Complete module structure** - `src/mcp/` with server.rs, tools.rs, handlers.rs, mod.rs (573 lines total)
 - ✅ **All 8 CLI commands exposed** as MCP tools with rich parameter schemas
 - ✅ **Working stdio transport** and request routing to existing CLI functions
@@ -258,12 +259,12 @@ src/
 - [x] Implement stdio transport with proper error handling
 - [x] Server lifecycle management with graceful error conversion
 
-**Binary Mode Detection in `src/main.rs`:**
+**Serve Command Implementation in `src/main.rs`:**
 
-- [x] Detect CLI vs MCP server mode (no args = MCP server, args = CLI)
-- [x] Route to appropriate execution path (CLI commands vs MCP server)
+- [x] Add `serve` subcommand to start MCP server explicitly 
+- [x] Remove automatic mode detection (no more magic behavior)
 - [x] Maintain existing CLI functionality unchanged
-- [x] Add `--mcp` explicit flag for MCP server mode
+- [x] Clean, predictable `foundry serve` command interface
 
 **Key Implementation Details:**
 
@@ -342,13 +343,13 @@ src/
 **CLI Compatibility Verification:**
 
 - [x] **Regression testing** - All existing CLI functionality preserved and working
-- [x] **Binary mode switching** - Tested CLI args vs no-args vs --mcp flag detection
+- [x] **Serve command testing** - Tested `foundry serve` and `foundry serve --verbose`
 - [x] **Parameter consistency** - CLI and MCP use identical argument structures
 
 **Runtime Verification:**
 
-- ✅ CLI mode: `./target/debug/foundry-mcp --help` shows all 8 commands
-- ✅ MCP mode: `./target/debug/foundry-mcp` starts server with proper logging
+- ✅ CLI mode: `./target/debug/foundry-mcp --help` shows all 9 commands (including serve)
+- ✅ MCP mode: `./target/debug/foundry-mcp serve` starts server with proper logging
 - ✅ Timeout test confirms server is listening and responsive
 
 ### Phase 11: MCP Documentation and Deployment ✅
@@ -365,7 +366,7 @@ src/
 **Production Readiness:**
 
 - [x] **Binary optimization** - Single binary supporting both CLI and MCP modes
-- [x] **Mode detection** - Automatic CLI vs MCP server mode switching
+- [x] **Serve command** - Clean `foundry serve` command for MCP server startup
 - [x] **Error handling** - Functional error conversion (with improvement plan)
 - [x] **Logging** - Basic tracing for server startup and request handling
 
@@ -432,7 +433,7 @@ async fn handle_create_project(params: Value) -> Result<Value> {
 - [x] **8 MCP tools** working identically to CLI commands
 - [x] **Identical JSON responses** between CLI and MCP interfaces
 - [x] **Complete LLM workflow** supported: create → list → load → create spec → validate → get help
-- [x] **Binary mode switching** between CLI and MCP server modes
+- [x] **Explicit serve command** - `foundry serve` starts MCP server cleanly
 
 **Quality Requirements:**
 
@@ -451,8 +452,8 @@ async fn handle_create_project(params: Value) -> Result<Value> {
 
 - Modified: `Cargo.toml` - Added rust-mcp-transport dependency and workspace setup
 - Modified: `src/lib.rs` - Added mcp module export and McpTool macro re-export
-- Modified: `src/main.rs` - Added binary mode detection logic
-- Modified: `src/cli/args.rs` - Added from_mcp_params methods and McpTool derives
+- Modified: `src/main.rs` - Added serve subcommand and removed automatic mode detection
+- Modified: `src/cli/args.rs` - Added from_mcp_params methods, McpTool derives, and ServeArgs struct
 - New: `src/mcp/mod.rs` - MCP module structure (16 lines)
 - New: `src/mcp/server.rs` - MCP server startup and configuration (69 lines)
 - New: `src/mcp/tools.rs` - All 8 MCP tool definitions (294 lines)
@@ -687,6 +688,36 @@ impl McpToolDefinition for CreateProjectArgs {
 - ✅ **Mutex poisoning resolved** - Updated unit tests to handle poisoned mutex gracefully using `unwrap_or_else(|poisoned| poisoned.into_inner())`
 - ✅ **Timestamp ordering fixed** - Increased test delay from 100ms to 1100ms to ensure different second timestamps for spec ordering tests
 - ✅ **All test failures resolved** - No more `PoisonError` or assertion failures in spec tests
+
+## Serve Command Improvement ✅ COMPLETE
+
+**Status**: Completed - Simplified MCP server startup to use standard `foundry serve` command.
+
+**Previous Issue**: Three different ways to start MCP server were confusing and non-standard:
+- `cargo run` (no arguments)
+- `cargo run -- --mcp` 
+- `cargo run -- mcp`
+
+**✅ Completed Changes:**
+
+1. **Added ServeArgs struct** - New `ServeArgs` with optional `--verbose` flag in `src/cli/args.rs`
+2. **Added Serve subcommand** - Clean `foundry serve` command in Commands enum 
+3. **Removed automatic mode detection** - Eliminated magic behavior based on argument count
+4. **Standard CLI pattern** - All functionality now accessed through explicit subcommands
+
+**Result:**
+- **One clear way**: `foundry serve` (or `foundry serve --verbose`) starts MCP server
+- **Standard CLI conventions**: Follows typical patterns where server commands use `serve` subcommand
+- **No magic behavior**: Predictable, explicit command interface
+- **Backward compatibility intentionally broken**: Old automatic detection removed for clarity
+
+**Testing Verified:**
+- ✅ `foundry serve` starts MCP server correctly
+- ✅ `foundry serve --verbose` enables verbose logging  
+- ✅ `foundry --help` shows serve command in list
+- ✅ Old methods (`cargo run`, `--mcp` flag) properly removed
+- ✅ All 59 tests still pass with zero regressions
+- ✅ Clippy warnings resolved in procedural macro crate
 
 ### Phase 14: Transport and Runtime Architecture
 

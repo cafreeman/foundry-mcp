@@ -219,24 +219,20 @@ fn parse_field_attributes(attrs: &[Attribute]) -> Result<FieldInfo, String> {
     let mut info = FieldInfo::default();
 
     for attr in attrs {
-        if attr.path().is_ident("mcp") {
-            match &attr.meta {
-                Meta::List(meta_list) => {
-                    let tokens_str = meta_list.tokens.to_string();
+        if attr.path().is_ident("mcp")
+            && let Meta::List(meta_list) = &attr.meta {
+                let tokens_str = meta_list.tokens.to_string();
 
-                    // Extract description using improved helper
-                    if let Some(description) = extract_string_value(&tokens_str, "description") {
-                        info.description = Some(description);
-                    }
-
-                    // Extract min_length
-                    if let Some(min_length) = extract_numeric_value(&tokens_str, "min_length") {
-                        info.min_length = Some(min_length);
-                    }
+                // Extract description using improved helper
+                if let Some(description) = extract_string_value(&tokens_str, "description") {
+                    info.description = Some(description);
                 }
-                _ => {}
+
+                // Extract min_length
+                if let Some(min_length) = extract_numeric_value(&tokens_str, "min_length") {
+                    info.min_length = Some(min_length);
+                }
             }
-        }
     }
 
     Ok(info)
@@ -263,11 +259,10 @@ fn extract_numeric_value(input: &str, key: &str) -> Option<u32> {
 
 /// Check if a type is Option<T>
 fn is_option_type(ty: &syn::Type) -> bool {
-    if let syn::Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
+    if let syn::Type::Path(type_path) = ty
+        && let Some(segment) = type_path.path.segments.last() {
             return segment.ident == "Option";
         }
-    }
     false
 }
 

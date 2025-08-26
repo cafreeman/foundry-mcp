@@ -86,6 +86,12 @@ enum Commands {
     /// Check content quality before creating projects/specs
     /// Provides improvement suggestions and next steps
     ValidateContent(cli::args::ValidateContentArgs),
+
+    /// Start the MCP server
+    ///
+    /// Runs Foundry as an MCP (Model Context Protocol) server for integration
+    /// with AI development environments like Claude Desktop or VS Code
+    Serve(cli::args::ServeArgs),
 }
 
 #[tokio::main]
@@ -93,31 +99,7 @@ async fn main() -> Result<()> {
     // Initialize tracing
     tracing_subscriber::fmt::init();
 
-    // Check if we should run in MCP server mode vs CLI mode
-    // MCP server mode: no CLI arguments provided (or explicit --mcp flag)
-    // CLI mode: CLI subcommands provided
-    let cli_args: Vec<String> = env::args().collect();
-
-    // If only the binary name is provided (no arguments), start MCP server
-    if cli_args.len() == 1 {
-        tracing::info!("No CLI arguments provided, starting in MCP server mode");
-        return mcp::FoundryMcpServer::start().await.map_err(|e| {
-            eprintln!("MCP server error: {}", e);
-            std::process::exit(1);
-        });
-    }
-
-    // Check for explicit MCP server flag
-    if cli_args.len() == 2 && (cli_args[1] == "--mcp" || cli_args[1] == "mcp") {
-        tracing::info!("Explicit MCP mode requested, starting MCP server");
-        return mcp::FoundryMcpServer::start().await.map_err(|e| {
-            eprintln!("MCP server error: {}", e);
-            std::process::exit(1);
-        });
-    }
-
-    // Otherwise, parse CLI arguments and run in CLI mode
-    tracing::debug!("CLI arguments provided, running in CLI mode");
+    // Parse CLI arguments and run in CLI mode
     let args = Args::parse();
 
     let result: Result<Value> = match args.command {
@@ -145,6 +127,17 @@ async fn main() -> Result<()> {
         Commands::ValidateContent(args) => cli::commands::validate_content::execute(args)
             .await
             .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+        Commands::Serve(args) => {
+            if args.verbose {
+                tracing::info!("Starting MCP server in verbose mode");
+            } else {
+                tracing::info!("Starting MCP server");
+            }
+            return mcp::FoundryMcpServer::start().await.map_err(|e| {
+                eprintln!("MCP server error: {}", e);
+                std::process::exit(1);
+            });
+        }
     };
 
     match result {

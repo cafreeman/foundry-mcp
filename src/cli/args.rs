@@ -265,6 +265,14 @@ pub struct ValidateContentArgs {
     pub content_type: String,
 }
 
+/// Arguments for serve command
+#[derive(Args, Debug)]
+pub struct ServeArgs {
+    /// Enable verbose logging
+    #[arg(long, short)]
+    pub verbose: bool,
+}
+
 // MCP parameter conversion implementations
 // All structs now use auto-generated McpTool implementation via derive macro
 // Except ListProjectsArgs which is a unit struct and needs manual implementation
