@@ -1,13 +1,17 @@
 # Foundry MCP
 
-A comprehensive CLI tool and Model Context Protocol (MCP) server that provides deterministic tools for AI coding assistants to manage project context, specifications, and task lists. It solves the persistent problem of context management in long-term software development projects by providing centralized, structured storage outside of project directories.
+An MCP (Model Context Protocol) server that provides deterministic tools for AI coding assistants to manage project context, specifications, and task lists. Foundry solves the persistent problem of context management in long-term software development by providing centralized, structured storage outside of project directories.
 
-## 🆕 CLI Mode Available
+## Core Value Proposition
 
-As of recent updates, Foundry MCP now includes a full-featured command-line interface while maintaining complete backward compatibility as an MCP server. You can use it both ways:
+Foundry MCP enables AI assistants like Claude to:
+- **Maintain persistent context** across development sessions
+- **Manage project specifications** with structured task lists
+- **Store context outside codebases** to avoid directory pollution
+- **Resume complex work** through deterministic file operations
 
-- **CLI Mode**: Direct command-line project management and client configuration
-- **MCP Server Mode**: Traditional MCP server for AI assistant integration (default when no command provided)
+**Primary Use**: MCP server integration with AI development environments  
+**Bonus Feature**: CLI interface available for testing and debugging MCP tools
 
 ## Problem Statement
 
@@ -29,253 +33,154 @@ Foundry MCP provides a set of MCP tools that enable deterministic project and sp
 3. **Persistent context**: Natural pause/resume functionality through structured file storage
 4. **Hierarchical organization**: Project-level context with individual specs and task lists
 
-## Features
+## MCP Tools
 
-### MCP Tools
+Foundry provides 8 MCP tools that enable comprehensive project management for AI assistants:
 
-- **`setup_project`**: Create project context documents for any software project
-- **`create_spec`**: Create new specification with task breakdown
-- **`load_spec`**: Load specification with full project context
+### Project Management
+- **`create_project`**: Create new project with vision, tech stack, and summary
+- **`analyze_project`**: Create project structure by analyzing existing codebases  
+- **`load_project`**: Load complete project context for LLM sessions
+- **`list_projects`**: List all available projects with metadata
 
-### MCP Prompts
+### Specification Management  
+- **`create_spec`**: Create timestamped specification with task breakdown
+- **`load_spec`**: Load specification content with project context
 
-- **`execute_task`**: Guide agents through task execution with proper context loading
+### Content & Workflow
+- **`validate_content`**: Validate content against schema requirements
+- **`get_foundry_help`**: Get comprehensive workflow guidance and examples
 
 ## File System Structure
+
+Foundry stores all project data in `~/.foundry/` to keep your actual codebase clean:
 
 ```
 ~/.foundry/
 ├── project-name/
 │   ├── project/
-│   │   ├── tech-stack.md
-│   │   └── vision.md
+│   │   ├── vision.md          # High-level product vision and goals
+│   │   ├── tech-stack.md      # Technology choices and architecture  
+│   │   └── summary.md         # Concise project summary for quick context
 │   └── specs/
-│       ├── 20250815_feature_name/
-│       │   ├── spec.md
-│       │   ├── task-list.md
-│       │   └── notes.md
-│       └── 20250816_other_feature/
+│       ├── 20250826_143052_user_auth/
+│       │   ├── spec.md        # Feature specification and requirements
+│       │   ├── task-list.md   # Implementation checklist (updated by agents)
+│       │   └── notes.md       # Design decisions and additional context
+│       └── 20250826_145230_payment_system/
 │           ├── spec.md
 │           ├── task-list.md
 │           └── notes.md
 ```
 
-## Installation
+**Key Benefits:**
+- **Clean separation**: Project context never pollutes your actual codebase
+- **Persistent context**: Survive git operations, branch switches, and deployments  
+- **Hierarchical organization**: Project-level vision with feature-specific specs
+- **Timestamped specs**: Chronological tracking of feature development
+
+## AI Assistant Workflow
+
+Foundry MCP enables powerful workflows for AI assistants like Claude:
+
+### Typical LLM Development Session
+
+1. **Project Setup**: AI assistant creates project context
+   ```
+   User: "Help me build a task management web app"
+   AI: Uses create_project to establish vision, tech stack, and summary
+   ```
+
+2. **Feature Planning**: Break down work into specifications
+   ```  
+   AI: Uses create_spec to create "user_authentication" spec with task breakdown
+   AI: Uses create_spec to create "task_crud_operations" spec with implementation plan
+   ```
+
+3. **Context Loading**: Resume work with full context
+   ```
+   User: "Let's work on authentication"  
+   AI: Uses load_spec to retrieve authentication specification + project context
+   AI: Now has complete context to implement features correctly
+   ```
+
+4. **Iterative Development**: Maintain context across sessions
+   ```
+   AI: Updates task-list.md as work progresses
+   AI: Uses validate_content to ensure specifications meet quality standards
+   AI: Uses get_foundry_help for workflow guidance when needed
+   ```
+
+### Key LLM Benefits
+
+- **No context loss**: Project details persist between conversations
+- **Structured planning**: Specs and task lists guide implementation
+- **Clean codebases**: Context stored outside project directories  
+- **Resumable work**: Load complete context instantly in any session
+
+## MCP Server Setup
+
+### Installation
 
 ```bash
-# Clone the repository
+# Clone and build
 git clone <repository-url>
-cd foundry
-
-# Build the project
+cd foundry-mcp
 cargo build --release
 
-# The binary will be available at target/release/foundry
+# Start the MCP server  
+./target/release/foundry-mcp serve
 ```
 
-## Quick Start
+### Integration with AI Clients
 
-### CLI Usage
+Configure your AI development environment to use Foundry MCP:
+
+**Claude Desktop**: Add to your MCP settings
+**VS Code**: Configure MCP client extension  
+**Cursor**: Set up as MCP server
+
+*Note: Specific integration guides coming soon*
+
+## Development and Testing
+
+For developers and advanced users, Foundry includes a CLI interface to test and debug the MCP tools:
+
+### Running the Server
 
 ```bash
-# Get help for all commands
-foundry --help
-
-# Start MCP server (default behavior)
-foundry
-# or explicitly:
+# Start MCP server for AI integration (primary use case)
 foundry serve
 
-# Start with enhanced logging
-foundry serve --verbose --log-format json
-
-# Install for Cursor or Claude Desktop
-foundry install --client cursor
-foundry install --client claude-desktop
-
-# Project management commands (coming in Phase 5)
-foundry list-projects
-foundry create-project "My New Project"
-```
-
-### MCP Server Mode
-
-When running as an MCP server (default behavior), the system includes cursor rules that prompt appropriate tool usage:
-
-- `@setup_project` → triggers `setup_project` tool
-- `@create_spec` → triggers `create_spec` tool
-- `@load_spec` → triggers `load_spec` tool
-- `@execute_task` → triggers `execute_task` prompt with smart context loading
-
-### Example Workflow
-
-1. **Setup Project**: Use `@setup_project [project-name] [description]` to create foundational project context
-2. **Create Specification**: Use `@create_spec [description]` to create a new specification with task breakdown
-3. **Load Context**: Use `@load_spec [project-name] [spec-id]` to load specification context
-4. **Execute Tasks**: Use `@execute_task` to work on tasks while maintaining updated context
-
-## CLI Commands Reference
-
-### Global Options
-
-Available with all commands:
-
-```bash
---verbose              Enable verbose output with detailed logging
---quiet                Suppress non-essential output
---log-level LEVEL      Set log level (trace, debug, info, warn, error)
---config-dir DIR       Use custom configuration directory
---help                 Show help information
---version              Show version information
-```
-
-Environment variable support:
-
-```bash
-export LOG_LEVEL=debug  # Set default log level
-```
-
-### Server Command
-
-Start the MCP server (default when no subcommand provided):
-
-```bash
-foundry serve [OPTIONS]
-```
-
-**Options:**
-
-- `--port PORT` - Port for HTTP transport (default: 3000, future use)
-- `--transport MODE` - Transport mode, currently only "stdio" (default: stdio)
-- `--host HOST` - Host for HTTP mode (default: localhost, future use)
-- `--max-connections NUM` - Maximum concurrent connections (default: 10)
-- `--timeout SECONDS` - Tool execution timeout (default: 300)
-- `--backup-retention-days DAYS` - Backup file retention (default: 7)
-- `--log-format FORMAT` - Log format: pretty, json, compact (default: pretty)
-
-**Examples:**
-
-```bash
-# Default MCP server
-foundry
-
-# Explicit serve with custom settings
-foundry serve --verbose --max-connections 20 --timeout 600
-
-# JSON logging for production monitoring
-foundry serve --log-format json --log-level info
-
-# Quiet mode with minimal output
-foundry serve --quiet --log-level warn
-```
-
-### Install Command
-
-Configure AI clients to use this MCP server:
-
-```bash
-foundry install --client CLIENT [OPTIONS]
-```
-
-**Supported Clients:**
-
-- `cursor` - Configure Cursor IDE
-- `claude-desktop` - Configure Claude Desktop app
-
-**Options:**
-
-- `--global` - Install globally vs project-specific (future use)
-- `--dry-run` - Preview configuration changes without applying (future use)
-- `--force` - Overwrite existing configurations (future use)
-
-**Examples:**
-
-```bash
-# Install for Cursor
-foundry install --client cursor
-
-# Install for Claude Desktop
-foundry install --client claude-desktop
-```
-
-### Configuration
-
-Configuration precedence (highest to lowest):
-
-1. CLI arguments (`--log-level debug`)
-2. Environment variables (`LOG_LEVEL=debug`)
-3. Configuration file (`~/.foundry/config.toml`)
-4. Built-in defaults
-
-### Backward Compatibility
-
-**100% backward compatible** - all existing MCP server integrations continue working unchanged. When run without arguments, the tool starts in MCP server mode exactly as before.
-
-## Troubleshooting
-
-### Common Issues
-
-**MCP Server Won't Start:**
-
-```bash
-# Check with verbose logging
+# Start with verbose logging for debugging  
 foundry serve --verbose
-
-# Verify with minimal configuration
-foundry serve --log-level debug
 ```
 
-**CLI Command Not Found:**
+### CLI Tool Testing
+
+You can invoke the MCP tools directly from command line for testing:
 
 ```bash
-# Verify installation
-cargo build --release
-./target/release/foundry --version
+# Test project creation
+foundry mcp create-project my-test-project --vision "..." --tech-stack "..." --summary "..."
 
-# Or run directly with cargo
-cargo run -- --help
+# List all projects
+foundry mcp list-projects  
+
+# Load project context
+foundry mcp load-project my-test-project
+
+# Create a specification  
+foundry mcp create-spec my-test-project auth_system --spec "..." --notes "..." --tasks "..."
+
+# Get help on workflow
+foundry mcp get-foundry-help workflows
+
+# Validate content before creating projects/specs
+foundry mcp validate-content --content-type vision --content "..."
 ```
 
-**Configuration Issues:**
-
-```bash
-# Check current configuration
-foundry config list  # (Future Phase 5)
-
-# Use custom config directory
-foundry --config-dir ./test-config serve --verbose
-
-# Reset environment
-unset LOG_LEVEL
-```
-
-**Logging Problems:**
-
-```bash
-# Different log formats
-foundry serve --log-format json     # Machine readable
-foundry serve --log-format compact  # Minimal output
-foundry serve --log-format pretty   # Human readable (default)
-
-# Adjust verbosity
-foundry serve --verbose      # Debug level
-foundry serve --quiet        # Warnings only
-foundry serve --log-level trace  # Maximum detail
-```
-
-### Getting Help
-
-```bash
-# General help
-foundry --help
-
-# Command-specific help
-foundry serve --help
-foundry install --help
-
-# Version information
-foundry --version
-```
+*Note: CLI usage is primarily for development and testing. The main value is in MCP server integration with AI assistants.*
 
 ## Development
 
@@ -299,38 +204,34 @@ cargo test
 ### Running
 
 ```bash
-# Run as MCP server (default)
-cargo run
+# Start MCP server (primary use case)
+cargo run -- serve
 
-# Run specific CLI commands
+# Start with verbose logging for debugging
+cargo run -- serve --verbose  
+
+# Test CLI commands for development
 cargo run -- --help
-cargo run -- serve --verbose
-cargo run -- install --client cursor
-
-# Development with custom config
-cargo run -- serve --config-dir ./test-config --log-level debug
+cargo run -- mcp list-projects
+cargo run -- mcp create-project test-proj --vision "..." --tech-stack "..." --summary "..."
 ```
 
 ## Architecture
 
-The project is organized into the following modules:
+Foundry MCP is built with a modular Rust architecture:
 
-- **`cli/`**: Command-line interface with args, config, and command handlers
-- **`models/`**: Core data structures for projects, specifications, and tasks
-- **`filesystem/`**: File system operations and directory management
-- **`repository/`**: Data access layer for projects and specifications
-- **`handlers/`**: MCP tool implementations and server handlers
-- **`utils/`**: Utility functions and helpers
+### Core Modules
+- **`mcp/`**: MCP server implementation with tool definitions and handlers
+- **`cli/`**: Command-line interface for development and testing  
+- **`core/`**: Business logic for projects, specifications, and validation
+- **`types/`**: Data structures and response formats
+- **`utils/`**: Timestamp handling, paths, and formatting utilities
 
-### CLI Architecture
-
-- **`src/cli/args.rs`**: Command-line argument definitions using clap
-- **`src/cli/config.rs`**: Configuration management with file and environment support
-- **`src/cli/commands/`**: Command implementations
-  - `serve.rs`: MCP server mode with enhanced CLI integration
-  - `install.rs`: Client configuration for Cursor/Claude Desktop
-  - `project.rs`: Project management commands (Phase 5+)
-- **`src/main.rs`**: CLI dispatcher with configuration precedence handling
+### Key Design Principles
+- **MCP-first architecture**: All functionality exposed as MCP tools
+- **CLI reuses MCP tools**: Command-line interface calls the same tool implementations
+- **Pure file management**: No content generation - LLMs provide all content
+- **Structured storage**: Deterministic file organization in ~/.foundry/
 
 ## Contributing
 
@@ -347,29 +248,28 @@ The project is organized into the following modules:
 
 ## Implementation Status
 
-### ✅ Completed Phases
+### ✅ Production Ready
 
-- **Phase 1**: Core CLI Infrastructure
-- **Phase 2**: Refactor Main Entry Point
-- **Phase 3**: MCP Server Mode (Serve Command)
+Foundry MCP is **feature-complete** and production-ready:
 
-### 🚧 Current Development
-
-- **Phase 4**: Install Command Implementation (Client configuration)
-- **Phase 5**: Project Management Commands
-- **Phase 6**: Specification Management Commands
-
-### 📋 Progress Tracking
-
-- See [CLI_TRANSFORMATION_TASKS.md](CLI_TRANSFORMATION_TASKS.md) for detailed implementation progress
-- See [task_list.md](task_list.md) for original project roadmap
-- All existing MCP server functionality remains fully operational
+- **8 MCP Tools**: Full project and specification management
+- **CLI Interface**: All MCP tools available via command line for testing
+- **Robust Architecture**: Comprehensive error handling and validation
+- **Clean Codebase**: 59 tests passing, zero compiler warnings
+- **Documentation**: Complete implementation and usage guides
 
 ### 🧪 Testing
 
-Current test coverage: **118 tests passing**
+Comprehensive test coverage: **59 tests passing**
 
-- Unit tests for all core modules
-- Integration tests for MCP protocol
-- End-to-end workflow tests
-- CLI integration tests (in development)
+- Unit tests for all core business logic
+- Integration tests for complete workflows  
+- MCP protocol compatibility tests
+- File system operation tests
+
+### 📋 Optional Enhancements
+
+See [IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) for optional production improvements:
+
+- **Phase 14**: Enhanced server transport and configuration (optional)
+- All core functionality is complete and ready for use

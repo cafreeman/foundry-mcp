@@ -15,22 +15,20 @@ use foundry_mcp::{cli, mcp};
 #[command(
     long_about = "Foundry helps LLMs maintain context about software projects through structured specifications.
 
-The core workflow is: create → list → load → create spec → validate → get help → work
+PRIMARY USE: MCP server for AI assistant integration
+SECONDARY USE: CLI interface for testing MCP tools
 
 Examples:
-  foundry create-project my-app --vision '...' --tech-stack '...' --summary '...'
-  foundry load-project my-app                    # Load complete project context
-  foundry create-spec my-app user-auth --spec '...' --notes '...' --tasks '...'
-  foundry list-projects                          # Discover available projects
-  foundry get-foundry-help workflows             # Get detailed workflow guidance
+  foundry serve                                   # Start MCP server (primary use)
+  foundry mcp create-project my-app --vision '...' --tech-stack '...' --summary '...'
+  foundry mcp load-project my-app                 # Load complete project context
+  foundry mcp create-spec my-app user-auth --spec '...' --notes '...' --tasks '...'
+  foundry mcp list-projects                       # Discover available projects
+  foundry mcp get-foundry-help workflows          # Get detailed workflow guidance
 
-Common Usage Patterns:
-  • New Project: create-project → create-spec → work
-  • Existing Code: analyze-project → create-spec → work
-  • Resume Work: list-projects → load-project → load-spec → work
-  • Content Check: validate-content before creating projects/specs
+The core LLM workflow is: create → list → load → create spec → validate → get help → work
 
-For more help on any command, use: foundry <COMMAND> --help"
+For more help: foundry <COMMAND> --help or foundry mcp <TOOL> --help"
 )]
 struct Args {
     #[command(subcommand)]
@@ -39,6 +37,24 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Start the MCP server
+    ///
+    /// Runs Foundry as an MCP (Model Context Protocol) server for integration
+    /// with AI development environments like Claude Desktop or VS Code
+    Serve(cli::args::ServeArgs),
+
+    /// Test MCP tools via command line interface
+    ///
+    /// Execute the same MCP tools that AI assistants use, directly from CLI.
+    /// Useful for testing, debugging, and understanding MCP tool behavior.
+    Mcp {
+        #[command(subcommand)]
+        command: McpCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum McpCommands {
     /// Create a new project with vision, tech stack, and summary
     ///
     /// Creates ~/.foundry/PROJECT_NAME/ with project/vision.md, tech-stack.md, and summary.md
@@ -86,12 +102,6 @@ enum Commands {
     /// Check content quality before creating projects/specs
     /// Provides improvement suggestions and next steps
     ValidateContent(cli::args::ValidateContentArgs),
-
-    /// Start the MCP server
-    ///
-    /// Runs Foundry as an MCP (Model Context Protocol) server for integration
-    /// with AI development environments like Claude Desktop or VS Code
-    Serve(cli::args::ServeArgs),
 }
 
 #[tokio::main]
@@ -103,30 +113,6 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     let result: Result<Value> = match args.command {
-        Commands::CreateProject(args) => cli::commands::create_project::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-        Commands::AnalyzeProject(args) => cli::commands::analyze_project::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-        Commands::CreateSpec(args) => cli::commands::create_spec::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-        Commands::LoadProject(args) => cli::commands::load_project::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-        Commands::LoadSpec(args) => cli::commands::load_spec::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-        Commands::ListProjects(args) => cli::commands::list_projects::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-        Commands::GetFoundryHelp(args) => cli::commands::get_foundry_help::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-        Commands::ValidateContent(args) => cli::commands::validate_content::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         Commands::Serve(args) => {
             if args.verbose {
                 tracing::info!("Starting MCP server in verbose mode");
@@ -137,6 +123,32 @@ async fn main() -> Result<()> {
                 eprintln!("MCP server error: {}", e);
                 std::process::exit(1);
             });
+        }
+        Commands::Mcp { command } => match command {
+            McpCommands::CreateProject(args) => cli::commands::create_project::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::AnalyzeProject(args) => cli::commands::analyze_project::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::CreateSpec(args) => cli::commands::create_spec::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::LoadProject(args) => cli::commands::load_project::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::LoadSpec(args) => cli::commands::load_spec::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::ListProjects(args) => cli::commands::list_projects::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::GetFoundryHelp(args) => cli::commands::get_foundry_help::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::ValidateContent(args) => cli::commands::validate_content::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         }
     };
 
