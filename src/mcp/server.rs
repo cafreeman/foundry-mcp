@@ -14,7 +14,7 @@ use rust_mcp_sdk::{
 };
 use rust_mcp_transport::{StdioTransport, TransportOptions};
 
-use crate::mcp::handlers::FoundryServerHandler;
+use crate::mcp::{error::FoundryMcpError, handlers::FoundryServerHandler};
 
 /// MCP Server configuration and startup
 pub struct FoundryMcpServer;
@@ -24,7 +24,7 @@ impl FoundryMcpServer {
     ///
     /// This is the main entry point for MCP server mode, providing all 8 foundry
     /// commands as MCP tools with identical functionality to the CLI.
-    pub async fn start() -> Result<()> {
+    pub async fn start() -> Result<(), FoundryMcpError> {
         tracing::info!("Starting Foundry MCP server");
 
         // Create server details following PRD specifications
@@ -53,16 +53,16 @@ impl FoundryMcpServer {
 
         // Create stdio transport
         let transport_options = TransportOptions::default();
-        let transport = StdioTransport::new(transport_options)
-            .map_err(|e| anyhow::anyhow!("Failed to create transport: {:?}", e))?;
+        let transport = StdioTransport::new(transport_options).map_err(|e| {
+            FoundryMcpError::transport_error(format!("Failed to create stdio transport: {}", e))
+        })?;
 
         // Create and start the server
         tracing::info!("Foundry MCP server started, listening on stdio");
         let server = create_server(server_details, transport, handler);
-        server
-            .start()
-            .await
-            .map_err(|e| anyhow::anyhow!("MCP server error: {:?}", e))?;
+        server.start().await.map_err(|e| {
+            FoundryMcpError::internal_error(format!("MCP server runtime error: {}", e))
+        })?;
 
         Ok(())
     }

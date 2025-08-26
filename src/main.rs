@@ -101,13 +101,19 @@ async fn main() -> Result<()> {
     // If only the binary name is provided (no arguments), start MCP server
     if cli_args.len() == 1 {
         tracing::info!("No CLI arguments provided, starting in MCP server mode");
-        return mcp::FoundryMcpServer::start().await;
+        return mcp::FoundryMcpServer::start().await.map_err(|e| {
+            eprintln!("MCP server error: {}", e);
+            std::process::exit(1);
+        });
     }
 
     // Check for explicit MCP server flag
     if cli_args.len() == 2 && (cli_args[1] == "--mcp" || cli_args[1] == "mcp") {
         tracing::info!("Explicit MCP mode requested, starting MCP server");
-        return mcp::FoundryMcpServer::start().await;
+        return mcp::FoundryMcpServer::start().await.map_err(|e| {
+            eprintln!("MCP server error: {}", e);
+            std::process::exit(1);
+        });
     }
 
     // Otherwise, parse CLI arguments and run in CLI mode

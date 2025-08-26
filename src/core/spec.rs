@@ -112,19 +112,19 @@ pub fn list_specs(project_name: &str) -> Result<Vec<SpecMetadata>> {
             let spec_name = entry.file_name().to_string_lossy().to_string();
 
             // Use enhanced timestamp parsing
-            if let Some(timestamp_str) = timestamp::parse_spec_timestamp(&spec_name) {
-                if let Some(feature_name) = timestamp::extract_feature_name(&spec_name) {
-                    // Convert timestamp to ISO format for consistent storage
-                    let created_at = timestamp::spec_timestamp_to_iso(&timestamp_str)
-                        .unwrap_or_else(|_| timestamp::iso_timestamp());
+            if let Some(timestamp_str) = timestamp::parse_spec_timestamp(&spec_name)
+                && let Some(feature_name) = timestamp::extract_feature_name(&spec_name)
+            {
+                // Convert timestamp to ISO format for consistent storage
+                let created_at = timestamp::spec_timestamp_to_iso(&timestamp_str)
+                    .unwrap_or_else(|_| timestamp::iso_timestamp());
 
-                    specs.push(SpecMetadata {
-                        name: spec_name.clone(),
-                        created_at,
-                        feature_name,
-                        project_name: project_name.to_string(),
-                    });
-                }
+                specs.push(SpecMetadata {
+                    name: spec_name.clone(),
+                    created_at,
+                    feature_name,
+                    project_name: project_name.to_string(),
+                });
             }
             // Skip invalid spec directories (they'll be ignored but won't cause errors)
         }
@@ -384,25 +384,28 @@ pub fn load_spec(project_name: &str, spec_name: &str) -> Result<Spec> {
     let task_list = filesystem::read_file(spec_path.join("task-list.md"))?;
 
     // Get creation time from spec name timestamp (more reliable than filesystem metadata)
-    let created_at = if let Some(timestamp_str) = timestamp::parse_spec_timestamp(spec_name) {
-        timestamp::spec_timestamp_to_iso(&timestamp_str)
-            .unwrap_or_else(|_| timestamp::iso_timestamp())
-    } else {
-        // Fallback to filesystem metadata if timestamp parsing fails
-        fs::metadata(&spec_path)
-            .and_then(|metadata| metadata.created())
-            .map_err(anyhow::Error::from)
-            .and_then(|time| {
-                time.duration_since(std::time::UNIX_EPOCH)
-                    .map_err(anyhow::Error::from)
-            })
-            .map(|duration| {
-                chrono::DateTime::from_timestamp(duration.as_secs() as i64, 0)
-                    .unwrap_or_else(chrono::Utc::now)
-                    .to_rfc3339()
-            })
-            .unwrap_or_else(|_| timestamp::iso_timestamp())
-    };
+    let created_at = timestamp::parse_spec_timestamp(spec_name).map_or_else(
+        || {
+            // Fallback to filesystem metadata if timestamp parsing fails
+            fs::metadata(&spec_path)
+                .and_then(|metadata| metadata.created())
+                .map_err(anyhow::Error::from)
+                .and_then(|time| {
+                    time.duration_since(std::time::UNIX_EPOCH)
+                        .map_err(anyhow::Error::from)
+                })
+                .map(|duration| {
+                    chrono::DateTime::from_timestamp(duration.as_secs() as i64, 0)
+                        .unwrap_or_else(chrono::Utc::now)
+                        .to_rfc3339()
+                })
+                .unwrap_or_else(|_| timestamp::iso_timestamp())
+        },
+        |timestamp_str| {
+            timestamp::spec_timestamp_to_iso(&timestamp_str)
+                .unwrap_or_else(|_| timestamp::iso_timestamp())
+        },
+    );
 
     Ok(Spec {
         name: spec_name.to_string(),

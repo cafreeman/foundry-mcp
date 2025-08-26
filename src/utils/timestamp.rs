@@ -45,12 +45,13 @@ pub fn validate_timestamp_format(timestamp: &str) -> bool {
 
 /// Parse timestamp from spec name with validation
 pub fn parse_spec_timestamp(spec_name: &str) -> Option<String> {
-    if let Some(underscore_pos) = spec_name.find('_') {
-        if underscore_pos == 8 && spec_name.len() > 15 {
-            let timestamp_part = &spec_name[0..15];
-            if validate_timestamp_format(timestamp_part) {
-                return Some(timestamp_part.to_string());
-            }
+    if let Some(underscore_pos) = spec_name.find('_')
+        && underscore_pos == 8
+        && spec_name.len() > 15
+    {
+        let timestamp_part = &spec_name[0..15];
+        if validate_timestamp_format(timestamp_part) {
+            return Some(timestamp_part.to_string());
         }
     }
     None
@@ -120,10 +121,10 @@ pub fn format_timestamp_for_display(timestamp: &str) -> String {
 
 /// Extract feature name from spec name
 pub fn extract_feature_name(spec_name: &str) -> Option<String> {
-    if let Some(timestamp) = parse_spec_timestamp(spec_name) {
-        if spec_name.len() > timestamp.len() + 1 {
-            return Some(spec_name[timestamp.len() + 1..].to_string());
-        }
+    if let Some(timestamp) = parse_spec_timestamp(spec_name)
+        && spec_name.len() > timestamp.len() + 1
+    {
+        return Some(spec_name[timestamp.len() + 1..].to_string());
     }
     None
 }

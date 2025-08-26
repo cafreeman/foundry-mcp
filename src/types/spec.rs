@@ -35,23 +35,12 @@ pub struct SpecMetadata {
 }
 
 /// Spec filtering criteria for advanced queries
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SpecFilter {
     pub feature_name_contains: Option<String>,
     pub created_after: Option<String>,
     pub created_before: Option<String>,
     pub limit: Option<usize>,
-}
-
-impl Default for SpecFilter {
-    fn default() -> Self {
-        Self {
-            feature_name_contains: None,
-            created_after: None,
-            created_before: None,
-            limit: None,
-        }
-    }
 }
 
 /// Spec file types for content updates

@@ -17,7 +17,7 @@ use rust_mcp_sdk::{
 use serde_json::Value;
 
 use crate::cli;
-use crate::mcp::tools::FoundryTools;
+use crate::mcp::{error::FoundryMcpError, tools::FoundryTools};
 
 /// Main server handler that routes MCP requests to CLI command functions
 pub struct FoundryServerHandler;
@@ -33,112 +33,109 @@ impl FoundryServerHandler {
         &self,
         tool_name: &str,
         params: &Value,
-    ) -> Result<Value, CallToolError> {
+    ) -> Result<Value, FoundryMcpError> {
         match tool_name {
             "create_project" => {
                 let args = cli::args::CreateProjectArgs::from_mcp_params(params).map_err(|e| {
-                    CallToolError::new(std::io::Error::new(std::io::ErrorKind::InvalidInput, e))
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for create_project: {}",
+                        e
+                    ))
                 })?;
 
-                let result = cli::commands::create_project::execute(args)
-                    .await
-                    .map_err(|e| {
-                        CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                    })?;
+                let result = cli::commands::create_project::execute(args).await?;
 
-                serde_json::to_value(result).map_err(|e| CallToolError::new(e))
+                Ok(serde_json::to_value(result)?)
             }
             "analyze_project" => {
                 let args = cli::args::AnalyzeProjectArgs::from_mcp_params(params).map_err(|e| {
-                    CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for analyze_project: {}",
+                        e
+                    ))
                 })?;
 
-                let result = cli::commands::analyze_project::execute(args)
-                    .await
-                    .map_err(|e| {
-                        CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                    })?;
+                let result = cli::commands::analyze_project::execute(args).await?;
 
-                serde_json::to_value(result).map_err(|e| CallToolError::new(e))
+                Ok(serde_json::to_value(result)?)
             }
             "load_project" => {
                 let args = cli::args::LoadProjectArgs::from_mcp_params(params).map_err(|e| {
-                    CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for load_project: {}",
+                        e
+                    ))
                 })?;
 
-                let result = cli::commands::load_project::execute(args)
-                    .await
-                    .map_err(|e| {
-                        CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                    })?;
+                let result = cli::commands::load_project::execute(args).await?;
 
-                serde_json::to_value(result).map_err(|e| CallToolError::new(e))
+                Ok(serde_json::to_value(result)?)
             }
             "create_spec" => {
                 let args = cli::args::CreateSpecArgs::from_mcp_params(params).map_err(|e| {
-                    CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for create_spec: {}",
+                        e
+                    ))
                 })?;
 
-                let result = cli::commands::create_spec::execute(args)
-                    .await
-                    .map_err(|e| {
-                        CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                    })?;
+                let result = cli::commands::create_spec::execute(args).await?;
 
-                serde_json::to_value(result).map_err(|e| CallToolError::new(e))
+                Ok(serde_json::to_value(result)?)
             }
             "load_spec" => {
                 let args = cli::args::LoadSpecArgs::from_mcp_params(params).map_err(|e| {
-                    CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for load_spec: {}",
+                        e
+                    ))
                 })?;
 
-                let result = cli::commands::load_spec::execute(args).await.map_err(|e| {
-                    CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                })?;
+                let result = cli::commands::load_spec::execute(args).await?;
 
-                serde_json::to_value(result).map_err(|e| CallToolError::new(e))
+                Ok(serde_json::to_value(result)?)
             }
             "list_projects" => {
                 let args = cli::args::ListProjectsArgs::from_mcp_params(params).map_err(|e| {
-                    CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for list_projects: {}",
+                        e
+                    ))
                 })?;
 
-                let result = cli::commands::list_projects::execute(args)
-                    .await
-                    .map_err(|e| {
-                        CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                    })?;
+                let result = cli::commands::list_projects::execute(args).await?;
 
-                serde_json::to_value(result).map_err(|e| CallToolError::new(e))
+                Ok(serde_json::to_value(result)?)
             }
             "validate_content" => {
                 let args =
                     cli::args::ValidateContentArgs::from_mcp_params(params).map_err(|e| {
-                        CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                        FoundryMcpError::invalid_params(format!(
+                            "Invalid parameters for validate_content: {}",
+                            e
+                        ))
                     })?;
 
-                let result = cli::commands::validate_content::execute(args)
-                    .await
-                    .map_err(|e| {
-                        CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                    })?;
+                let result = cli::commands::validate_content::execute(args).await?;
 
-                serde_json::to_value(result).map_err(|e| CallToolError::new(e))
+                Ok(serde_json::to_value(result)?)
             }
             "get_foundry_help" => {
                 let args = cli::args::GetFoundryHelpArgs::from_mcp_params(params).map_err(|e| {
-                    CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for get_foundry_help: {}",
+                        e
+                    ))
                 })?;
 
-                let result = cli::commands::get_foundry_help::execute(args)
-                    .await
-                    .map_err(|e| {
-                        CallToolError::new(std::io::Error::new(std::io::ErrorKind::Other, e))
-                    })?;
+                let result = cli::commands::get_foundry_help::execute(args).await?;
 
-                serde_json::to_value(result).map_err(|e| CallToolError::new(e))
+                Ok(serde_json::to_value(result)?)
             }
-            _ => Err(CallToolError::unknown_tool(tool_name.to_string())),
+            _ => Err(FoundryMcpError::invalid_params(format!(
+                "Unknown tool: {}",
+                tool_name
+            ))),
         }
     }
 }
@@ -184,8 +181,7 @@ impl ServerHandler for FoundryServerHandler {
 
         // Convert JSON result to MCP tool result
         // The CLI commands return structured JSON, so we return it as-is
-        let content_text =
-            serde_json::to_string_pretty(&result).map_err(|e| CallToolError::new(e))?;
+        let content_text = serde_json::to_string_pretty(&result).map_err(FoundryMcpError::from)?;
 
         Ok(CallToolResult::text_content(vec![TextContent::from(
             content_text,

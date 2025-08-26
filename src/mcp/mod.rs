@@ -7,6 +7,7 @@
 //! requirement that "MCP tools map directly to CLI commands" with identical
 //! JSON response formats.
 
+pub mod error;
 pub mod handlers;
 pub mod server;
 pub mod tools;

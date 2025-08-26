@@ -14,7 +14,7 @@ pub async fn execute(args: GetFoundryHelpArgs) -> Result<FoundryResponse<GetFoun
         "content-examples" => create_content_examples_help(),
         "project-structure" => create_project_structure_help(),
         "parameter-guidance" => create_parameter_guidance_help(),
-        "overview" | _ => create_overview_help(),
+        _ => create_overview_help(),
     };
 
     let next_steps = vec![

@@ -66,11 +66,7 @@ pub async fn execute(
 
     // Determine validation status with enhanced logic
     let validation_status = if validation_result.is_valid {
-        if validation_result.suggestions.is_empty() {
-            ValidationStatus::Complete
-        } else {
-            ValidationStatus::Complete // Still complete, but with suggestions
-        }
+        ValidationStatus::Complete // Valid content, regardless of suggestions
     } else {
         ValidationStatus::Error
     };
