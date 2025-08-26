@@ -224,14 +224,16 @@ pub struct GetFoundryHelpArgs {
     /// Help topic for detailed guidance
     ///
     /// Available topics:
-    /// - workflows: Step-by-step development workflows
+    /// - workflows: User-driven development patterns (not automated sequences)
+    /// - decision-points: Guidance for choosing appropriate tools based on user intent
     /// - content-examples: Content templates and examples
     /// - project-structure: File organization and structure
     /// - parameter-guidance: Parameter requirements and best practices
+    /// - tool-capabilities: When each tool is appropriate and what user input is required
     ///
     /// If omitted, provides overview and available topics
     #[mcp(
-        description = "Optional: specific help topic (workflows, content-examples, project-structure, parameter-guidance). If omitted, provides general guidance"
+        description = "Optional: specific help topic (workflows, decision-points, content-examples, project-structure, parameter-guidance, tool-capabilities). If omitted, provides general guidance"
     )]
     pub topic: Option<String>,
 }

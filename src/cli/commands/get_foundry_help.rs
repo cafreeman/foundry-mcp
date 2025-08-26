@@ -11,23 +11,26 @@ pub async fn execute(args: GetFoundryHelpArgs) -> Result<FoundryResponse<GetFoun
 
     let content = match topic {
         "workflows" => create_workflows_help(),
+        "decision-points" => create_decision_points_help(),
         "content-examples" => create_content_examples_help(),
         "project-structure" => create_project_structure_help(),
         "parameter-guidance" => create_parameter_guidance_help(),
+        "tool-capabilities" => create_tool_capabilities_help(),
         _ => create_overview_help(),
     };
 
     let next_steps = vec![
-        "Use specific help topics: workflows, content-examples, project-structure, parameter-guidance".to_string(),
-        "Start with 'foundry create_project' or 'foundry analyze_project' to begin".to_string(),
-        "Load existing projects with 'foundry load_project <name>'".to_string(),
+        "Available help topics: workflows, decision-points, content-examples, project-structure, parameter-guidance, tool-capabilities".to_string(),
+        "Choose topics based on what you need guidance for".to_string(),
+        "Use decision-points topic to understand when each tool is appropriate".to_string(),
     ];
 
     let workflow_hints = vec![
-        "Help topics provide LLM-optimized guidance for efficient Foundry usage".to_string(),
+        "Help topics provide user-driven decision support, not automated sequences".to_string(),
         "All commands return JSON for programmatic consumption".to_string(),
         "Content must be provided by LLMs as arguments - Foundry manages structure only"
             .to_string(),
+        "Always wait for user intent before suggesting tools".to_string(),
     ];
 
     Ok(FoundryResponse {
@@ -52,40 +55,47 @@ fn create_overview_help() -> HelpContent {
             "foundry list_projects  # Discover available projects".to_string(),
         ],
         workflow_guide: vec![
-            "Core LLM Workflow: create → list → load → create_spec → work".to_string(),
-            "Use 'foundry get_foundry_help workflows' for detailed guidance".to_string(),
+            "Tools available based on user intent - no fixed sequences".to_string(),
+            "Use 'foundry get_foundry_help decision-points' for guidance on tool selection".to_string(),
             "All content (vision, specs, notes) must be provided by LLMs".to_string(),
             "Foundry creates structured file organization for consistent context".to_string(),
+            "Always wait for user to express intent before suggesting next tools".to_string(),
         ],
     }
 }
 
 fn create_workflows_help() -> HelpContent {
     HelpContent {
-        title: "Foundry Workflows for LLM Development".to_string(),
-        description: "Step-by-step workflows for common LLM development scenarios using Foundry's structured project management.".to_string(),
+        title: "User-Driven Foundry Usage Patterns".to_string(),
+        description: "Guidance for using Foundry tools based on user intent and project context, emphasizing user-driven decisions rather than automated sequences.".to_string(),
         examples: vec![
-            "# New Project Workflow:".to_string(),
-            "1. foundry create_project PROJECT_NAME --vision '...' --tech-stack '...' --summary '...'".to_string(),
-            "2. foundry create_spec PROJECT_NAME FEATURE_NAME --spec '...' --notes '...' --tasks '...'".to_string(),
-            "3. Work on implementation using task-list.md as checklist".to_string(),
+            "# When user expresses intent to start a new project:".to_string(),
+            "→ Ask user to provide vision, tech-stack, and summary content".to_string(),
+            "→ Use: foundry create_project PROJECT_NAME --vision '...' --tech-stack '...' --summary '...'".to_string(),
+            "→ Wait for user to express what they want to work on next".to_string(),
             "".to_string(),
-            "# Existing Codebase Analysis:".to_string(),
-            "1. Use codebase_search/grep_search/read_file to analyze existing code".to_string(),
-            "2. foundry analyze_project PROJECT_NAME --vision '...' --tech-stack '...' --summary '...'".to_string(),
-            "3. foundry create_spec PROJECT_NAME FEATURE --spec '...' --notes '...' --tasks '...'".to_string(),
+            "# When user wants to work with existing codebase:".to_string(),
+            "→ Use analysis tools (codebase_search, grep_search, read_file) to understand code".to_string(),
+            "→ Create project structure based on your analysis findings".to_string(),
+            "→ Use: foundry analyze_project PROJECT_NAME --vision '...' --tech-stack '...' --summary '...'".to_string(),
             "".to_string(),
-            "# Context Loading Workflow:".to_string(),
-            "1. foundry list_projects  # Discover available projects".to_string(),
-            "2. foundry load_project PROJECT_NAME  # Load full context".to_string(),
-            "3. foundry load_spec PROJECT_NAME [SPEC_NAME]  # Load specific spec".to_string(),
+            "# When user mentions a specific feature to implement:".to_string(),
+            "→ Ask user to describe feature requirements and approach".to_string(),
+            "→ Use: foundry create_spec PROJECT_NAME FEATURE_NAME --spec '...' --notes '...' --tasks '...'".to_string(),
+            "→ Let user guide implementation approach".to_string(),
+            "".to_string(),
+            "# When user wants to continue previous work:".to_string(),
+            "→ Use: foundry list_projects to show available options".to_string(),
+            "→ Use: foundry load_project PROJECT_NAME to get project context".to_string(),
+            "→ Ask user what they want to work on specifically".to_string(),
         ],
         workflow_guide: vec![
+            "Always wait for user intent before suggesting tools".to_string(),
+            "Provide options and capabilities, not directive sequences".to_string(),
             "Always provide complete content in arguments - never expect Foundry to generate content".to_string(),
             "Use validate_content to check content quality before creating projects/specs".to_string(),
-            "Specs use timestamp directories (YYYYMMDD_HHMMSS_feature_name) for chronological organization".to_string(),
-            "Project summary should be concise for quick context loading".to_string(),
-            "Task-list.md serves as implementation checklist - update as work progresses".to_string(),
+            "Ask clarifying questions when user intent is unclear".to_string(),
+            "Let users drive the workflow - tools support user goals".to_string(),
         ],
     }
 }
@@ -189,6 +199,98 @@ fn create_parameter_guidance_help() -> HelpContent {
             "Minimum content lengths ensure sufficient detail for LLM context".to_string(),
             "Rich parameter descriptions guide LLM content creation".to_string(),
             "Error messages provide actionable guidance for parameter fixes".to_string(),
+        ],
+    }
+}
+
+fn create_decision_points_help() -> HelpContent {
+    HelpContent {
+        title: "Decision Points and Tool Selection".to_string(),
+        description: "Guidance for choosing the right Foundry tools based on user intent and context. Emphasizes user-driven decisions over automated sequences.".to_string(),
+        examples: vec![
+            "# Decision: User wants to start a project".to_string(),
+            "Questions to ask:".to_string(),
+            "- Do they have existing code to analyze? → analyze_project".to_string(),
+            "- Are they starting from scratch? → create_project".to_string(),
+            "- Do they have vision/tech-stack content ready? → Wait for content".to_string(),
+            "".to_string(),
+            "# Decision: User mentions a feature or functionality".to_string(),
+            "Questions to ask:".to_string(),
+            "- Have they described the feature requirements? → create_spec".to_string(),
+            "- Do they need to think through the requirements first? → Ask for details".to_string(),
+            "- Is there an existing project for this feature? → Check with list_projects".to_string(),
+            "".to_string(),
+            "# Decision: User wants to continue work".to_string(),
+            "Questions to ask:".to_string(),
+            "- Do they know which project? → load_project PROJECT_NAME".to_string(),
+            "- Do they want to see all projects? → list_projects".to_string(),
+            "- Do they want to work on a specific feature? → load_spec".to_string(),
+            "".to_string(),
+            "# Decision: User's intent is unclear".to_string(),
+            "Clarifying questions to ask:".to_string(),
+            "- 'What would you like to work on?'".to_string(),
+            "- 'Are you starting something new or continuing existing work?'".to_string(),
+            "- 'Do you have a specific feature in mind?'".to_string(),
+        ],
+        workflow_guide: vec![
+            "Never assume user intent - always ask clarifying questions".to_string(),
+            "Provide options based on context, not directive commands".to_string(),
+            "Wait for user to provide content before using creation tools".to_string(),
+            "Use conditional language: 'If you want X, then Y tool helps'".to_string(),
+            "Guide decision-making, don't make decisions for the user".to_string(),
+            "Tool selection should always follow user intent, not prescribed workflows".to_string(),
+        ],
+    }
+}
+
+fn create_tool_capabilities_help() -> HelpContent {
+    HelpContent {
+        title: "Tool Capabilities and Appropriate Usage".to_string(),
+        description: "Understanding when each Foundry tool is appropriate and what user input is required for effective usage.".to_string(),
+        examples: vec![
+            "# create_project - When appropriate:".to_string(),
+            "- User wants to start a new project from scratch".to_string(),
+            "- User has provided vision, tech-stack, and summary content".to_string(),
+            "- User input required: Complete content for all three sections".to_string(),
+            "- Don't use without: User-provided content for vision/tech-stack/summary".to_string(),
+            "".to_string(),
+            "# analyze_project - When appropriate:".to_string(),
+            "- User wants to create project structure for existing codebase".to_string(),
+            "- LLM has analyzed codebase using analysis tools".to_string(),
+            "- User input required: LLM-generated analysis-based content".to_string(),
+            "- Don't use without: Thorough codebase analysis first".to_string(),
+            "".to_string(),
+            "# create_spec - When appropriate:".to_string(),
+            "- User has described a specific feature they want to implement".to_string(),
+            "- User has provided requirements or functionality details".to_string(),
+            "- User input required: Feature description, requirements, implementation approach".to_string(),
+            "- Don't use without: User-provided feature requirements and details".to_string(),
+            "".to_string(),
+            "# load_project - When appropriate:".to_string(),
+            "- User wants to continue work on an existing project".to_string(),
+            "- User has specified which project they want to work with".to_string(),
+            "- User input required: Project name".to_string(),
+            "- Don't use without: Clear user intent to work on specific project".to_string(),
+            "".to_string(),
+            "# load_spec - When appropriate:".to_string(),
+            "- User wants to work on a specific feature".to_string(),
+            "- User has mentioned a particular spec or feature name".to_string(),
+            "- User input required: Project name, optionally spec name".to_string(),
+            "- Don't use without: User intent to work on specific feature".to_string(),
+            "".to_string(),
+            "# validate_content - When appropriate:".to_string(),
+            "- User wants to check content quality before creating projects/specs".to_string(),
+            "- LLM wants to verify content meets requirements".to_string(),
+            "- User input required: Content to validate and content type".to_string(),
+            "- Don't use without: Actual content to validate".to_string(),
+        ],
+        workflow_guide: vec![
+            "Every tool requires specific user input - never proceed without it".to_string(),
+            "Tool appropriateness depends on user intent, not prescribed sequences".to_string(),
+            "Wait for user to express clear intent before suggesting tools".to_string(),
+            "Ask clarifying questions when user intent doesn't match tool capabilities".to_string(),
+            "Provide tool options based on what user wants to accomplish".to_string(),
+            "Remember: tools support user goals, they don't drive the workflow".to_string(),
         ],
     }
 }

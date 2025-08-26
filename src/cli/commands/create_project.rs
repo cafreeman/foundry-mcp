@@ -102,16 +102,19 @@ fn build_response(
 
     let next_steps = vec![
         format!("Project '{}' created successfully", created_project.name),
-        "You can now create specifications using: foundry create_spec".to_string(),
-        "View your project with: foundry list_projects".to_string(),
+        "Project structure is ready for development".to_string(),
+        "Available next steps: foundry create_spec (if you have a specific feature), foundry load_project (to see context), or foundry list_projects (to explore other projects)".to_string(),
     ];
 
     let workflow_hints = if !suggestions.is_empty() {
         suggestions.clone()
     } else {
         vec![
-            "Consider creating your first specification to start development".to_string(),
-            "Use 'foundry get_foundry_help workflows' for workflow guidance".to_string(),
+            "Consider what you want to work on next".to_string(),
+            "foundry create_spec: Use when you have a specific feature to implement".to_string(),
+            "foundry load_project: Use to see full project context and available specs".to_string(),
+            "foundry get_foundry_help decision-points: Use to understand tool selection"
+                .to_string(),
         ]
     };
 

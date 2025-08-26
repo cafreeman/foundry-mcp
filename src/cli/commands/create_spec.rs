@@ -107,13 +107,10 @@ fn build_spec_config(args: CreateSpecArgs) -> SpecConfig {
 fn generate_next_steps(project_name: &str, spec_name: &str) -> Vec<String> {
     vec![
         format!("Specification '{}' created successfully", spec_name),
+        "Specification is ready for implementation work".to_string(),
         format!(
-            "Load the spec: foundry load-spec {} {}",
-            project_name, spec_name
-        ),
-        format!(
-            "Continue with project: foundry load-project {}",
-            project_name
+            "Available next steps: foundry load_spec {} {} (to see full spec content), foundry load_project {} (to see project context), or begin implementation",
+            project_name, spec_name, project_name
         ),
     ]
 }
@@ -123,8 +120,9 @@ fn generate_workflow_hints(
     validation_results: &[(&'static str, validation::ValidationResult)],
 ) -> Vec<String> {
     let mut hints = vec![
-        "Specifications are timestamped and stored in project/specs/".to_string(),
-        "Use 'foundry load-spec' to retrieve specification content".to_string(),
+        "Specification created with task-list.md for implementation tracking".to_string(),
+        "foundry load_spec: Use to review full specification content and notes".to_string(),
+        "foundry load_project: Use to see project context before implementation".to_string(),
     ];
 
     // Add validation-specific hints
@@ -140,7 +138,9 @@ fn generate_workflow_hints(
         ));
     }
 
-    hints.push("All specification files are created as markdown for easy editing".to_string());
+    hints.push(
+        "foundry get_foundry_help decision-points: Use to understand tool options".to_string(),
+    );
 
     hints
 }
