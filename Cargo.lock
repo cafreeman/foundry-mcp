@@ -664,6 +664,7 @@ dependencies = [
  "clap_complete",
  "dashmap",
  "dirs",
+ "foundry-mcp-macros",
  "futures",
  "home",
  "indicatif",
@@ -681,6 +682,15 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
+]
+
+[[package]]
+name = "foundry-mcp-macros"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

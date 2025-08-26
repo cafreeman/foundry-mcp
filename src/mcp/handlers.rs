@@ -17,7 +17,7 @@ use rust_mcp_sdk::{
 use serde_json::Value;
 
 use crate::cli;
-use crate::mcp::{error::FoundryMcpError, tools::FoundryTools};
+use crate::mcp::{error::FoundryMcpError, tools::FoundryTools, traits::McpToolDefinition};
 
 /// Main server handler that routes MCP requests to CLI command functions
 pub struct FoundryServerHandler;
@@ -36,12 +36,14 @@ impl FoundryServerHandler {
     ) -> Result<Value, FoundryMcpError> {
         match tool_name {
             "create_project" => {
-                let args = cli::args::CreateProjectArgs::from_mcp_params(params).map_err(|e| {
-                    FoundryMcpError::invalid_params(format!(
-                        "Invalid parameters for create_project: {}",
-                        e
-                    ))
-                })?;
+                let args =
+                    <cli::args::CreateProjectArgs as McpToolDefinition>::from_mcp_params(params)
+                        .map_err(|e| {
+                            FoundryMcpError::invalid_params(format!(
+                                "Invalid parameters for create_project: {}",
+                                e
+                            ))
+                        })?;
 
                 let result = cli::commands::create_project::execute(args).await?;
 

@@ -11,6 +11,7 @@ pub mod error;
 pub mod handlers;
 pub mod server;
 pub mod tools;
+pub mod traits;
 
 pub use handlers::*;
 pub use server::*;

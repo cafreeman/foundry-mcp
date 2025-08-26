@@ -429,6 +429,14 @@ mod tests {
     // Use a mutex to serialize tests that modify global environment
     static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
+    /// Acquire test mutex lock, handling poisoning gracefully
+    fn acquire_test_lock() -> std::sync::MutexGuard<'static, ()> {
+        TEST_MUTEX.lock().unwrap_or_else(|poisoned| {
+            // Clear the poisoned state and acquire the lock
+            poisoned.into_inner()
+        })
+    }
+
     fn setup_test_environment() -> (TempDir, String) {
         let temp_dir = TempDir::new().unwrap();
         let project_name = format!(
@@ -458,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_spec_filtering() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = acquire_test_lock();
         let (_temp_dir, project_name) = setup_test_environment();
 
         // Create a few test specs
@@ -504,7 +512,7 @@ mod tests {
 
     #[test]
     fn test_spec_existence_and_counting() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = acquire_test_lock();
         let (_temp_dir, project_name) = setup_test_environment();
 
         // Test empty project
@@ -529,7 +537,7 @@ mod tests {
 
     #[test]
     fn test_spec_content_updates() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = acquire_test_lock();
         let (_temp_dir, project_name) = setup_test_environment();
 
         // Create a spec
@@ -561,7 +569,7 @@ mod tests {
 
     #[test]
     fn test_spec_validation() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = acquire_test_lock();
         let (_temp_dir, project_name) = setup_test_environment();
 
         // Create a spec
@@ -591,7 +599,7 @@ mod tests {
 
     #[test]
     fn test_latest_spec_retrieval() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = acquire_test_lock();
         let (_temp_dir, project_name) = setup_test_environment();
 
         // Initially no specs
@@ -608,8 +616,8 @@ mod tests {
 
         let _spec1 = create_spec(config1).unwrap();
 
-        // Small delay to ensure different timestamps
-        std::thread::sleep(std::time::Duration::from_millis(100));
+        // Delay to ensure different timestamps (need at least 1 second difference)
+        std::thread::sleep(std::time::Duration::from_millis(1100));
 
         // Create second spec
         let config2 = SpecConfig {
@@ -630,7 +638,7 @@ mod tests {
 
     #[test]
     fn test_directory_management() {
-        let _lock = TEST_MUTEX.lock().unwrap();
+        let _lock = acquire_test_lock();
         let (_temp_dir, project_name) = setup_test_environment();
 
         // Test directory creation
