@@ -12,7 +12,7 @@ pub async fn execute(args: LoadProjectArgs) -> Result<FoundryResponse<LoadProjec
     validate_project_exists(&args.project_name)?;
 
     // Load project data
-    let project_path = project::get_project_path(&args.project_name)?.join("project");
+    let project_path = project::get_project_path(&args.project_name)?;
     let project_context = load_project_context(&args.project_name, &project_path)?;
     let specs_available = project_context.specs_available.clone();
 
@@ -257,7 +257,7 @@ mod tests {
     fn test_load_project_context_missing_files() {
         let temp_dir = TempDir::new().unwrap();
         let project_name = "test-project-incomplete";
-        let project_path = temp_dir.path().join("project");
+        let project_path = temp_dir.path();
 
         // Create minimal project structure without files
         filesystem::create_dir_all(&project_path).unwrap();
@@ -278,7 +278,7 @@ mod tests {
     fn test_load_project_context_with_specs() {
         let temp_dir = TempDir::new().unwrap();
         let project_name = "test-project-with-specs";
-        let project_path = temp_dir.path().join("project");
+        let project_path = temp_dir.path();
         let specs_dir = project_path.join("specs");
 
         // Create project structure with specs

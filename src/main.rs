@@ -15,11 +15,8 @@ use foundry_mcp::{cli, mcp};
 #[command(
     long_about = "Foundry helps LLMs maintain context about software projects through structured specifications.
 
-PRIMARY USE: MCP server for AI assistant integration
-SECONDARY USE: CLI interface for testing MCP tools
-
 Examples:
-  foundry serve                                   # Start MCP server (primary use)
+  foundry serve                                   # Start MCP server
   foundry mcp create-project my-app --vision '...' --tech-stack '...' --summary '...'
   foundry mcp load-project my-app                 # Load complete project context
   foundry mcp create-spec my-app user-auth --spec '...' --notes '...' --tasks '...'
@@ -57,7 +54,7 @@ enum Commands {
 enum McpCommands {
     /// Create a new project with vision, tech stack, and summary
     ///
-    /// Creates ~/.foundry/PROJECT_NAME/ with project/vision.md, tech-stack.md, and summary.md
+    /// Creates ~/.foundry/PROJECT_NAME/ with vision.md, tech-stack.md, and summary.md
     /// All content must be provided by LLMs - Foundry manages structure only
     CreateProject(cli::args::CreateProjectArgs),
 
@@ -102,6 +99,18 @@ enum McpCommands {
     /// Check content quality before creating projects/specs
     /// Provides improvement suggestions and next steps
     ValidateContent(cli::args::ValidateContentArgs),
+
+    /// Update existing specification files with new content
+    ///
+    /// Supports both replace and append operations for iterative development
+    /// Use to update spec.md, task-list.md, or notes.md during implementation
+    UpdateSpec(cli::args::UpdateSpecArgs),
+
+    /// Delete an existing specification permanently
+    ///
+    /// Removes spec directory and all associated files (spec.md, task-list.md, notes.md)
+    /// Requires confirmation flag - this action cannot be undone
+    DeleteSpec(cli::args::DeleteSpecArgs),
 }
 
 #[tokio::main]
@@ -149,7 +158,13 @@ async fn main() -> Result<()> {
             McpCommands::ValidateContent(args) => cli::commands::validate_content::execute(args)
                 .await
                 .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-        }
+            McpCommands::UpdateSpec(args) => cli::commands::update_spec::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::DeleteSpec(args) => cli::commands::delete_spec::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+        },
     };
 
     match result {

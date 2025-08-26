@@ -88,10 +88,9 @@ The core LLM workflow is complete: **create → list → load → create spec �
 
 ```
 ~/.foundry/PROJECT_NAME/
-├── project/
-│   ├── vision.md      # High-level product vision (LLM-provided)
-│   ├── tech-stack.md  # Technology decisions (LLM-provided)
-│   └── summary.md     # Concise summary for context loading (LLM-provided)
+├── vision.md      # High-level product vision (LLM-provided)
+├── tech-stack.md  # Technology decisions (LLM-provided)
+├── summary.md     # Concise summary for context loading (LLM-provided)
 └── specs/
     └── YYYYMMDD_HHMMSS_FEATURE_NAME/
         ├── spec.md        # Feature specification (LLM-provided)
@@ -158,7 +157,7 @@ src/
 **`foundry create_project`** - Create new project with LLM-provided content
 
 - Parameters: project_name, vision (200+ chars), tech_stack (150+ chars), summary (100+ chars)
-- Creates: `~/.foundry/PROJECT_NAME/project/` with vision.md, tech-stack.md, summary.md
+- Creates: `~/.foundry/PROJECT_NAME/` with vision.md, tech-stack.md, summary.md
 
 **`foundry list_projects`** - List all projects with metadata
 
@@ -172,7 +171,7 @@ src/
 **`foundry create_spec`** - Create timestamped specification
 
 - Parameters: project_name, feature_name, spec, notes, task_list
-- Creates: `~/.foundry/PROJECT/specs/YYYYMMDD_HHMMSS_FEATURE_NAME/`
+- Creates: `~/.foundry/PROJECT_NAME/specs/YYYYMMDD_HHMMSS_FEATURE_NAME/`
 
 **`foundry load_spec`** - Load specification content with project context
 
@@ -261,7 +260,7 @@ src/
 
 **Serve Command Implementation in `src/main.rs`:**
 
-- [x] Add `serve` subcommand to start MCP server explicitly 
+- [x] Add `serve` subcommand to start MCP server explicitly
 - [x] Remove automatic mode detection (no more magic behavior)
 - [x] Maintain existing CLI functionality unchanged
 - [x] Clean, predictable `foundry serve` command interface
@@ -395,7 +394,7 @@ pub fn create_project_tool() -> Tool {
                 },
                 "vision": {
                     "type": "string",
-                    "description": "High-level product vision (2-4 paragraphs) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Goes into project/vision.md",
+                    "description": "High-level product vision (2-4 paragraphs) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Goes into vision.md",
                     "minLength": 200
                 },
                 // ... identical to PRD parameter schemas
@@ -694,26 +693,29 @@ impl McpToolDefinition for CreateProjectArgs {
 **Status**: Completed - Simplified MCP server startup to use standard `foundry serve` command.
 
 **Previous Issue**: Three different ways to start MCP server were confusing and non-standard:
+
 - `cargo run` (no arguments)
-- `cargo run -- --mcp` 
+- `cargo run -- --mcp`
 - `cargo run -- mcp`
 
 **✅ Completed Changes:**
 
 1. **Added ServeArgs struct** - New `ServeArgs` with optional `--verbose` flag in `src/cli/args.rs`
-2. **Added Serve subcommand** - Clean `foundry serve` command in Commands enum 
+2. **Added Serve subcommand** - Clean `foundry serve` command in Commands enum
 3. **Removed automatic mode detection** - Eliminated magic behavior based on argument count
 4. **Standard CLI pattern** - All functionality now accessed through explicit subcommands
 
 **Result:**
+
 - **One clear way**: `foundry serve` (or `foundry serve --verbose`) starts MCP server
 - **Standard CLI conventions**: Follows typical patterns where server commands use `serve` subcommand
 - **No magic behavior**: Predictable, explicit command interface
 - **Backward compatibility intentionally broken**: Old automatic detection removed for clarity
 
 **Testing Verified:**
+
 - ✅ `foundry serve` starts MCP server correctly
-- ✅ `foundry serve --verbose` enables verbose logging  
+- ✅ `foundry serve --verbose` enables verbose logging
 - ✅ `foundry --help` shows serve command in list
 - ✅ Old methods (`cargo run`, `--mcp` flag) properly removed
 - ✅ All 59 tests still pass with zero regressions
@@ -792,7 +794,7 @@ impl FoundryMcpServer {
 **Code Quality:**
 
 - [x] **Zero compiler warnings** - ✅ Clean compilation with strict lints enabled
-- [x] **Comprehensive error handling** - ✅ All error paths handled with appropriate error types  
+- [x] **Comprehensive error handling** - ✅ All error paths handled with appropriate error types
 - [x] **Type safety** - ✅ Compile-time guarantees for MCP tool parameter compatibility
 - [x] **Performance targets** - ✅ Sub-100ms response times for all MCP tool calls (basic implementation)
 

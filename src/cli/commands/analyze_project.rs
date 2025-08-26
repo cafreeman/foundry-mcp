@@ -127,17 +127,16 @@ pub async fn execute(args: AnalyzeProjectArgs) -> Result<FoundryResponse<Analyze
     )?;
 
     let project_path = foundry_path.join(&args.project_name);
-    let project_dir = project_path.join("project");
 
     // Check for disk space and permissions before creating directories
-    std::fs::create_dir_all(&project_dir).with_context(|| {
+    std::fs::create_dir_all(&project_path).with_context(|| {
         format!(
             "Failed to create project directory '{}'. Possible causes:\n\
                 - Insufficient disk space\n\
                 - Permission denied\n\
                 - Invalid project name characters\n\
                 - Path too long for filesystem",
-            project_dir.display()
+            project_path.display()
         )
     })?;
 
@@ -152,9 +151,9 @@ pub async fn execute(args: AnalyzeProjectArgs) -> Result<FoundryResponse<Analyze
     })?;
 
     // Write LLM-provided content to files with enhanced error handling
-    let vision_path = project_dir.join("vision.md");
-    let tech_stack_path = project_dir.join("tech-stack.md");
-    let summary_path = project_dir.join("summary.md");
+    let vision_path = project_path.join("vision.md");
+    let tech_stack_path = project_path.join("tech-stack.md");
+    let summary_path = project_path.join("summary.md");
 
     // Attempt to write all files with detailed error context
     write_file_atomic(&vision_path, &args.vision).with_context(|| {
@@ -184,9 +183,9 @@ pub async fn execute(args: AnalyzeProjectArgs) -> Result<FoundryResponse<Analyze
 
     // Prepare response - just file confirmation
     let files_created = vec![
-        "project/vision.md".to_string(),
-        "project/tech-stack.md".to_string(),
-        "project/summary.md".to_string(),
+        "vision.md".to_string(),
+        "tech-stack.md".to_string(),
+        "summary.md".to_string(),
         "specs/".to_string(),
     ];
 

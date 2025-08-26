@@ -5,12 +5,13 @@ An MCP (Model Context Protocol) server that provides deterministic tools for AI 
 ## Core Value Proposition
 
 Foundry MCP enables AI assistants like Claude to:
+
 - **Maintain persistent context** across development sessions
 - **Manage project specifications** with structured task lists
 - **Store context outside codebases** to avoid directory pollution
 - **Resume complex work** through deterministic file operations
 
-**Primary Use**: MCP server integration with AI development environments  
+**Primary Use**: MCP server integration with AI development environments
 **Bonus Feature**: CLI interface available for testing and debugging MCP tools
 
 ## Problem Statement
@@ -38,16 +39,19 @@ Foundry MCP provides a set of MCP tools that enable deterministic project and sp
 Foundry provides 8 MCP tools that enable comprehensive project management for AI assistants:
 
 ### Project Management
+
 - **`create_project`**: Create new project with vision, tech stack, and summary
-- **`analyze_project`**: Create project structure by analyzing existing codebases  
+- **`analyze_project`**: Create project structure by analyzing existing codebases
 - **`load_project`**: Load complete project context for LLM sessions
 - **`list_projects`**: List all available projects with metadata
 
-### Specification Management  
+### Specification Management
+
 - **`create_spec`**: Create timestamped specification with task breakdown
 - **`load_spec`**: Load specification content with project context
 
 ### Content & Workflow
+
 - **`validate_content`**: Validate content against schema requirements
 - **`get_foundry_help`**: Get comprehensive workflow guidance and examples
 
@@ -58,10 +62,9 @@ Foundry stores all project data in `~/.foundry/` to keep your actual codebase cl
 ```
 ~/.foundry/
 ├── project-name/
-│   ├── project/
-│   │   ├── vision.md          # High-level product vision and goals
-│   │   ├── tech-stack.md      # Technology choices and architecture  
-│   │   └── summary.md         # Concise project summary for quick context
+│   ├── vision.md          # High-level product vision and goals
+│   ├── tech-stack.md      # Technology choices and architecture
+│   ├── summary.md         # Concise project summary for quick context
 │   └── specs/
 │       ├── 20250826_143052_user_auth/
 │       │   ├── spec.md        # Feature specification and requirements
@@ -74,8 +77,9 @@ Foundry stores all project data in `~/.foundry/` to keep your actual codebase cl
 ```
 
 **Key Benefits:**
+
 - **Clean separation**: Project context never pollutes your actual codebase
-- **Persistent context**: Survive git operations, branch switches, and deployments  
+- **Persistent context**: Survive git operations, branch switches, and deployments
 - **Hierarchical organization**: Project-level vision with feature-specific specs
 - **Timestamped specs**: Chronological tracking of feature development
 
@@ -86,20 +90,23 @@ Foundry MCP enables powerful workflows for AI assistants like Claude:
 ### Typical LLM Development Session
 
 1. **Project Setup**: AI assistant creates project context
+
    ```
    User: "Help me build a task management web app"
    AI: Uses create_project to establish vision, tech stack, and summary
    ```
 
 2. **Feature Planning**: Break down work into specifications
-   ```  
+
+   ```
    AI: Uses create_spec to create "user_authentication" spec with task breakdown
    AI: Uses create_spec to create "task_crud_operations" spec with implementation plan
    ```
 
 3. **Context Loading**: Resume work with full context
+
    ```
-   User: "Let's work on authentication"  
+   User: "Let's work on authentication"
    AI: Uses load_spec to retrieve authentication specification + project context
    AI: Now has complete context to implement features correctly
    ```
@@ -115,7 +122,7 @@ Foundry MCP enables powerful workflows for AI assistants like Claude:
 
 - **No context loss**: Project details persist between conversations
 - **Structured planning**: Specs and task lists guide implementation
-- **Clean codebases**: Context stored outside project directories  
+- **Clean codebases**: Context stored outside project directories
 - **Resumable work**: Load complete context instantly in any session
 
 ## MCP Server Setup
@@ -128,7 +135,7 @@ git clone <repository-url>
 cd foundry-mcp
 cargo build --release
 
-# Start the MCP server  
+# Start the MCP server
 ./target/release/foundry-mcp serve
 ```
 
@@ -137,10 +144,10 @@ cargo build --release
 Configure your AI development environment to use Foundry MCP:
 
 **Claude Desktop**: Add to your MCP settings
-**VS Code**: Configure MCP client extension  
+**VS Code**: Configure MCP client extension
 **Cursor**: Set up as MCP server
 
-*Note: Specific integration guides coming soon*
+_Note: Specific integration guides coming soon_
 
 ## Development and Testing
 
@@ -149,10 +156,10 @@ For developers and advanced users, Foundry includes a CLI interface to test and 
 ### Running the Server
 
 ```bash
-# Start MCP server for AI integration (primary use case)
+# Start MCP server for AI integration
 foundry serve
 
-# Start with verbose logging for debugging  
+# Start with verbose logging for debugging
 foundry serve --verbose
 ```
 
@@ -165,12 +172,12 @@ You can invoke the MCP tools directly from command line for testing:
 foundry mcp create-project my-test-project --vision "..." --tech-stack "..." --summary "..."
 
 # List all projects
-foundry mcp list-projects  
+foundry mcp list-projects
 
 # Load project context
 foundry mcp load-project my-test-project
 
-# Create a specification  
+# Create a specification
 foundry mcp create-spec my-test-project auth_system --spec "..." --notes "..." --tasks "..."
 
 # Get help on workflow
@@ -180,7 +187,7 @@ foundry mcp get-foundry-help workflows
 foundry mcp validate-content --content-type vision --content "..."
 ```
 
-*Note: CLI usage is primarily for development and testing. The main value is in MCP server integration with AI assistants.*
+_Note: CLI usage is primarily for development and testing. The main value is in MCP server integration with AI assistants._
 
 ## Development
 
@@ -204,11 +211,11 @@ cargo test
 ### Running
 
 ```bash
-# Start MCP server (primary use case)
+# Start MCP server
 cargo run -- serve
 
 # Start with verbose logging for debugging
-cargo run -- serve --verbose  
+cargo run -- serve --verbose
 
 # Test CLI commands for development
 cargo run -- --help
@@ -221,13 +228,15 @@ cargo run -- mcp create-project test-proj --vision "..." --tech-stack "..." --su
 Foundry MCP is built with a modular Rust architecture:
 
 ### Core Modules
+
 - **`mcp/`**: MCP server implementation with tool definitions and handlers
-- **`cli/`**: Command-line interface for development and testing  
+- **`cli/`**: Command-line interface for development and testing
 - **`core/`**: Business logic for projects, specifications, and validation
 - **`types/`**: Data structures and response formats
 - **`utils/`**: Timestamp handling, paths, and formatting utilities
 
 ### Key Design Principles
+
 - **MCP-first architecture**: All functionality exposed as MCP tools
 - **CLI reuses MCP tools**: Command-line interface calls the same tool implementations
 - **Pure file management**: No content generation - LLMs provide all content
@@ -263,7 +272,7 @@ Foundry MCP is **feature-complete** and production-ready:
 Comprehensive test coverage: **59 tests passing**
 
 - Unit tests for all core business logic
-- Integration tests for complete workflows  
+- Integration tests for complete workflows
 - MCP protocol compatibility tests
 - File system operation tests
 

@@ -91,7 +91,7 @@ fn validate_project_exists(project_name: &str) -> Result<()> {
 
 /// Load project summary for context
 fn load_project_summary(project_name: &str) -> Result<String> {
-    let project_path = project::get_project_path(project_name)?.join("project");
+    let project_path = project::get_project_path(project_name)?;
     let summary_path = project_path.join("summary.md");
 
     Ok(filesystem::read_file(summary_path).unwrap_or_else(|_| {

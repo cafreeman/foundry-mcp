@@ -229,13 +229,11 @@ The server creates this directory structure in your home directory:
 ```
 ~/.foundry/
 ├── project-1/
-│   ├── project/
-│   │   ├── metadata.json      # Project metadata
-│   │   ├── tech-stack.md      # Technology information
-│   │   └── vision.md          # Project goals and vision
+│   ├── vision.md          # High-level product vision
+│   ├── tech-stack.md      # Technology information
+│   ├── summary.md         # Concise project summary
 │   └── specs/
 │       └── 20240115_feature_name/
-│           ├── metadata.json  # Specification metadata
 │           ├── spec.md        # Main specification content
 │           ├── task-list.md   # Implementation tasks
 │           └── notes.md       # Development notes

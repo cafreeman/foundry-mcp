@@ -21,10 +21,9 @@ Foundry MCP: CLI tool and MCP server for deterministic project management and AI
 
 ```
 ~/.foundry/PROJECT_NAME/
-├── project/
-│   ├── vision.md      # High-level product vision
-│   ├── tech-stack.md  # Technology decisions
-│   └── summary.md     # Concise summary for context loading
+├── vision.md      # High-level product vision
+├── tech-stack.md  # Technology decisions
+├── summary.md     # Concise summary for context loading
 └── specs/
     └── YYYYMMDD_HHMMSS_FEATURE_NAME/
         ├── spec.md        # Feature specification

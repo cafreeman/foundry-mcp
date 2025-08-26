@@ -29,7 +29,7 @@ pub fn generate_spec_name(feature_name: &str) -> String {
 /// Create a new spec
 pub fn create_spec(config: SpecConfig) -> Result<Spec> {
     let foundry_dir = filesystem::foundry_dir()?;
-    let project_path = foundry_dir.join(&config.project_name).join("project");
+    let project_path = foundry_dir.join(&config.project_name);
     let specs_dir = project_path.join("specs");
     let spec_name = generate_spec_name(&config.feature_name);
     let spec_path = specs_dir.join(&spec_name);
@@ -98,7 +98,7 @@ pub fn validate_spec_name(spec_name: &str) -> Result<()> {
 /// List specs for a project with enhanced validation
 pub fn list_specs(project_name: &str) -> Result<Vec<SpecMetadata>> {
     let foundry_dir = filesystem::foundry_dir()?;
-    let specs_dir = foundry_dir.join(project_name).join("project").join("specs");
+    let specs_dir = foundry_dir.join(project_name).join("specs");
 
     if !specs_dir.exists() {
         return Ok(Vec::new());
@@ -181,11 +181,7 @@ pub fn count_specs(project_name: &str) -> Result<usize> {
 /// Check if a spec exists
 pub fn spec_exists(project_name: &str, spec_name: &str) -> Result<bool> {
     let foundry_dir = filesystem::foundry_dir()?;
-    let spec_path = foundry_dir
-        .join(project_name)
-        .join("project")
-        .join("specs")
-        .join(spec_name);
+    let spec_path = foundry_dir.join(project_name).join("specs").join(spec_name);
 
     Ok(spec_path.exists() && spec_path.is_dir())
 }
@@ -208,11 +204,7 @@ pub fn update_spec_content(
     }
 
     let foundry_dir = filesystem::foundry_dir()?;
-    let spec_path = foundry_dir
-        .join(project_name)
-        .join("project")
-        .join("specs")
-        .join(spec_name);
+    let spec_path = foundry_dir.join(project_name).join("specs").join(spec_name);
 
     let file_path = match file_type {
         SpecFileType::Spec => spec_path.join("spec.md"),
@@ -229,17 +221,13 @@ pub fn update_spec_content(
 /// Get spec directory path
 pub fn get_spec_path(project_name: &str, spec_name: &str) -> Result<PathBuf> {
     let foundry_dir = filesystem::foundry_dir()?;
-    Ok(foundry_dir
-        .join(project_name)
-        .join("project")
-        .join("specs")
-        .join(spec_name))
+    Ok(foundry_dir.join(project_name).join("specs").join(spec_name))
 }
 
 /// Get specs directory path for a project
 pub fn get_specs_directory(project_name: &str) -> Result<PathBuf> {
     let foundry_dir = filesystem::foundry_dir()?;
-    Ok(foundry_dir.join(project_name).join("project").join("specs"))
+    Ok(foundry_dir.join(project_name).join("specs"))
 }
 
 /// Ensure specs directory exists for a project
@@ -364,11 +352,7 @@ pub fn load_spec(project_name: &str, spec_name: &str) -> Result<Spec> {
     validate_spec_name(spec_name).with_context(|| format!("Invalid spec name: {}", spec_name))?;
 
     let foundry_dir = filesystem::foundry_dir()?;
-    let spec_path = foundry_dir
-        .join(project_name)
-        .join("project")
-        .join("specs")
-        .join(spec_name);
+    let spec_path = foundry_dir.join(project_name).join("specs").join(spec_name);
 
     if !spec_path.exists() {
         return Err(anyhow::anyhow!(
@@ -452,7 +436,7 @@ mod tests {
         fs::create_dir_all(&foundry_path).unwrap();
 
         // Create project structure
-        let project_path = foundry_path.join(&project_name).join("project");
+        let project_path = foundry_path.join(&project_name);
         fs::create_dir_all(&project_path).unwrap();
         fs::create_dir_all(project_path.join("specs")).unwrap();
 

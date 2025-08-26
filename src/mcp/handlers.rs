@@ -134,6 +134,30 @@ impl FoundryServerHandler {
 
                 Ok(serde_json::to_value(result)?)
             }
+            "update_spec" => {
+                let args = cli::args::UpdateSpecArgs::from_mcp_params(params).map_err(|e| {
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for update_spec: {}",
+                        e
+                    ))
+                })?;
+
+                let result = cli::commands::update_spec::execute(args).await?;
+
+                Ok(serde_json::to_value(result)?)
+            }
+            "delete_spec" => {
+                let args = cli::args::DeleteSpecArgs::from_mcp_params(params).map_err(|e| {
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for delete_spec: {}",
+                        e
+                    ))
+                })?;
+
+                let result = cli::commands::delete_spec::execute(args).await?;
+
+                Ok(serde_json::to_value(result)?)
+            }
             _ => Err(FoundryMcpError::invalid_params(format!(
                 "Unknown tool: {}",
                 tool_name

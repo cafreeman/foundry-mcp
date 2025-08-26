@@ -11,7 +11,7 @@ use crate::types::project::{Project, ProjectConfig, ProjectMetadata};
 /// Create a new project structure
 pub fn create_project(config: ProjectConfig) -> Result<Project> {
     let foundry_dir = filesystem::foundry_dir()?;
-    let project_path = foundry_dir.join(&config.name).join("project");
+    let project_path = foundry_dir.join(&config.name);
     let created_at = Utc::now().to_rfc3339();
 
     // Create project directory structure
@@ -67,7 +67,7 @@ pub fn list_projects() -> Result<Vec<ProjectMetadata>> {
             let project_path = entry.path();
 
             // Count specs using fold
-            let specs_dir = project_path.join("project").join("specs");
+            let specs_dir = project_path.join("specs");
             let spec_count = if specs_dir.exists() {
                 fs::read_dir(specs_dir)
                     .ok()
@@ -104,7 +104,7 @@ pub fn list_projects() -> Result<Vec<ProjectMetadata>> {
 
 /// Load project by name
 pub fn load_project(project_name: &str) -> Result<Project> {
-    let project_path = get_project_path(project_name)?.join("project");
+    let project_path = get_project_path(project_name)?;
 
     if !project_path.exists() {
         return Err(anyhow::anyhow!("Project '{}' not found", project_name));

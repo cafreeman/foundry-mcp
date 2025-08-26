@@ -78,6 +78,32 @@ impl TestEnvironment {
             project_name: project_name.to_string(),
         }
     }
+
+    /// Create test arguments for update_spec
+    pub fn update_spec_args(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        file_type: &str,
+        operation: &str,
+    ) -> UpdateSpecArgs {
+        UpdateSpecArgs {
+            project_name: project_name.to_string(),
+            spec_name: spec_name.to_string(),
+            file_type: file_type.to_string(),
+            operation: operation.to_string(),
+            content: "Updated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.".to_string(),
+        }
+    }
+
+    /// Create test arguments for delete_spec
+    pub fn delete_spec_args(&self, project_name: &str, spec_name: &str) -> DeleteSpecArgs {
+        DeleteSpecArgs {
+            project_name: project_name.to_string(),
+            spec_name: spec_name.to_string(),
+            confirm: "true".to_string(),
+        }
+    }
 }
 
 impl Drop for TestEnvironment {
@@ -113,7 +139,7 @@ async fn test_create_project_full_workflow() -> Result<()> {
 
     // Verify actual files were created in filesystem
     let foundry_dir = env.foundry_dir();
-    let project_dir = foundry_dir.join("test-integration-project").join("project");
+    let project_dir = foundry_dir.join("test-integration-project");
 
     assert!(project_dir.exists(), "Project directory should exist");
     assert!(
@@ -169,10 +195,7 @@ async fn test_create_spec_full_workflow() -> Result<()> {
 
     // Verify actual spec files were created
     let foundry_dir = env.foundry_dir();
-    let specs_dir = foundry_dir
-        .join("test-spec-project")
-        .join("project")
-        .join("specs");
+    let specs_dir = foundry_dir.join("test-spec-project").join("specs");
     let spec_dir = specs_dir.join(&response.data.spec_name);
 
     assert!(spec_dir.exists(), "Spec directory should exist");
@@ -381,7 +404,7 @@ async fn test_end_to_end_workflow() -> Result<()> {
     let project_dir = foundry_dir.join(project_name);
     assert!(project_dir.exists());
 
-    let specs_dir = project_dir.join("project").join("specs");
+    let specs_dir = project_dir.join("specs");
     let spec_files: Vec<_> = std::fs::read_dir(specs_dir)?.collect();
     assert_eq!(
         spec_files.len(),
@@ -745,7 +768,6 @@ async fn test_load_spec_end_to_end_workflow() -> Result<()> {
     let foundry_dir = env.foundry_dir();
     let spec_dir = foundry_dir
         .join(project_name)
-        .join("project")
         .join("specs")
         .join(load_response.data.spec_name.unwrap());
 
@@ -794,6 +816,318 @@ fn test_get_foundry_help_command() -> Result<()> {
         assert!(!result.data.content.examples.is_empty());
         assert!(!result.data.content.workflow_guide.is_empty());
     }
+
+    Ok(())
+}
+
+/// Test updating spec content with replace operation
+#[tokio::test]
+async fn test_update_spec_replace() -> Result<()> {
+    use foundry_mcp::cli::commands::{update_spec};
+
+    let env = TestEnvironment::new()?;
+
+    // Setup: Create project and spec
+    let project_args = env.create_project_args("update-test-project");
+    create_project::execute(project_args).await?;
+
+    let spec_args = env.create_spec_args("update-test-project", "update_feature");
+    let spec_response = create_spec::execute(spec_args).await?;
+    let spec_name = spec_response.data.spec_name;
+
+    // Test replace operation on spec.md
+    let update_args = env.update_spec_args("update-test-project", &spec_name, "spec", "replace");
+    let response = update_spec::execute(update_args).await?;
+
+    // Verify response
+    assert_eq!(response.data.project_name, "update-test-project");
+    assert_eq!(response.data.spec_name, spec_name);
+    assert_eq!(response.data.file_type, "spec");
+    assert_eq!(response.data.operation, "replace");
+    assert!(response.data.content_length > 0);
+
+    // Verify file was actually updated
+    let foundry_dir = env.foundry_dir();
+    let spec_file = foundry_dir
+        .join("update-test-project")
+        .join("specs")
+        .join(&spec_name)
+        .join("spec.md");
+
+    let content = std::fs::read_to_string(spec_file)?;
+    assert!(content.contains("Updated content for testing"));
+    assert!(!content.contains("comprehensive feature implementation")); // Original content should be gone
+
+    // Verify next steps and workflow hints
+    assert!(response.next_steps.iter().any(|s| s.contains("Successfully updated")));
+    assert!(response.workflow_hints.iter().any(|h| h.contains("Updated spec")));
+
+    Ok(())
+}
+
+/// Test updating spec content with append operation
+#[tokio::test]
+async fn test_update_spec_append() -> Result<()> {
+    use foundry_mcp::cli::commands::{update_spec};
+
+    let env = TestEnvironment::new()?;
+
+    // Setup: Create project and spec
+    let project_args = env.create_project_args("append-test-project");
+    create_project::execute(project_args).await?;
+
+    let spec_args = env.create_spec_args("append-test-project", "append_feature");
+    let spec_response = create_spec::execute(spec_args).await?;
+    let spec_name = spec_response.data.spec_name;
+
+    // Test append operation on notes.md
+    let update_args = env.update_spec_args("append-test-project", &spec_name, "notes", "append");
+    let response = update_spec::execute(update_args).await?;
+
+    // Verify response
+    assert_eq!(response.data.operation, "append");
+    assert_eq!(response.data.file_type, "notes");
+
+    // Verify file contains both original and appended content
+    let foundry_dir = env.foundry_dir();
+    let notes_file = foundry_dir
+        .join("append-test-project")
+        .join("specs")
+        .join(&spec_name)
+        .join("notes.md");
+
+    let content = std::fs::read_to_string(notes_file)?;
+    assert!(content.contains("Implementation notes")); // Original content
+    assert!(content.contains("Updated content for testing")); // Appended content
+
+    Ok(())
+}
+
+/// Test updating task list with proper formatting
+#[tokio::test]
+async fn test_update_spec_task_list() -> Result<()> {
+    use foundry_mcp::cli::commands::{update_spec};
+
+    let env = TestEnvironment::new()?;
+
+    // Setup
+    let project_args = env.create_project_args("task-test-project");
+    create_project::execute(project_args).await?;
+
+    let spec_args = env.create_spec_args("task-test-project", "task_feature");
+    let spec_response = create_spec::execute(spec_args).await?;
+    let spec_name = spec_response.data.spec_name;
+
+    // Update task list with new tasks
+    let mut update_args = env.update_spec_args("task-test-project", &spec_name, "task-list", "append");
+    update_args.content = "## Phase 3: Additional Tasks\n- [ ] New task to complete\n- [x] Completed task from previous work".to_string();
+    
+    let response = update_spec::execute(update_args).await?;
+
+    // Verify task-list file was updated
+    let foundry_dir = env.foundry_dir();
+    let task_file = foundry_dir
+        .join("task-test-project")
+        .join("specs")
+        .join(&spec_name)
+        .join("task-list.md");
+
+    let content = std::fs::read_to_string(task_file)?;
+    assert!(content.contains("- [ ] New task to complete"));
+    assert!(content.contains("- [x] Completed task"));
+
+    // Verify workflow hints mention task list formatting
+    assert!(response.workflow_hints.iter().any(|h| h.contains("- [ ]")));
+
+    Ok(())
+}
+
+/// Test update_spec error handling for invalid inputs
+#[tokio::test]
+async fn test_update_spec_error_handling() -> Result<()> {
+    use foundry_mcp::cli::commands::{update_spec};
+
+    let env = TestEnvironment::new()?;
+
+    // Test nonexistent project
+    let update_args = env.update_spec_args("nonexistent-project", "fake-spec", "spec", "replace");
+    let result = update_spec::execute(update_args).await;
+    assert!(result.is_err());
+
+    // Setup valid project and spec for further tests
+    let project_args = env.create_project_args("error-test-project");
+    create_project::execute(project_args).await?;
+
+    let spec_args = env.create_spec_args("error-test-project", "error_feature");
+    let spec_response = create_spec::execute(spec_args).await?;
+    let spec_name = spec_response.data.spec_name;
+
+    // Test nonexistent spec
+    let update_args = env.update_spec_args("error-test-project", "nonexistent-spec", "spec", "replace");
+    let result = update_spec::execute(update_args).await;
+    assert!(result.is_err());
+
+    // Test invalid file type
+    let update_args = env.update_spec_args("error-test-project", &spec_name, "invalid", "replace");
+    let result = update_spec::execute(update_args).await;
+    assert!(result.is_err());
+
+    // Test invalid operation
+    let update_args = env.update_spec_args("error-test-project", &spec_name, "spec", "invalid");
+    let result = update_spec::execute(update_args).await;
+    assert!(result.is_err());
+
+    // Test empty content
+    let mut update_args = env.update_spec_args("error-test-project", &spec_name, "spec", "replace");
+    update_args.content = "".to_string();
+    let result = update_spec::execute(update_args).await;
+    assert!(result.is_err());
+
+    Ok(())
+}
+
+/// Test deleting a spec completely
+#[tokio::test]
+async fn test_delete_spec_success() -> Result<()> {
+    use foundry_mcp::cli::commands::{delete_spec};
+
+    let env = TestEnvironment::new()?;
+
+    // Setup: Create project and spec
+    let project_args = env.create_project_args("delete-test-project");
+    create_project::execute(project_args).await?;
+
+    let spec_args = env.create_spec_args("delete-test-project", "delete_feature");
+    let spec_response = create_spec::execute(spec_args).await?;
+    let spec_name = spec_response.data.spec_name;
+
+    // Verify spec exists before deletion
+    let foundry_dir = env.foundry_dir();
+    let spec_dir = foundry_dir
+        .join("delete-test-project")
+        .join("specs")
+        .join(&spec_name);
+    assert!(spec_dir.exists());
+    assert!(spec_dir.join("spec.md").exists());
+    assert!(spec_dir.join("notes.md").exists());
+    assert!(spec_dir.join("task-list.md").exists());
+
+    // Delete the spec
+    let delete_args = env.delete_spec_args("delete-test-project", &spec_name);
+    let response = delete_spec::execute(delete_args).await?;
+
+    // Verify response
+    assert_eq!(response.data.project_name, "delete-test-project");
+    assert_eq!(response.data.spec_name, spec_name);
+    assert!(response.data.files_deleted.len() >= 3); // At least spec.md, notes.md, task-list.md
+
+    // Verify spec directory no longer exists
+    assert!(!spec_dir.exists());
+
+    // Verify workflow hints mention permanence
+    assert!(response.workflow_hints.iter().any(|h| h.contains("cannot be undone")));
+    assert!(response.next_steps.iter().any(|s| s.contains("Successfully deleted")));
+
+    Ok(())
+}
+
+/// Test delete_spec error handling and confirmation
+#[tokio::test]
+async fn test_delete_spec_error_handling() -> Result<()> {
+    use foundry_mcp::cli::commands::{delete_spec};
+
+    let env = TestEnvironment::new()?;
+
+    // Test nonexistent project
+    let delete_args = env.delete_spec_args("nonexistent-project", "fake-spec");
+    let result = delete_spec::execute(delete_args).await;
+    assert!(result.is_err());
+
+    // Setup valid project for further tests
+    let project_args = env.create_project_args("delete-error-project");
+    create_project::execute(project_args).await?;
+
+    // Test nonexistent spec
+    let delete_args = env.delete_spec_args("delete-error-project", "nonexistent-spec");
+    let result = delete_spec::execute(delete_args).await;
+    assert!(result.is_err());
+
+    // Test lack of confirmation
+    let spec_args = env.create_spec_args("delete-error-project", "confirm_feature");
+    let spec_response = create_spec::execute(spec_args).await?;
+    let spec_name = spec_response.data.spec_name;
+
+    let mut delete_args = env.delete_spec_args("delete-error-project", &spec_name);
+    delete_args.confirm = "false".to_string();
+    let result = delete_spec::execute(delete_args).await;
+    assert!(result.is_err());
+
+    // Verify spec still exists after failed deletion attempt
+    let foundry_dir = env.foundry_dir();
+    let spec_dir = foundry_dir
+        .join("delete-error-project")
+        .join("specs")
+        .join(&spec_name);
+    assert!(spec_dir.exists());
+
+    Ok(())
+}
+
+/// Test update_spec and delete_spec integration workflow
+#[tokio::test]
+async fn test_spec_lifecycle_workflow() -> Result<()> {
+    use foundry_mcp::cli::commands::{update_spec, delete_spec};
+
+    let env = TestEnvironment::new()?;
+
+    // Setup: Create project and spec
+    let project_args = env.create_project_args("lifecycle-project");
+    create_project::execute(project_args).await?;
+
+    let spec_args = env.create_spec_args("lifecycle-project", "lifecycle_feature");
+    let spec_response = create_spec::execute(spec_args).await?;
+    let spec_name = spec_response.data.spec_name;
+
+    // Phase 1: Update spec with replace
+    let update_args = env.update_spec_args("lifecycle-project", &spec_name, "spec", "replace");
+    let update_response = update_spec::execute(update_args).await?;
+    assert_eq!(update_response.validation_status, ValidationStatus::Complete);
+
+    // Phase 2: Append to notes
+    let append_args = env.update_spec_args("lifecycle-project", &spec_name, "notes", "append");
+    let append_response = update_spec::execute(append_args).await?;
+    assert_eq!(append_response.data.operation, "append");
+
+    // Phase 3: Update task list
+    let mut task_args = env.update_spec_args("lifecycle-project", &spec_name, "tasks", "replace");
+    task_args.content = "## Implementation Progress\n- [x] Initial setup complete\n- [ ] Core implementation pending\n- [ ] Testing and documentation needed".to_string();
+    let task_response = update_spec::execute(task_args).await?;
+    assert!(task_response.data.content_length > 50);
+
+    // Phase 4: Load spec to verify all updates
+    let load_args = LoadSpecArgs {
+        project_name: "lifecycle-project".to_string(),
+        spec_name: Some(spec_name.clone()),
+    };
+    let load_response = load_spec::execute(load_args).await?;
+    
+    let spec_content = load_response.data.spec_content.unwrap();
+    assert!(spec_content.spec.contains("Updated content for testing"));
+    assert!(spec_content.notes.contains("Implementation notes")); // Original + appended
+    assert!(spec_content.task_list.contains("- [x] Initial setup complete"));
+
+    // Phase 5: Delete spec to complete lifecycle
+    let delete_args = env.delete_spec_args("lifecycle-project", &spec_name);
+    let delete_response = delete_spec::execute(delete_args).await?;
+    assert_eq!(delete_response.validation_status, ValidationStatus::Complete);
+
+    // Verify spec is completely removed
+    let foundry_dir = env.foundry_dir();
+    let spec_dir = foundry_dir
+        .join("lifecycle-project")
+        .join("specs")
+        .join(&spec_name);
+    assert!(!spec_dir.exists());
 
     Ok(())
 }

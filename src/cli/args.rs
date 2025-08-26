@@ -19,36 +19,69 @@ pub struct CreateProjectArgs {
 
     /// High-level product vision content (2-4 paragraphs, 200+ characters)
     ///
-    /// Should answer: What problem does this solve? Who is it for?
-    /// What makes it unique? What are the key features and priorities?
-    /// Goes into project/vision.md
+    /// **Content Structure:**
+    /// - Problem statement and market need
+    /// - Target users and their pain points 
+    /// - Unique value proposition and competitive advantages
+    /// - Key features and roadmap priorities
+    /// 
+    /// **Markdown Formatting Guidelines:**
+    /// - Use ## headers for main sections (## Problem, ## Target Users, ## Value Proposition)
+    /// - Structure with bullet points and clear paragraphs
+    /// - Include specific examples and use cases
+    /// - Write in present tense, professional tone
+    /// - End with clear success metrics or goals
+    /// 
+    /// Goes into vision.md
     #[arg(long, required = true)]
     #[mcp(
-        description = "High-level product vision (2-4 paragraphs, 200+ chars) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Goes into project/vision.md",
+        description = "High-level product vision (2-4 paragraphs, 200+ chars) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Use markdown with ## headers, bullet points, and clear structure. Include specific examples. Goes into vision.md",
         min_length = 200
     )]
     pub vision: String,
 
     /// Technology stack and architecture decisions (150+ characters)
     ///
-    /// Include: languages, frameworks, databases, deployment platforms
-    /// Also include: rationale, constraints, team preferences, standards
-    /// Goes into project/tech-stack.md
+    /// **Content Structure:**
+    /// - Core languages and frameworks with versions
+    /// - Databases, storage, and data architecture
+    /// - Deployment platforms and infrastructure
+    /// - Development tools and build systems
+    /// - Rationale for each major technology choice
+    /// 
+    /// **Markdown Formatting Guidelines:**
+    /// - Use ## headers for categories (## Backend, ## Frontend, ## Database, ## Deployment)
+    /// - List technologies with bullet points and brief rationale
+    /// - Include version constraints where relevant
+    /// - Add ### subsections for complex areas
+    /// - Include links to documentation where helpful
+    /// 
+    /// Goes into tech-stack.md
     #[arg(long, required = true)]
     #[mcp(
-        description = "Comprehensive technology decisions (150+ chars) including languages, frameworks, databases, deployment platforms, and rationale. Include constraints, preferences, or team standards. Goes into project/tech-stack.md",
+        description = "Comprehensive technology decisions (150+ chars) including languages, frameworks, databases, deployment platforms, and rationale. Use markdown with ## headers for categories, bullet points for technologies, and brief explanations. Include constraints, preferences, or team standards. Goes into tech-stack.md",
         min_length = 150
     )]
     pub tech_stack: String,
 
     /// Concise summary of vision and tech stack (100+ characters)
     ///
-    /// Should capture essential project essence in 2-3 sentences
-    /// Used for quick context loading in LLM sessions
-    /// Goes into project/summary.md
+    /// **Content Guidelines:**
+    /// - 2-3 sentences capturing project essence
+    /// - Combine key points from vision and tech stack
+    /// - Focus on what makes this project unique
+    /// - Written for quick LLM context loading
+    /// 
+    /// **Format:**
+    /// - Clear, professional language
+    /// - Present tense, active voice
+    /// - Include primary technology and main value proposition
+    /// - No markdown formatting needed (plain text)
+    /// 
+    /// Goes into summary.md
     #[arg(long, required = true)]
     #[mcp(
-        description = "Concise summary (100+ chars) of vision and tech-stack for quick context loading. Should capture essential project essence in 2-3 sentences. Goes into project/summary.md",
+        description = "Concise summary (100+ chars) of vision and tech-stack for quick context loading. Should capture essential project essence in 2-3 sentences using clear, professional language. Combine main value proposition with primary technology. Goes into summary.md",
         min_length = 100
     )]
     pub summary: String,
@@ -70,25 +103,46 @@ pub struct AnalyzeProjectArgs {
 
     /// High-level product vision content (2-4 paragraphs, 200+ characters) based on your codebase analysis
     ///
-    /// Use codebase_search, grep_search, and read_file to understand the project first
-    /// Consider: existing code patterns, project scope, apparent goals, user-facing features
-    /// Should answer: What problem does this solve? Who is it for? What makes it unique?
-    /// Goes into project/vision.md
+    /// **Analysis Approach:**
+    /// - Use Search, Grep, and Read tools to explore the codebase first
+    /// - Examine package.json, README files, main entry points, API routes
+    /// - Look for user-facing features, business logic, and data models
+    /// - Review existing documentation and configuration files
+    /// 
+    /// **Content Structure & Markdown:**
+    /// - Use ## headers (## Problem Analysis, ## Target Users, ## Product Goals)
+    /// - Base vision on actual code functionality discovered
+    /// - Include specific examples from the codebase
+    /// - Structure with bullet points and clear paragraphs
+    /// - Write in present tense, referencing actual implementation
+    /// 
+    /// Goes into vision.md
     #[arg(long, required = true)]
     #[mcp(
-        description = "LLM-analyzed product vision (200+ chars) based on codebase examination covering: problem being solved, target users, unique value proposition from code analysis. Goes into project/vision.md",
+        description = "LLM-analyzed product vision (200+ chars) based on codebase examination. Use Search/Grep/Read tools first. Structure with ## headers, bullet points, and specific examples from code. Cover problem solved, target users, and value proposition derived from actual functionality. Goes into vision.md",
         min_length = 200
     )]
     pub vision: String,
 
     /// Technology stack and architecture decisions (150+ characters) based on your codebase exploration
     ///
-    /// Use your analysis tools to detect languages/frameworks, build systems, deployment patterns, dependencies
-    /// Include: rationale for existing choices, recommendations, constraints, team preferences
-    /// Goes into project/tech-stack.md
+    /// **Detection Strategy:**
+    /// - Analyze package.json, requirements.txt, Cargo.toml, etc. for dependencies
+    /// - Check build scripts, Docker files, and deployment configurations
+    /// - Examine database connections, API integrations, and external services
+    /// - Review folder structure and architectural patterns used
+    /// 
+    /// **Content Structure & Markdown:**
+    /// - Use ## headers (## Languages, ## Frameworks, ## Database, ## Deployment, ## Build Tools)
+    /// - List detected technologies with versions where found
+    /// - Include rationale based on code patterns observed
+    /// - Add ### subsections for complex architectural decisions
+    /// - Reference specific files or configurations discovered
+    /// 
+    /// Goes into tech-stack.md
     #[arg(long, required = true)]
     #[mcp(
-        description = "LLM-detected technology stack (150+ chars) and architectural decisions based on codebase analysis including languages, frameworks, databases, deployment platforms, and rationale. Goes into project/tech-stack.md",
+        description = "LLM-detected technology stack (150+ chars) based on codebase analysis. Examine package files, configs, and code patterns. Structure with ## headers for categories, list technologies with versions, include rationale from observed patterns. Reference specific files discovered. Goes into tech-stack.md",
         min_length = 150
     )]
     pub tech_stack: String,
@@ -97,10 +151,10 @@ pub struct AnalyzeProjectArgs {
     ///
     /// Should capture key insights from your codebase exploration for quick context loading
     /// Use this to understand the project essence before diving into implementation
-    /// Goes into project/summary.md
+    /// Goes into summary.md
     #[arg(long, required = true)]
     #[mcp(
-        description = "LLM-created concise summary (100+ chars) of analyzed project combining vision and tech-stack insights for quick context loading. Goes into project/summary.md",
+        description = "LLM-created concise summary (100+ chars) of analyzed project combining vision and tech-stack insights for quick context loading. Goes into summary.md",
         min_length = 100
     )]
     pub summary: String,
@@ -129,37 +183,73 @@ pub struct CreateSpecArgs {
 
     /// Detailed specification content
     ///
-    /// Should include: overview, requirements, implementation approach, testing strategy
-    /// Use markdown formatting for structure (headers, lists, code blocks)
+    /// **Required Sections:**
+    /// - Feature overview and purpose
+    /// - Functional requirements and acceptance criteria
+    /// - Technical implementation approach
+    /// - Testing strategy and edge cases
+    /// - Dependencies and constraints
+    /// 
+    /// **Markdown Structure:**
+    /// - Use # Feature Name as main header
+    /// - Use ## for major sections (## Overview, ## Requirements, ## Implementation)
+    /// - Use ### for subsections (### API Design, ### Database Changes)
+    /// - Include code blocks with ```language for examples
+    /// - Use bullet points and numbered lists for clarity
+    /// - Add tables for complex requirements or APIs
+    /// 
     /// Goes into spec.md
     #[arg(long, required = true)]
     #[mcp(
-        description = "Detailed feature specification (200+ chars) covering requirements, acceptance criteria, implementation approach, and constraints. Goes into spec.md",
+        description = "Detailed feature specification (200+ chars) with comprehensive markdown structure. Use # for feature name, ## for major sections (Overview, Requirements, Implementation, Testing). Include code blocks, bullet points, and tables. Cover functional requirements, acceptance criteria, technical approach, and constraints. Goes into spec.md",
         min_length = 200
     )]
     pub spec: String,
 
     /// Implementation notes and considerations
     ///
-    /// Include: design decisions, dependencies, tradeoffs, constraints
-    /// Use markdown formatting for organization
+    /// **Content Focus:**
+    /// - Design decisions and rationale
+    /// - Technical tradeoffs and alternatives considered
+    /// - Dependencies on other features or systems
+    /// - Implementation constraints and limitations
+    /// - Future enhancement opportunities
+    /// 
+    /// **Markdown Structure:**
+    /// - Use ## headers for categories (## Design Decisions, ## Dependencies, ## Constraints)
+    /// - Use bullet points for lists of considerations
+    /// - Include code snippets for technical details
+    /// - Reference external documentation with links
+    /// - Keep it conversational but technical
+    /// 
     /// Goes into notes.md
     #[arg(long, required = true)]
     #[mcp(
-        description = "Additional context and design decisions (50+ chars) for the feature implementation. Goes into notes.md",
+        description = "Additional context and design decisions (50+ chars) for feature implementation. Use ## headers for categories, bullet points for considerations. Include design rationale, tradeoffs, dependencies, constraints, and future opportunities. Keep technical but conversational. Goes into notes.md",
         min_length = 50
     )]
     pub notes: String,
 
     /// Task list content
     ///
-    /// Implementation checklist in markdown format
-    /// Use "- [ ] Task description" format for checkboxes
-    /// Update this as work progresses
+    /// **Task Organization:**
+    /// - Break feature into actionable, testable tasks
+    /// - Group related tasks under logical phases or components
+    /// - Include both implementation and validation tasks
+    /// - Consider setup, development, testing, and deployment phases
+    /// 
+    /// **Markdown Checklist Format:**
+    /// - Use ## headers for phases (## Phase 1: Setup, ## Phase 2: Core Implementation)
+    /// - Use `- [ ] Task description` for uncompleted tasks
+    /// - Use `- [x] Task description` for completed tasks
+    /// - Include estimated effort or complexity where helpful
+    /// - Add sub-tasks with indented checkboxes when needed
+    /// - Keep tasks specific and measurable
+    /// 
     /// Goes into task-list.md
     #[arg(long, required = true)]
     #[mcp(
-        description = "Markdown checklist (100+ chars) of implementation steps that agents can update as work progresses. Goes into task-list.md",
+        description = "Markdown checklist (100+ chars) of implementation steps organized by phases. Use ## headers for phases, - [ ] for uncompleted tasks, - [x] for completed. Break feature into actionable, testable tasks including setup, development, testing, and deployment. Keep tasks specific and measurable. Goes into task-list.md",
         min_length = 100
     )]
     pub tasks: String,
@@ -263,6 +353,99 @@ pub struct ValidateContentArgs {
         description = "Type of content to validate (vision, tech-stack, summary, spec, notes, tasks)"
     )]
     pub content_type: String,
+}
+
+/// Arguments for update_spec command
+#[derive(Args, Debug, McpTool)]
+#[mcp(
+    name = "update_spec",
+    description = "Update existing specification files (spec.md, task-list.md, or notes.md) with new content. Supports both replace and append operations for iterative development."
+)]
+pub struct UpdateSpecArgs {
+    /// Project name containing the spec to update
+    ///
+    /// Must be an existing project in ~/.foundry/
+    /// Use 'foundry list-projects' to see available projects
+    #[mcp(description = "Name of the existing project containing the spec")]
+    pub project_name: String,
+
+    /// Spec name to update (YYYYMMDD_HHMMSS_feature_name format)
+    ///
+    /// Must be an existing spec within the project
+    /// Use 'foundry load-project PROJECT_NAME' to see available specs
+    #[mcp(description = "Name of the existing spec to update (YYYYMMDD_HHMMSS_feature_name format)")]
+    pub spec_name: String,
+
+    /// File type to update within the spec
+    ///
+    /// Must be one of:
+    /// - "spec" - Updates spec.md (main feature specification)
+    /// - "task-list" or "tasks" - Updates task-list.md (implementation checklist)  
+    /// - "notes" - Updates notes.md (additional context and design decisions)
+    #[mcp(description = "File type to update: 'spec' (spec.md), 'task-list' or 'tasks' (task-list.md), or 'notes' (notes.md)")]
+    pub file_type: String,
+
+    /// Operation type: 'replace' or 'append'
+    ///
+    /// - "replace" - Completely replaces the file content
+    /// - "append" - Adds new content to the end of the existing file
+    /// 
+    /// Use 'append' for updating task lists, adding notes, or extending specifications
+    /// Use 'replace' for complete rewrites or major restructuring
+    #[mcp(description = "Operation type: 'replace' (overwrite content) or 'append' (add to existing content)")]
+    pub operation: String,
+
+    /// New content to write or append
+    ///
+    /// **Markdown Formatting Guidelines:**
+    /// - Use proper headers (## Features, ### Implementation Details)
+    /// - Structure with lists, code blocks, and clear sections
+    /// - For task-lists: Use "- [ ] Task description" format for checkboxes
+    /// - For specs: Include Requirements, Acceptance Criteria, Implementation Approach
+    /// - For notes: Use bullet points, decision rationale, and cross-references
+    /// 
+    /// **Content should be:**
+    /// - Well-structured with clear hierarchy
+    /// - Comprehensive yet focused
+    /// - Technical but accessible
+    /// - Include examples where helpful
+    #[arg(long, required = true)]
+    #[mcp(
+        description = "Content to write or append. Use markdown formatting with proper headers, lists, and structure. For task-lists use '- [ ]' checkbox format. Include comprehensive details with examples.",
+        min_length = 20
+    )]
+    pub content: String,
+}
+
+/// Arguments for delete_spec command
+#[derive(Args, Debug, McpTool)]
+#[mcp(
+    name = "delete_spec",
+    description = "Delete an existing specification and all its files (spec.md, task-list.md, notes.md). This action cannot be undone."
+)]
+pub struct DeleteSpecArgs {
+    /// Project name containing the spec to delete
+    ///
+    /// Must be an existing project in ~/.foundry/
+    /// Use 'foundry list-projects' to see available projects
+    #[mcp(description = "Name of the existing project containing the spec")]
+    pub project_name: String,
+
+    /// Spec name to delete (YYYYMMDD_HHMMSS_feature_name format)
+    ///
+    /// Must be an existing spec within the project
+    /// Use 'foundry load-project PROJECT_NAME' to see available specs
+    /// **Warning: This will permanently delete all spec files**
+    #[mcp(description = "Name of the spec to delete (YYYYMMDD_HHMMSS_feature_name format). WARNING: This permanently deletes all spec files.")]
+    pub spec_name: String,
+
+    /// Confirmation flag - must be "true" to proceed
+    ///
+    /// This is a safety mechanism to prevent accidental deletions
+    /// Must explicitly set to "true": --confirm true
+    #[arg(long, required = true)]
+    #[mcp(description = "Confirmation flag - must be set to 'true' to proceed with deletion (safety mechanism)")]
+    pub confirm: String,
 }
 
 /// Arguments for serve command

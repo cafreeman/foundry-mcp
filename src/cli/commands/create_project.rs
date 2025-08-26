@@ -87,10 +87,10 @@ fn build_response(
     suggestions: Vec<String>,
 ) -> FoundryResponse<CreateProjectResponse> {
     let files_created = vec![
-        "project/vision.md".to_string(),
-        "project/tech-stack.md".to_string(),
-        "project/summary.md".to_string(),
-        "project/specs/".to_string(),
+        "vision.md".to_string(),
+        "tech-stack.md".to_string(),
+        "summary.md".to_string(),
+        "specs/".to_string(),
     ];
 
     let response_data = CreateProjectResponse {

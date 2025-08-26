@@ -16,7 +16,7 @@ pub struct FoundryResponse<T> {
 }
 
 /// Validation status for operations
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum ValidationStatus {
     /// Operation completed successfully with all validations passing
@@ -134,4 +134,24 @@ pub struct ValidateContentResponse {
     pub is_valid: bool,
     pub validation_errors: Vec<String>,
     pub suggestions: Vec<String>,
+}
+
+/// Response for update_spec command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UpdateSpecResponse {
+    pub project_name: String,
+    pub spec_name: String,
+    pub file_type: String,
+    pub operation: String,
+    pub file_path: String,
+    pub content_length: usize,
+}
+
+/// Response for delete_spec command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteSpecResponse {
+    pub project_name: String,
+    pub spec_name: String,
+    pub spec_path: String,
+    pub files_deleted: Vec<String>,
 }

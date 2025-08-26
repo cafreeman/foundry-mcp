@@ -59,7 +59,7 @@ cargo run -- --config-dir ./test-config serve --verbose
 - **`src/main.rs`** - CLI entry point that dispatches to command handlers
 - **`src/lib.rs`** - Library exports and `foundry_dir()` utility function
 - **`src/cli/`** - Command-line interface with arguments and command implementations
-- **`src/core/`** - Core business logic for projects, specs, and validation  
+- **`src/core/`** - Core business logic for projects, specs, and validation
 - **`src/types/`** - Type definitions for requests, responses, and data structures
 - **`src/utils/`** - Utility functions for paths, timestamps, and formatting
 
@@ -69,10 +69,9 @@ All project data stored in `~/.foundry/` directory:
 
 ```
 ~/.foundry/PROJECT_NAME/
-├── project/
-│   ├── vision.md      # High-level product vision
-│   ├── tech-stack.md  # Technology decisions  
-│   └── summary.md     # Concise summary for context loading
+├── vision.md      # High-level product vision
+├── tech-stack.md  # Technology decisions
+├── summary.md     # Concise summary for context loading
 └── specs/
     └── YYYYMMDD_HHMMSS_FEATURE_NAME/
         ├── spec.md        # Feature specification
@@ -93,6 +92,7 @@ pub async fn execute(args: CommandArgs) -> Result<CommandResponse> {
 ```
 
 All responses include:
+
 - Core data (project, spec, etc.)
 - `next_steps: Vec<String>` - Workflow guidance for LLMs
 - `validation_status: String` - "complete", "partial", or "failed"
@@ -103,7 +103,7 @@ All responses include:
 
 **Critical**: The CLI never generates content automatically. LLMs must provide all content as arguments:
 
-- ✅ `create-project "name" "vision content" "tech stack content"`  
+- ✅ `create-project "name" "vision content" "tech stack content"`
 - ❌ CLI generating summaries or content from other content
 
 ### Error Handling
@@ -147,12 +147,14 @@ for task in &tasks {
 ## Project Context
 
 ### Current Status
+
 - Core CLI functionality implemented and tested
 - 8 main commands: create-project, analyze-project, create-spec, load-project, load-spec, list-projects, get-foundry-help, validate-content
 - Rust 2024 edition with strict Clippy lints
 - Designed for both CLI and future MCP server use
 
 ### Development Priorities
+
 1. CLI functionality (current focus)
 2. MCP server implementation (future)
 3. Maintain identical functionality between CLI and MCP interfaces

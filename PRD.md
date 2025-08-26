@@ -18,10 +18,9 @@ Foundry is a **scaffolding and file management tool** that:
 ```
 ~/.foundry/
 ├── project-name/
-│   ├── project/
-│   │   ├── vision.md      # High-level product vision and roadmap context
-│   │   ├── tech-stack.md  # Technology choices, preferences, and architectural decisions
-│   │   └── summary.md     # Concise summary of vision and tech-stack for context loading
+│   ├── vision.md      # High-level product vision and roadmap context
+│   ├── tech-stack.md  # Technology choices, preferences, and architectural decisions
+│   ├── summary.md     # Concise summary of vision and tech-stack for context loading
 │   └── specs/
 │       ├── 20250823_143052_feature_name/
 │       │   ├── spec.md        # Feature specification and requirements
@@ -35,9 +34,9 @@ Foundry is a **scaffolding and file management tool** that:
 
 ### File Purposes
 
-- **project/vision.md** - High-level product vision and roadmap context
-- **project/tech-stack.md** - Technology choices, preferences, and architectural decisions
-- **project/summary.md** - Concise summary of vision and tech-stack for context loading
+- **vision.md** - High-level product vision and roadmap context
+- **tech-stack.md** - Technology choices, preferences, and architectural decisions
+- **summary.md** - Concise summary of vision and tech-stack for context loading
 - **specs/YYYYMMDD_HHMMSS_FEATURE_NAME/spec.md** - Feature specification and requirements
 - **specs/YYYYMMDD_HHMMSS_FEATURE_NAME/task-list.md** - Implementation checklist (updated by agents)
 - **specs/YYYYMMDD_HHMMSS_FEATURE_NAME/notes.md** - Additional context and evolving requirements
@@ -88,12 +87,12 @@ Tools use rich parameter schemas with embedded behavioral guidance:
   },
   "vision": {
     "type": "string",
-    "description": "High-level product vision (2-4 paragraphs) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Goes into project/vision.md",
+    "description": "High-level product vision (2-4 paragraphs) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Goes into vision.md",
     "minLength": 200
   },
   "tech_stack": {
     "type": "string",
-    "description": "Comprehensive technology decisions including languages, frameworks, databases, deployment platforms, and rationale. Include constraints, preferences, or team standards. Goes into project/tech-stack.md",
+    "description": "Comprehensive technology decisions including languages, frameworks, databases, deployment platforms, and rationale. Include constraints, preferences, or team standards. Goes into tech-stack.md",
     "minLength": 150
   }
 }
@@ -108,9 +107,9 @@ All tools return JSON with full file contents and workflow guidance:
 ```json
 {
   "project": {
-    "vision": "<content of project/vision.md>",
-    "tech_stack": "<content of project/tech_stack.md>",
-    "summary": "<content of project/summary.md>"
+    "vision": "<content of vision.md>",
+    "tech_stack": "<content of tech_stack.md>",
+    "summary": "<content of summary.md>"
   },
   "next_steps": ["Create your first spec with create_spec", "Review project structure"],
   "validation_status": "complete"
@@ -123,9 +122,9 @@ All tools return JSON with full file contents and workflow guidance:
 {
   "project": {
     "name": "foundry-development",
-    "vision": "<content of project/vision.md>",
-    "tech_stack": "<content of project/tech-stack.md>",
-    "summary": "<content of project/summary.md>",
+    "vision": "<content of vision.md>",
+    "tech_stack": "<content of tech-stack.md>",
+    "summary": "<content of summary.md>",
     "specs_available": ["20240824_120000_phase3_implementation"],
     "created_at": "2025-08-24T03:38:11Z"
   },
@@ -146,12 +145,12 @@ All tools return JSON with full file contents and workflow guidance:
 ```json
 {
   "spec": {
-    "name": "20250823_143052_refactor_cli",
+    "name": "20250824_143052_refactor_cli",
     "spec": "<content of spec.md>",
     "task_list": "<content of task-list.md>",
     "notes": "<content of notes.md>"
   },
-  "project_summary": "<content of project/summary.md>",
+  "project_summary": "<content of summary.md>",
   "workflow_hints": ["Update task-list.md as work progresses", "Add notes for design decisions"]
 }
 ```
