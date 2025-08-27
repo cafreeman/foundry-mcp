@@ -6,19 +6,31 @@ pub mod json_config;
 pub mod paths;
 pub mod utils;
 
-pub use claude_code::*;
-pub use cursor::*;
-pub use json_config::*;
-pub use paths::*;
-pub use utils::*;
+// Selective reexports from submodules
+pub use claude_code::{
+    get_claude_code_status, install_for_claude_code, uninstall_from_claude_code,
+};
+
+pub use cursor::{get_cursor_status, install_for_cursor, uninstall_from_cursor};
+
+pub use json_config::{
+    McpConfig, add_server_to_config, create_server_config, get_server_config, has_server_config,
+    read_config_file, remove_server_from_config, validate_config, write_config_file,
+};
+
+pub use paths::{
+    get_all_config_paths, get_claude_code_config_dir, get_claude_code_mcp_config_path,
+    get_cursor_config_dir, get_cursor_mcp_config_path, validate_config_dir_writable,
+};
+
+pub use utils::{
+    InstallationResult, UninstallationResult, check_binary_accessible, create_installation_result,
+    create_uninstallation_result, detect_binary_path, ensure_directory_exists, get_home_dir,
+    validate_binary_path,
+};
 
 // Re-export types for convenience
 pub use crate::types::responses::EnvironmentStatus;
-
-// Re-export common functions for easier access
-pub use json_config::{create_server_config, read_config_file, write_config_file};
-pub use paths::get_all_config_paths;
-pub use utils::{check_binary_accessible, detect_binary_path};
 
 /// Install Foundry MCP server for the specified target environment
 pub async fn install_for_target(
