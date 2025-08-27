@@ -111,6 +111,24 @@ enum McpCommands {
     /// Removes spec directory and all associated files (spec.md, task-list.md, notes.md)
     /// Requires confirmation flag - this action cannot be undone
     DeleteSpec(cli::args::DeleteSpecArgs),
+
+    /// Install Foundry MCP server for AI development environments
+    ///
+    /// Supports installation for claude-code and cursor environments
+    /// Creates necessary configuration files and registers the MCP server
+    Install(cli::args::InstallArgs),
+
+    /// Uninstall Foundry MCP server from AI development environments
+    ///
+    /// Removes MCP server configuration from claude-code and cursor environments
+    /// Optionally cleans up configuration files
+    Uninstall(cli::args::UninstallArgs),
+
+    /// Show MCP server installation status across all supported tools
+    ///
+    /// Displays installation status, binary paths, and configuration details
+    /// for all supported AI development environments
+    Status(cli::args::StatusArgs),
 }
 
 #[tokio::main]
@@ -162,6 +180,15 @@ async fn main() -> Result<()> {
                 .await
                 .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
             McpCommands::DeleteSpec(args) => cli::commands::delete_spec::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::Install(args) => cli::commands::install::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::Uninstall(args) => cli::commands::uninstall::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::Status(args) => cli::commands::status::execute(args)
                 .await
                 .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         },

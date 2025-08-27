@@ -39,7 +39,8 @@ pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProj
                 "Create your first project with: foundry mcp create-project".to_string(),
             ],
             vec![
-                "Use 'foundry mcp get-foundry-help workflows' for getting started guidance".to_string(),
+                "Use 'foundry mcp get-foundry-help workflows' for getting started guidance"
+                    .to_string(),
                 "Projects are stored in ~/.foundry/ directory".to_string(),
             ],
         )

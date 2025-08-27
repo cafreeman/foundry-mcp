@@ -155,3 +155,57 @@ pub struct DeleteSpecResponse {
     pub spec_path: String,
     pub files_deleted: Vec<String>,
 }
+
+/// Response for install command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InstallResponse {
+    pub target: String,
+    pub binary_path: String,
+    pub config_path: String,
+    pub installation_status: InstallationStatus,
+    pub actions_taken: Vec<String>,
+}
+
+/// Response for uninstall command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UninstallResponse {
+    pub target: String,
+    pub config_path: String,
+    pub uninstallation_status: InstallationStatus,
+    pub actions_taken: Vec<String>,
+    pub files_removed: Vec<String>,
+}
+
+/// Response for status command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StatusResponse {
+    pub binary_path: String,
+    pub binary_found: bool,
+    pub environments: Vec<EnvironmentStatus>,
+}
+
+/// Installation/uninstallation status
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum InstallationStatus {
+    /// Installation/uninstallation completed successfully
+    Success,
+    /// Installation/uninstallation partially completed with warnings
+    Partial,
+    /// Installation/uninstallation failed
+    Failed,
+}
+
+/// Status information for a specific environment
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnvironmentStatus {
+    pub name: String,
+    pub installed: bool,
+    pub config_path: String,
+    pub config_exists: bool,
+    pub binary_path: String,
+    pub binary_accessible: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub config_content: Option<String>,
+    pub issues: Vec<String>,
+}

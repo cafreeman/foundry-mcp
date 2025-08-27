@@ -823,7 +823,7 @@ fn test_get_foundry_help_command() -> Result<()> {
 /// Test updating spec content with replace operation
 #[tokio::test]
 async fn test_update_spec_replace() -> Result<()> {
-    use foundry_mcp::cli::commands::{update_spec};
+    use foundry_mcp::cli::commands::update_spec;
 
     let env = TestEnvironment::new()?;
 
@@ -859,8 +859,18 @@ async fn test_update_spec_replace() -> Result<()> {
     assert!(!content.contains("comprehensive feature implementation")); // Original content should be gone
 
     // Verify next steps and workflow hints
-    assert!(response.next_steps.iter().any(|s| s.contains("Successfully updated")));
-    assert!(response.workflow_hints.iter().any(|h| h.contains("Updated spec")));
+    assert!(
+        response
+            .next_steps
+            .iter()
+            .any(|s| s.contains("Successfully updated"))
+    );
+    assert!(
+        response
+            .workflow_hints
+            .iter()
+            .any(|h| h.contains("Updated spec"))
+    );
 
     Ok(())
 }
@@ -868,7 +878,7 @@ async fn test_update_spec_replace() -> Result<()> {
 /// Test updating spec content with append operation
 #[tokio::test]
 async fn test_update_spec_append() -> Result<()> {
-    use foundry_mcp::cli::commands::{update_spec};
+    use foundry_mcp::cli::commands::update_spec;
 
     let env = TestEnvironment::new()?;
 
@@ -906,7 +916,7 @@ async fn test_update_spec_append() -> Result<()> {
 /// Test updating task list with proper formatting
 #[tokio::test]
 async fn test_update_spec_task_list() -> Result<()> {
-    use foundry_mcp::cli::commands::{update_spec};
+    use foundry_mcp::cli::commands::update_spec;
 
     let env = TestEnvironment::new()?;
 
@@ -919,9 +929,10 @@ async fn test_update_spec_task_list() -> Result<()> {
     let spec_name = spec_response.data.spec_name;
 
     // Update task list with new tasks
-    let mut update_args = env.update_spec_args("task-test-project", &spec_name, "task-list", "append");
+    let mut update_args =
+        env.update_spec_args("task-test-project", &spec_name, "task-list", "append");
     update_args.content = "## Phase 3: Additional Tasks\n- [ ] New task to complete\n- [x] Completed task from previous work".to_string();
-    
+
     let response = update_spec::execute(update_args).await?;
 
     // Verify task-list file was updated
@@ -945,7 +956,7 @@ async fn test_update_spec_task_list() -> Result<()> {
 /// Test update_spec error handling for invalid inputs
 #[tokio::test]
 async fn test_update_spec_error_handling() -> Result<()> {
-    use foundry_mcp::cli::commands::{update_spec};
+    use foundry_mcp::cli::commands::update_spec;
 
     let env = TestEnvironment::new()?;
 
@@ -963,7 +974,8 @@ async fn test_update_spec_error_handling() -> Result<()> {
     let spec_name = spec_response.data.spec_name;
 
     // Test nonexistent spec
-    let update_args = env.update_spec_args("error-test-project", "nonexistent-spec", "spec", "replace");
+    let update_args =
+        env.update_spec_args("error-test-project", "nonexistent-spec", "spec", "replace");
     let result = update_spec::execute(update_args).await;
     assert!(result.is_err());
 
@@ -989,7 +1001,7 @@ async fn test_update_spec_error_handling() -> Result<()> {
 /// Test deleting a spec completely
 #[tokio::test]
 async fn test_delete_spec_success() -> Result<()> {
-    use foundry_mcp::cli::commands::{delete_spec};
+    use foundry_mcp::cli::commands::delete_spec;
 
     let env = TestEnvironment::new()?;
 
@@ -1025,8 +1037,18 @@ async fn test_delete_spec_success() -> Result<()> {
     assert!(!spec_dir.exists());
 
     // Verify workflow hints mention permanence
-    assert!(response.workflow_hints.iter().any(|h| h.contains("cannot be undone")));
-    assert!(response.next_steps.iter().any(|s| s.contains("Successfully deleted")));
+    assert!(
+        response
+            .workflow_hints
+            .iter()
+            .any(|h| h.contains("cannot be undone"))
+    );
+    assert!(
+        response
+            .next_steps
+            .iter()
+            .any(|s| s.contains("Successfully deleted"))
+    );
 
     Ok(())
 }
@@ -1034,7 +1056,7 @@ async fn test_delete_spec_success() -> Result<()> {
 /// Test delete_spec error handling and confirmation
 #[tokio::test]
 async fn test_delete_spec_error_handling() -> Result<()> {
-    use foundry_mcp::cli::commands::{delete_spec};
+    use foundry_mcp::cli::commands::delete_spec;
 
     let env = TestEnvironment::new()?;
 
@@ -1076,7 +1098,7 @@ async fn test_delete_spec_error_handling() -> Result<()> {
 /// Test update_spec and delete_spec integration workflow
 #[tokio::test]
 async fn test_spec_lifecycle_workflow() -> Result<()> {
-    use foundry_mcp::cli::commands::{update_spec, delete_spec};
+    use foundry_mcp::cli::commands::{delete_spec, update_spec};
 
     let env = TestEnvironment::new()?;
 
@@ -1091,7 +1113,10 @@ async fn test_spec_lifecycle_workflow() -> Result<()> {
     // Phase 1: Update spec with replace
     let update_args = env.update_spec_args("lifecycle-project", &spec_name, "spec", "replace");
     let update_response = update_spec::execute(update_args).await?;
-    assert_eq!(update_response.validation_status, ValidationStatus::Complete);
+    assert_eq!(
+        update_response.validation_status,
+        ValidationStatus::Complete
+    );
 
     // Phase 2: Append to notes
     let append_args = env.update_spec_args("lifecycle-project", &spec_name, "notes", "append");
@@ -1110,16 +1135,23 @@ async fn test_spec_lifecycle_workflow() -> Result<()> {
         spec_name: Some(spec_name.clone()),
     };
     let load_response = load_spec::execute(load_args).await?;
-    
+
     let spec_content = load_response.data.spec_content.unwrap();
     assert!(spec_content.spec.contains("Updated content for testing"));
     assert!(spec_content.notes.contains("Implementation notes")); // Original + appended
-    assert!(spec_content.task_list.contains("- [x] Initial setup complete"));
+    assert!(
+        spec_content
+            .task_list
+            .contains("- [x] Initial setup complete")
+    );
 
     // Phase 5: Delete spec to complete lifecycle
     let delete_args = env.delete_spec_args("lifecycle-project", &spec_name);
     let delete_response = delete_spec::execute(delete_args).await?;
-    assert_eq!(delete_response.validation_status, ValidationStatus::Complete);
+    assert_eq!(
+        delete_response.validation_status,
+        ValidationStatus::Complete
+    );
 
     // Verify spec is completely removed
     let foundry_dir = env.foundry_dir();
