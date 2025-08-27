@@ -79,20 +79,62 @@ impl TestEnvironment {
         }
     }
 
-    /// Create test arguments for update_spec
-    pub fn update_spec_args(
+    /// Create test arguments for update_spec with single file update
+    pub fn update_spec_args_single(
         &self,
         project_name: &str,
         spec_name: &str,
         file_type: &str,
         operation: &str,
     ) -> UpdateSpecArgs {
+        let content = "Updated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.".to_string();
+
+        match file_type {
+            "spec" => UpdateSpecArgs {
+                project_name: project_name.to_string(),
+                spec_name: spec_name.to_string(),
+                spec: Some(content),
+                tasks: None,
+                notes: None,
+                operation: operation.to_string(),
+            },
+            "task-list" | "tasks" => UpdateSpecArgs {
+                project_name: project_name.to_string(),
+                spec_name: spec_name.to_string(),
+                spec: None,
+                tasks: Some(content),
+                notes: None,
+                operation: operation.to_string(),
+            },
+            "notes" => UpdateSpecArgs {
+                project_name: project_name.to_string(),
+                spec_name: spec_name.to_string(),
+                spec: None,
+                tasks: None,
+                notes: Some(content),
+                operation: operation.to_string(),
+            },
+            _ => panic!("Invalid file_type: {}", file_type),
+        }
+    }
+
+    /// Create test arguments for update_spec with multiple file updates
+    pub fn update_spec_args_multi(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        operation: &str,
+        spec_content: Option<&str>,
+        tasks_content: Option<&str>,
+        notes_content: Option<&str>,
+    ) -> UpdateSpecArgs {
         UpdateSpecArgs {
             project_name: project_name.to_string(),
             spec_name: spec_name.to_string(),
-            file_type: file_type.to_string(),
+            spec: spec_content.map(|s| s.to_string()),
+            tasks: tasks_content.map(|s| s.to_string()),
+            notes: notes_content.map(|s| s.to_string()),
             operation: operation.to_string(),
-            content: "Updated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.".to_string(),
         }
     }
 
@@ -836,15 +878,21 @@ async fn test_update_spec_replace() -> Result<()> {
     let spec_name = spec_response.data.spec_name;
 
     // Test replace operation on spec.md
-    let update_args = env.update_spec_args("update-test-project", &spec_name, "spec", "replace");
+    let update_args =
+        env.update_spec_args_single("update-test-project", &spec_name, "spec", "replace");
     let response = update_spec::execute(update_args).await?;
 
     // Verify response
     assert_eq!(response.data.project_name, "update-test-project");
     assert_eq!(response.data.spec_name, spec_name);
-    assert_eq!(response.data.file_type, "spec");
-    assert_eq!(response.data.operation, "replace");
-    assert!(response.data.content_length > 0);
+    assert_eq!(response.data.total_files_updated, 1);
+    assert_eq!(response.data.files_updated.len(), 1);
+
+    let file_update = &response.data.files_updated[0];
+    assert_eq!(file_update.file_type, "spec");
+    assert_eq!(file_update.operation, "replace");
+    assert!(file_update.content_length > 0);
+    assert!(file_update.success);
 
     // Verify file was actually updated
     let foundry_dir = env.foundry_dir();
@@ -869,7 +917,7 @@ async fn test_update_spec_replace() -> Result<()> {
         response
             .workflow_hints
             .iter()
-            .any(|h| h.contains("Updated spec"))
+            .any(|h| h.contains("Updated files: spec.md"))
     );
 
     Ok(())
@@ -891,12 +939,18 @@ async fn test_update_spec_append() -> Result<()> {
     let spec_name = spec_response.data.spec_name;
 
     // Test append operation on notes.md
-    let update_args = env.update_spec_args("append-test-project", &spec_name, "notes", "append");
+    let update_args =
+        env.update_spec_args_single("append-test-project", &spec_name, "notes", "append");
     let response = update_spec::execute(update_args).await?;
 
     // Verify response
-    assert_eq!(response.data.operation, "append");
-    assert_eq!(response.data.file_type, "notes");
+    assert_eq!(response.data.total_files_updated, 1);
+    assert_eq!(response.data.files_updated.len(), 1);
+
+    let file_update = &response.data.files_updated[0];
+    assert_eq!(file_update.operation, "append");
+    assert_eq!(file_update.file_type, "notes");
+    assert!(file_update.success);
 
     // Verify file contains both original and appended content
     let foundry_dir = env.foundry_dir();
@@ -930,8 +984,8 @@ async fn test_update_spec_task_list() -> Result<()> {
 
     // Update task list with new tasks
     let mut update_args =
-        env.update_spec_args("task-test-project", &spec_name, "task-list", "append");
-    update_args.content = "## Phase 3: Additional Tasks\n- [ ] New task to complete\n- [x] Completed task from previous work".to_string();
+        env.update_spec_args_single("task-test-project", &spec_name, "task-list", "append");
+    update_args.tasks = Some("## Phase 3: Additional Tasks\n- [ ] New task to complete\n- [x] Completed task from previous work".to_string());
 
     let response = update_spec::execute(update_args).await?;
 
@@ -947,8 +1001,13 @@ async fn test_update_spec_task_list() -> Result<()> {
     assert!(content.contains("- [ ] New task to complete"));
     assert!(content.contains("- [x] Completed task"));
 
-    // Verify workflow hints mention task list formatting
-    assert!(response.workflow_hints.iter().any(|h| h.contains("- [ ]")));
+    // Verify workflow hints mention file updates
+    assert!(
+        response
+            .workflow_hints
+            .iter()
+            .any(|h| h.contains("Updated files:"))
+    );
 
     Ok(())
 }
@@ -961,7 +1020,8 @@ async fn test_update_spec_error_handling() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Test nonexistent project
-    let update_args = env.update_spec_args("nonexistent-project", "fake-spec", "spec", "replace");
+    let update_args =
+        env.update_spec_args_single("nonexistent-project", "fake-spec", "spec", "replace");
     let result = update_spec::execute(update_args).await;
     assert!(result.is_err());
 
@@ -975,23 +1035,26 @@ async fn test_update_spec_error_handling() -> Result<()> {
 
     // Test nonexistent spec
     let update_args =
-        env.update_spec_args("error-test-project", "nonexistent-spec", "spec", "replace");
+        env.update_spec_args_single("error-test-project", "nonexistent-spec", "spec", "replace");
     let result = update_spec::execute(update_args).await;
     assert!(result.is_err());
 
-    // Test invalid file type
-    let update_args = env.update_spec_args("error-test-project", &spec_name, "invalid", "replace");
-    let result = update_spec::execute(update_args).await;
-    assert!(result.is_err());
-
-    // Test invalid operation
-    let update_args = env.update_spec_args("error-test-project", &spec_name, "spec", "invalid");
+    // Test invalid operation (helper function validates file types)
+    let update_args = UpdateSpecArgs {
+        project_name: "error-test-project".to_string(),
+        spec_name: spec_name.clone(),
+        spec: Some("test content".to_string()),
+        tasks: None,
+        notes: None,
+        operation: "invalid".to_string(),
+    };
     let result = update_spec::execute(update_args).await;
     assert!(result.is_err());
 
     // Test empty content
-    let mut update_args = env.update_spec_args("error-test-project", &spec_name, "spec", "replace");
-    update_args.content = "".to_string();
+    let mut update_args =
+        env.update_spec_args_single("error-test-project", &spec_name, "spec", "replace");
+    update_args.spec = Some("".to_string());
     let result = update_spec::execute(update_args).await;
     assert!(result.is_err());
 
@@ -1111,7 +1174,8 @@ async fn test_spec_lifecycle_workflow() -> Result<()> {
     let spec_name = spec_response.data.spec_name;
 
     // Phase 1: Update spec with replace
-    let update_args = env.update_spec_args("lifecycle-project", &spec_name, "spec", "replace");
+    let update_args =
+        env.update_spec_args_single("lifecycle-project", &spec_name, "spec", "replace");
     let update_response = update_spec::execute(update_args).await?;
     assert_eq!(
         update_response.validation_status,
@@ -1119,15 +1183,17 @@ async fn test_spec_lifecycle_workflow() -> Result<()> {
     );
 
     // Phase 2: Append to notes
-    let append_args = env.update_spec_args("lifecycle-project", &spec_name, "notes", "append");
+    let append_args =
+        env.update_spec_args_single("lifecycle-project", &spec_name, "notes", "append");
     let append_response = update_spec::execute(append_args).await?;
-    assert_eq!(append_response.data.operation, "append");
+    assert_eq!(append_response.data.files_updated[0].operation, "append");
 
     // Phase 3: Update task list
-    let mut task_args = env.update_spec_args("lifecycle-project", &spec_name, "tasks", "replace");
-    task_args.content = "## Implementation Progress\n- [x] Initial setup complete\n- [ ] Core implementation pending\n- [ ] Testing and documentation needed".to_string();
+    let mut task_args =
+        env.update_spec_args_single("lifecycle-project", &spec_name, "tasks", "replace");
+    task_args.tasks = Some("## Implementation Progress\n- [x] Initial setup complete\n- [ ] Core implementation pending\n- [ ] Testing and documentation needed".to_string());
     let task_response = update_spec::execute(task_args).await?;
-    assert!(task_response.data.content_length > 50);
+    assert!(task_response.data.files_updated[0].content_length > 50);
 
     // Phase 4: Load spec to verify all updates
     let load_args = LoadSpecArgs {

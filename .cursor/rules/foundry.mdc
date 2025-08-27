@@ -72,17 +72,36 @@ Each spec contains:
   - When: Continuing work on existing features, checking task status
   - Returns: Complete spec content with project context
 
-- **`update-spec`**: Updating specs during iterative development
-  - **File Types**: `spec` (spec.md), `task-list` (task-list.md), `notes` (notes.md)
-  - **Operations**: `replace` (overwrite) or `append` (add to existing)
+- **`update-spec`**: Updating multiple spec files in a single operation with explicit content replacement control
+
+  - **File Types**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
+  - **Operations**: `replace` (overwrite) or `append` (add to existing) - REQUIRED
   - **Usage**:
+
     ```bash
-    foundry mcp update-spec <project> <spec> --file-type <type> --operation <op> --content "<content>"
+    # Update single file
+    foundry mcp update-spec <project> <spec> --spec "<content>" --operation <replace|append>
+
+    # Update multiple files in one command
+    foundry mcp update-spec <project> <spec> \
+      --spec "<spec content>" \
+      --tasks "<task content>" \
+      --notes "<notes content>" \
+      --operation <replace|append>
     ```
+
+  - **Operation Types**:
+    - **`--operation replace`**: Completely replaces file content with new content
+      - **Use when**: Major changes, complete rewrites, replacing outdated content
+      - **Risk**: Existing content is permanently lost
+    - **`--operation append`**: Adds new content to the end of existing content
+      - **Use when**: Iterative development, adding tasks/notes, preserving history
+      - **Risk**: Low - existing content is preserved
   - **Best Practices**:
-    - Use `append` for task updates: Add `- [x] Completed user authentication`
-    - Use `replace` for major spec changes
-    - Use `append` for adding implementation notes during development
+    - Use `append` for iterative development: Add new tasks, mark items complete, accumulate notes
+    - Use `replace` for major changes: Complete rewrites, major requirement changes
+    - At least one content parameter (`--spec`, `--tasks`, or `--notes`) must be provided
+    - Operation is always required and applies to all files being updated
 
 #### Discovery & Validation
 
@@ -220,10 +239,16 @@ foundry mcp create-spec my-project new-feature
 foundry mcp create-spec my-project user-auth
 
 # Update task progress during development
-foundry mcp update-spec my-project 20240101_user_auth --file-type task-list --operation append --content "- [x] Completed password validation"
+foundry mcp update-spec my-project 20240101_user_auth --tasks "- [x] Completed password validation" --operation append
 
 # Add implementation notes
-foundry mcp update-spec my-project 20240101_user_auth --file-type notes --operation append --content "## Implementation Notes\nUsed bcrypt for password hashing with 12 rounds for security."
+foundry mcp update-spec my-project 20240101_user_auth --notes "## Implementation Notes\nUsed bcrypt for password hashing with 12 rounds for security." --operation append
+
+# Update both tasks and notes in one command
+foundry mcp update-spec my-project 20240101_user_auth \
+  --tasks "- [x] Completed authentication module" \
+  --notes "Added JWT token validation with 12-round bcrypt" \
+  --operation append
 ```
 
 ### 3. Follow Next Steps Guidance
@@ -325,7 +350,13 @@ foundry mcp load-project my-project
 foundry mcp create-spec my-project user-auth
 
 # Update task progress
-foundry mcp update-spec my-project 20240101_user_auth --file-type task-list --operation append --content "- [x] Completed implementation"
+foundry mcp update-spec my-project 20240101_user_auth --tasks "- [x] Completed implementation" --operation append
+
+# Update multiple files at once
+foundry mcp update-spec my-project 20240101_user_auth \
+  --tasks "- [x] New task completed" \
+  --notes "Implementation details added" \
+  --operation append
 
 # Get help
 foundry mcp get-foundry-help workflows

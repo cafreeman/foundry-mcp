@@ -141,10 +141,26 @@ pub struct ValidateContentResponse {
 pub struct UpdateSpecResponse {
     pub project_name: String,
     pub spec_name: String,
+    pub files_updated: Vec<FileUpdateResult>,
+    pub total_files_updated: usize,
+}
+
+/// Individual file update result within a multi-file update operation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileUpdateResult {
+    /// Type of file updated ("spec", "tasks", or "notes")
     pub file_type: String,
+    /// Operation performed ("replace" or "append")
     pub operation: String,
+    /// Full path to the updated file
     pub file_path: String,
+    /// Length of final content in characters
     pub content_length: usize,
+    /// Whether the update operation succeeded
+    pub success: bool,
+    /// Error message if the operation failed (None if successful)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
 }
 
 /// Response for delete_spec command

@@ -359,7 +359,7 @@ pub struct ValidateContentArgs {
 #[derive(Args, Debug, McpTool)]
 #[mcp(
     name = "update_spec",
-    description = "Update existing specification files (spec.md, task-list.md, or notes.md) with new content. Supports both replace and append operations for iterative development."
+    description = "Update multiple spec files in a single operation with explicit control over content replacement strategy. Update spec.md, task-list.md, and/or notes.md with replace or append operations."
 )]
 pub struct UpdateSpecArgs {
     /// Project name containing the spec to update
@@ -378,49 +378,93 @@ pub struct UpdateSpecArgs {
     )]
     pub spec_name: String,
 
-    /// File type to update within the spec
+    /// New content for spec.md (optional)
     ///
-    /// Must be one of:
-    /// - "spec" - Updates spec.md (main feature specification)
-    /// - "task-list" or "tasks" - Updates task-list.md (implementation checklist)
-    /// - "notes" - Updates notes.md (additional context and design decisions)
-    #[mcp(
-        description = "File type to update: 'spec' (spec.md), 'task-list' or 'tasks' (task-list.md), or 'notes' (notes.md)"
-    )]
-    pub file_type: String,
-
-    /// Operation type: 'replace' or 'append'
+    /// **Complete Content Replacement (--operation replace)**:
+    /// - Entirely replaces the existing spec.md content
+    /// - Use for major requirement changes or complete rewrites
+    /// - Existing content is lost - ensure you have backups if needed
     ///
-    /// - "replace" - Completely replaces the file content
-    /// - "append" - Adds new content to the end of the existing file
-    ///
-    /// Use 'append' for updating task lists, adding notes, or extending specifications
-    /// Use 'replace' for complete rewrites or major restructuring
-    #[mcp(
-        description = "Operation type: 'replace' (overwrite content) or 'append' (add to existing content)"
-    )]
-    pub operation: String,
-
-    /// New content to write or append
+    /// **Content Addition (--operation append)**:
+    /// - Adds new content to the end of existing spec.md
+    /// - Preserves existing requirements and specifications
+    /// - Use for iterative spec development and additions
     ///
     /// **Markdown Formatting Guidelines:**
-    /// - Use proper headers (## Features, ### Implementation Details)
-    /// - Structure with lists, code blocks, and clear sections
-    /// - For task-lists: Use "- [ ] Task description" format for checkboxes
-    /// - For specs: Include Requirements, Acceptance Criteria, Implementation Approach
-    /// - For notes: Use bullet points, decision rationale, and cross-references
+    /// - Use # Feature Name as main header
+    /// - Use ## for major sections (## Overview, ## Requirements, ## Implementation)
+    /// - Include functional requirements, acceptance criteria, technical approach
+    /// - Use bullet points, numbered lists, and code blocks as needed
+    #[arg(long)]
+    #[mcp(
+        description = "New content for spec.md (optional). Use with --operation replace to completely rewrite the spec, or --operation append to add new requirements while preserving existing content. Include functional requirements, acceptance criteria, and implementation approach."
+    )]
+    pub spec: Option<String>,
+
+    /// New content for task-list.md (optional)
     ///
-    /// **Content should be:**
-    /// - Well-structured with clear hierarchy
-    /// - Comprehensive yet focused
-    /// - Technical but accessible
-    /// - Include examples where helpful
+    /// **Complete Content Replacement (--operation replace)**:
+    /// - Entirely replaces the existing task-list.md content
+    /// - Use when completely restructuring the implementation plan
+    /// - Existing task history is lost
+    ///
+    /// **Content Addition (--operation append)**:
+    /// - Adds new tasks to the end of existing task-list.md
+    /// - Preserves existing task history and completion status
+    /// - Use for adding new tasks or marking existing tasks as complete
+    ///
+    /// **Markdown Checklist Format:**
+    /// - Use "## Phase Name" headers to group related tasks
+    /// - Use "- [ ] Task description" for uncompleted tasks
+    /// - Use "- [x] Task description" for completed tasks
+    /// - Include implementation details and dependencies
+    #[arg(long)]
+    #[mcp(
+        description = "New content for task-list.md (optional). Use with --operation append to add new tasks or mark existing tasks complete while preserving history. Use --operation replace to completely restructure the implementation plan."
+    )]
+    pub tasks: Option<String>,
+
+    /// New content for notes.md (optional)
+    ///
+    /// **Complete Content Replacement (--operation replace)**:
+    /// - Entirely replaces the existing notes.md content
+    /// - Use when consolidating or restructuring design decisions
+    /// - Existing notes and rationale are lost
+    ///
+    /// **Content Addition (--operation append)**:
+    /// - Adds new notes to the end of existing notes.md
+    /// - Preserves existing design decisions and implementation notes
+    /// - Use for adding new insights, decisions, or implementation details
+    ///
+    /// **Markdown Formatting Guidelines:**
+    /// - Use ## headers for different categories (## Design Decisions, ## Implementation Notes)
+    /// - Document technical tradeoffs, constraints, and rationale
+    /// - Include code snippets, external references, and future considerations
+    /// - Keep notes conversational but technical
+    #[arg(long)]
+    #[mcp(
+        description = "New content for notes.md (optional). Use with --operation append to accumulate design decisions and implementation notes over time. Use --operation replace to restructure or consolidate notes."
+    )]
+    pub notes: Option<String>,
+
+    /// Content replacement strategy (REQUIRED)
+    ///
+    /// **replace**: Completely replaces the target file content with new content
+    /// - Use when: Completely rewriting content, major changes, starting fresh
+    /// - Risk: Existing content is lost permanently
+    /// - Example: Major requirement changes, technical direction changes
+    ///
+    /// **append**: Adds new content to the end of existing file content
+    /// - Use when: Adding new content, iterative development, preserving history
+    /// - Risk: Low - existing content is preserved
+    /// - Example: Adding new tasks, accumulating notes, marking items complete
+    ///
+    /// Applies to ALL files being updated in this command.
     #[arg(long, required = true)]
     #[mcp(
-        description = "Content to write or append. Use markdown formatting with proper headers, lists, and structure. For task-lists use '- [ ]' checkbox format. Include comprehensive details with examples.",
-        min_length = 20
+        description = "REQUIRED: Content replacement strategy - 'replace' (completely overwrite) or 'append' (add to existing content). Applies to all files being updated. Use 'replace' for major changes, 'append' for iterative development."
     )]
-    pub content: String,
+    pub operation: String,
 }
 
 /// Arguments for delete_spec command
