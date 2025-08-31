@@ -9,29 +9,14 @@ use anyhow::{Context, Result};
 use tokio::process::Command;
 
 /// Install Foundry MCP server for Claude Code
-pub async fn install_for_claude_code(force: bool) -> Result<InstallationResult> {
+pub async fn install_for_claude_code() -> Result<InstallationResult> {
     let mut actions_taken = Vec::new();
 
     // Note: We skip the availability check here since the PATH may differ between
     // interactive shell and cargo run. Instead, let the actual command fail with a clear error.
     actions_taken.push("Attempting to register with Claude Code CLI".to_string());
 
-    // Check if already registered and handle force logic
-    if !force {
-        match verify_claude_code_installation().await {
-            Ok(_) => {
-                return Err(anyhow::anyhow!(
-                    "Foundry MCP server is already registered with Claude Code. Use --force to overwrite."
-                ));
-            }
-            Err(_) => {
-                // Not registered, continue with installation
-                actions_taken.push("Verified no existing registration found".to_string());
-            }
-        }
-    } else {
-        actions_taken.push("Force flag enabled - proceeding with installation".to_string());
-    }
+    // Always proceed with installation (overwrite existing if present)
 
     // Register MCP server with Claude Code using CLI
     // Note: We use "foundry" directly since it will be available on PATH
@@ -65,7 +50,7 @@ pub async fn install_for_claude_code(force: bool) -> Result<InstallationResult> 
 }
 
 /// Uninstall Foundry MCP server from Claude Code
-pub async fn uninstall_from_claude_code(force: bool) -> Result<UninstallationResult> {
+pub async fn uninstall_from_claude_code() -> Result<UninstallationResult> {
     let mut actions_taken = Vec::new();
     let files_removed = Vec::new();
 
@@ -83,13 +68,10 @@ pub async fn uninstall_from_claude_code(force: bool) -> Result<UninstallationRes
             actions_taken.push("Unregistered MCP server from Claude Code CLI".to_string());
         }
         Err(e) => {
-            if !force {
-                return Err(anyhow::anyhow!(
-                    "Failed to unregister MCP server from Claude Code: {}",
-                    e
-                ));
-            }
-            actions_taken.push(format!("Warning: Could not unregister cleanly: {}", e));
+            return Err(anyhow::anyhow!(
+                "Failed to unregister MCP server from Claude Code: {}",
+                e
+            ));
         }
     }
 
@@ -279,7 +261,7 @@ mod tests {
 
         let _ = env.with_env_async(|| async {
             // The function should not panic and should handle the case where claude CLI is not available
-            let result = install_for_claude_code(false).await;
+            let result = install_for_claude_code().await;
 
             // Expect failure if Claude Code CLI is not installed, but it should fail gracefully
             if result.is_err() {

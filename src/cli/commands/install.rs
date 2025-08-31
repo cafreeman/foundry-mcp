@@ -16,16 +16,16 @@ pub async fn execute(args: InstallArgs) -> Result<FoundryResponse<InstallRespons
     let (result, binary_path) = match args.target.as_str() {
         "claude-code" => {
             // Claude Code uses "foundry" from PATH, no need for binary path detection
-            let result = installation::install_for_claude_code(args.force)
+            let result = installation::install_for_claude_code()
                 .await
-                .map_err(|e| enhance_installation_error("claude-code", &e, args.force))?;
+                .map_err(|e| enhance_installation_error("claude-code", &e))?;
             (result, "foundry (from PATH)".to_string())
         }
         "cursor" => {
             // Cursor uses "foundry" from PATH, same as Claude Code
-            let result = installation::install_for_cursor(args.force)
+            let result = installation::install_for_cursor()
                 .await
-                .map_err(|e| enhance_installation_error("cursor", &e, args.force))?;
+                .map_err(|e| enhance_installation_error("cursor", &e))?;
             (result, "foundry (from PATH)".to_string())
         }
         _ => {
@@ -88,36 +88,19 @@ fn validate_target(target: &str) -> Result<()> {
 }
 
 /// Enhance installation errors with specific context and actionable guidance
-fn enhance_installation_error(
-    target: &str,
-    original_error: &anyhow::Error,
-    force: bool,
-) -> anyhow::Error {
+fn enhance_installation_error(target: &str, original_error: &anyhow::Error) -> anyhow::Error {
     let error_msg = original_error.to_string();
 
     // Handle specific error cases with detailed guidance
     if error_msg.contains("already configured") {
-        if force {
-            anyhow::anyhow!(
-                "Installation failed for {}: {}\n\n\
-                💡 This indicates an internal error - the --force flag should have overridden existing configuration.\n\
-                💡 Try checking permissions: foundry mcp status --detailed\n\
-                💡 You may need to manually remove the existing configuration first",
-                target,
-                error_msg
-            )
-        } else {
-            anyhow::anyhow!(
-                "Installation failed for {}: {}\n\n\
-                💡 Foundry MCP is already installed for {}. Use --force to overwrite:\n\
-                💡   foundry mcp install {} --force\n\
-                💡 Or check current status: foundry mcp status --detailed",
-                target,
-                error_msg,
-                target,
-                target
-            )
-        }
+        anyhow::anyhow!(
+            "Installation failed for {}: {}\n\n\
+            💡 Foundry MCP is already installed for {} but will be overwritten.\n\
+            💡 Check current status: foundry mcp status --detailed",
+            target,
+            error_msg,
+            target
+        )
     } else if error_msg.contains("Binary path does not exist") {
         anyhow::anyhow!(
             "Installation failed for {}: {}\n\n\
@@ -136,7 +119,7 @@ fn enhance_installation_error(
             💡 The configured binary path is invalid. This usually means:\n\
             💡   • The Foundry binary was moved or deleted\n\
             💡   • The configuration points to an old development build\n\
-            💡 Try: foundry mcp install {} --binary-path $(which foundry) --force",
+            💡 Try: foundry mcp install {} --binary-path $(which foundry)",
             target,
             error_msg,
             target
@@ -224,7 +207,6 @@ mod tests {
         let args = InstallArgs {
             target: "invalid-target".to_string(),
             binary_path: None,
-            force: false,
         };
 
         // Test the validation logic without calling execute()
@@ -243,12 +225,10 @@ mod tests {
         let args = InstallArgs {
             target: "claude-code".to_string(),
             binary_path: Some("/custom/path/foundry".to_string()),
-            force: true,
         };
 
         assert_eq!(args.target, "claude-code");
         assert_eq!(args.binary_path, Some("/custom/path/foundry".to_string()));
-        assert!(args.force);
     }
 
     #[test]
@@ -256,12 +236,10 @@ mod tests {
         let args = InstallArgs {
             target: "cursor".to_string(),
             binary_path: None,
-            force: false,
         };
 
         assert_eq!(args.target, "cursor");
         assert!(args.binary_path.is_none());
-        assert!(!args.force);
     }
 
     #[test]
@@ -290,13 +268,11 @@ mod tests {
         let args = InstallArgs {
             target: "cursor".to_string(),
             binary_path: Some(binary_path.to_string_lossy().to_string()),
-            force: true,
         };
 
         // This test validates the CLI argument processing
         assert_eq!(args.target, "cursor");
         assert!(args.binary_path.is_some());
-        assert!(args.force);
 
         // Test target validation
         assert!(validate_target(&args.target).is_ok());
@@ -313,7 +289,6 @@ mod tests {
         let _args = InstallArgs {
             target: "cursor".to_string(),
             binary_path: Some(binary_path.to_string_lossy().to_string()),
-            force: true,
         };
 
         // We can't easily test the full execute function due to path dependencies,
@@ -377,47 +352,34 @@ mod tests {
         let args1 = InstallArgs {
             target: "claude-code".to_string(),
             binary_path: None,
-            force: false,
         };
         assert_eq!(args1.target, "claude-code");
         assert!(args1.binary_path.is_none());
-        assert!(!args1.force);
 
         let args2 = InstallArgs {
             target: "cursor".to_string(),
             binary_path: Some("/custom/path".to_string()),
-            force: true,
         };
         assert_eq!(args2.target, "cursor");
         assert_eq!(args2.binary_path, Some("/custom/path".to_string()));
-        assert!(args2.force);
     }
 
     #[test]
     fn test_enhance_installation_error_already_configured() {
-        let original = anyhow::anyhow!(
-            "Foundry MCP server is already configured for Cursor. Use --force to overwrite."
-        );
+        let original = anyhow::anyhow!("Foundry MCP server is already configured for Cursor.");
 
-        // Test without force flag
-        let enhanced = enhance_installation_error("cursor", &original, false);
+        // Test error enhancement
+        let enhanced = enhance_installation_error("cursor", &original);
         let error_msg = enhanced.to_string();
         assert!(error_msg.contains("Installation failed for cursor"));
         assert!(error_msg.contains("already installed for cursor"));
-        assert!(error_msg.contains("--force"));
-        assert!(error_msg.contains("foundry mcp install cursor --force"));
-
-        // Test with force flag
-        let enhanced_force = enhance_installation_error("cursor", &original, true);
-        let error_msg_force = enhanced_force.to_string();
-        assert!(error_msg_force.contains("internal error"));
-        assert!(error_msg_force.contains("should have overridden"));
+        assert!(error_msg.contains("will be overwritten"));
     }
 
     #[test]
     fn test_enhance_installation_error_binary_path() {
         let original = anyhow::anyhow!("Binary path does not exist: /nonexistent/path");
-        let enhanced = enhance_installation_error("cursor", &original, false);
+        let enhanced = enhance_installation_error("cursor", &original);
         let error_msg = enhanced.to_string();
 
         assert!(error_msg.contains("Installation failed for cursor"));
@@ -430,19 +392,18 @@ mod tests {
     #[test]
     fn test_enhance_installation_error_command_not_exist() {
         let original = anyhow::anyhow!("Server 'foundry' command does not exist: /old/path");
-        let enhanced = enhance_installation_error("cursor", &original, false);
+        let enhanced = enhance_installation_error("cursor", &original);
         let error_msg = enhanced.to_string();
 
         assert!(error_msg.contains("Installation failed for cursor"));
         assert!(error_msg.contains("configured binary path is invalid"));
         assert!(error_msg.contains("moved or deleted"));
-        assert!(error_msg.contains("--force"));
     }
 
     #[test]
     fn test_enhance_installation_error_cli_not_found() {
         let original = anyhow::anyhow!("Claude Code CLI not found in PATH");
-        let enhanced = enhance_installation_error("claude-code", &original, false);
+        let enhanced = enhance_installation_error("claude-code", &original);
         let error_msg = enhanced.to_string();
 
         assert!(error_msg.contains("Installation failed for claude-code"));
@@ -453,7 +414,7 @@ mod tests {
     #[test]
     fn test_enhance_installation_error_permission_denied() {
         let original = anyhow::anyhow!("Permission denied accessing configuration directory");
-        let enhanced = enhance_installation_error("cursor", &original, false);
+        let enhanced = enhance_installation_error("cursor", &original);
         let error_msg = enhanced.to_string();
 
         assert!(error_msg.contains("Installation failed for cursor"));
@@ -465,7 +426,7 @@ mod tests {
     #[test]
     fn test_enhance_installation_error_generic() {
         let original = anyhow::anyhow!("Some unexpected error occurred");
-        let enhanced = enhance_installation_error("cursor", &original, false);
+        let enhanced = enhance_installation_error("cursor", &original);
         let error_msg = enhanced.to_string();
 
         assert!(error_msg.contains("Installation failed for cursor"));

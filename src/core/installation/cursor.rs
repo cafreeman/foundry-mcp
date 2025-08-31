@@ -10,7 +10,7 @@ use crate::types::responses::EnvironmentStatus;
 use anyhow::{Context, Result};
 
 /// Install Foundry MCP server for Cursor
-pub async fn install_for_cursor(force: bool) -> Result<InstallationResult> {
+pub async fn install_for_cursor() -> Result<InstallationResult> {
     let config_path = get_cursor_mcp_config_path()?;
     let config_path_str = config_path.to_string_lossy().to_string();
 
@@ -22,12 +22,7 @@ pub async fn install_for_cursor(force: bool) -> Result<InstallationResult> {
     let mut config =
         read_config_file(&config_path).context("Failed to read existing MCP configuration")?;
 
-    // Check if already configured
-    if has_server_config(&config, "foundry") && !force {
-        return Err(anyhow::anyhow!(
-            "Foundry MCP server is already configured for Cursor. Use --force to overwrite."
-        ));
-    }
+    // Always overwrite existing configuration
 
     // Create server configuration using PATH-based 'foundry' command
     let server_config = create_cursor_server_config();
@@ -53,10 +48,7 @@ pub async fn install_for_cursor(force: bool) -> Result<InstallationResult> {
 }
 
 /// Uninstall Foundry MCP server from Cursor
-pub async fn uninstall_from_cursor(
-    remove_config: bool,
-    force: bool,
-) -> Result<UninstallationResult> {
+pub async fn uninstall_from_cursor(remove_config: bool) -> Result<UninstallationResult> {
     let config_path = get_cursor_mcp_config_path()?;
     let config_path_str = config_path.to_string_lossy().to_string();
 
@@ -66,24 +58,14 @@ pub async fn uninstall_from_cursor(
     // Read existing configuration
     let mut config = match read_config_file(&config_path) {
         Ok(config) => config,
-        Err(_) if force => {
-            // If we can't read the config but force is enabled, assume empty config
-            crate::core::installation::json_config::McpConfig {
-                mcp_servers: std::collections::HashMap::new(),
-            }
-        }
         Err(e) => return Err(e),
     };
 
     // Check if server is configured
     if !has_server_config(&config, "foundry") {
-        if !force {
-            return Err(anyhow::anyhow!(
-                "Foundry MCP server is not configured for Cursor"
-            ));
-        }
-        actions_taken
-            .push("Foundry MCP server was not configured (continuing due to --force)".to_string());
+        return Err(anyhow::anyhow!(
+            "Foundry MCP server is not configured for Cursor"
+        ));
     } else {
         // Remove server from configuration
         config = remove_server_from_config(config, "foundry");
@@ -207,7 +189,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
 
         let _ = env.with_env_async(|| async {
-            let result = install_for_cursor(false).await;
+            let result = install_for_cursor().await;
 
             assert!(
                 result.is_ok(),
@@ -243,23 +225,25 @@ mod tests {
             env.create_cursor_config(&[("foundry", "/old/foundry/path")])
                 .unwrap();
 
-            let result = install_for_cursor(false).await;
+            let result = install_for_cursor().await;
 
             assert!(
-                result.is_err(),
-                "Install should fail when already configured without force"
+                result.is_ok(),
+                "Install should succeed and overwrite existing configuration"
             );
+            let install_result = result.unwrap();
+            assert!(install_result.success);
             assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("already configured")
+                install_result
+                    .actions_taken
+                    .iter()
+                    .any(|action| action.contains("Added Foundry MCP server"))
             );
         });
     }
 
     #[test]
-    fn test_install_for_cursor_force_overwrite() {
+    fn test_install_for_cursor_overwrites_existing() {
         let env = TestEnvironment::new().unwrap();
 
         let _ = env.with_env_async(|| async {
@@ -267,11 +251,11 @@ mod tests {
             env.create_cursor_config(&[("foundry", "/old/foundry/path")])
                 .unwrap();
 
-            let result = install_for_cursor(true).await;
+            let result = install_for_cursor().await;
 
             assert!(
                 result.is_ok(),
-                "Install should succeed with force overwrite"
+                "Install should succeed and overwrite existing configuration"
             );
             let install_result = result.unwrap();
             assert!(install_result.success);
@@ -293,7 +277,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
 
         let _ = env.with_env_async(|| async {
-            let result = install_for_cursor(false).await;
+            let result = install_for_cursor().await;
 
             assert!(result.is_ok(), "Install should succeed and validate config");
             let install_result = result.unwrap();
@@ -319,7 +303,7 @@ mod tests {
             ])
             .unwrap();
 
-            let result = uninstall_from_cursor(false, false).await;
+            let result = uninstall_from_cursor(false).await;
 
             assert!(
                 result.is_ok(),
@@ -350,7 +334,7 @@ mod tests {
             // Create empty config
             env.create_cursor_config(&[]).unwrap();
 
-            let result = uninstall_from_cursor(false, false).await;
+            let result = uninstall_from_cursor(false).await;
 
             assert!(
                 result.is_err(),
@@ -361,27 +345,20 @@ mod tests {
     }
 
     #[test]
-    fn test_uninstall_from_cursor_force_not_configured() {
+    fn test_uninstall_from_cursor_not_configured_fails() {
         let env = TestEnvironment::new().unwrap();
 
         let _ = env.with_env_async(|| async {
             // Create empty config
             env.create_cursor_config(&[]).unwrap();
 
-            let result = uninstall_from_cursor(false, true).await;
+            let result = uninstall_from_cursor(false).await;
 
             assert!(
-                result.is_ok(),
-                "Uninstall should succeed with force even when not configured"
+                result.is_err(),
+                "Uninstall should fail when foundry is not configured"
             );
-            let uninstall_result = result.unwrap();
-            assert!(uninstall_result.success);
-            assert!(
-                uninstall_result
-                    .actions_taken
-                    .iter()
-                    .any(|action| action.contains("not configured"))
-            );
+            assert!(result.unwrap_err().to_string().contains("not configured"));
         });
     }
 
@@ -394,7 +371,7 @@ mod tests {
             env.create_cursor_config(&[("foundry", "/usr/local/bin/foundry")])
                 .unwrap();
 
-            let result = uninstall_from_cursor(true, false).await;
+            let result = uninstall_from_cursor(true).await;
 
             assert!(
                 result.is_ok(),

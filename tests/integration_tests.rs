@@ -148,34 +148,26 @@ impl TestEnvironment {
     }
 
     /// Create test arguments for install command
-    pub fn install_args(&self, target: &str, force: bool) -> InstallArgs {
+    pub fn install_args(&self, target: &str) -> InstallArgs {
         InstallArgs {
             target: target.to_string(),
             binary_path: Some(self.mock_binary_path()),
-            force,
         }
     }
 
     /// Create test arguments for install command with explicit binary path
-    pub fn install_args_with_binary(
-        &self,
-        target: &str,
-        binary_path: &str,
-        force: bool,
-    ) -> InstallArgs {
+    pub fn install_args_with_binary(&self, target: &str, binary_path: &str) -> InstallArgs {
         InstallArgs {
             target: target.to_string(),
             binary_path: Some(binary_path.to_string()),
-            force,
         }
     }
 
     /// Create test arguments for uninstall command
-    pub fn uninstall_args(&self, target: &str, remove_config: bool, force: bool) -> UninstallArgs {
+    pub fn uninstall_args(&self, target: &str, remove_config: bool) -> UninstallArgs {
         UninstallArgs {
             target: target.to_string(),
             remove_config,
-            force,
         }
     }
 
@@ -1336,7 +1328,7 @@ async fn test_install_cursor_end_to_end() -> Result<()> {
     assert!(!config_path.exists(), "Config should not exist initially");
 
     // Execute install command
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let response = install::execute(install_args).await?;
 
     // Verify response structure
@@ -1401,7 +1393,7 @@ async fn test_install_cursor_config_verification() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Install cursor
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let response = install::execute(install_args).await?;
     assert_eq!(
         response.data.installation_status,
@@ -1452,9 +1444,9 @@ async fn test_install_cursor_config_verification() -> Result<()> {
     Ok(())
 }
 
-/// Test cursor installation force overwrite behavior
+/// Test cursor installation always overwrites existing configuration
 #[tokio::test]
-async fn test_install_cursor_force_overwrite() -> Result<()> {
+async fn test_install_cursor_always_overwrites() -> Result<()> {
     use foundry_mcp::cli::commands::install;
     use foundry_mcp::types::responses::InstallationStatus;
 
@@ -1482,27 +1474,16 @@ async fn test_install_cursor_force_overwrite() -> Result<()> {
     );
     env.create_existing_cursor_config(&existing_config)?;
 
-    // Try install without force (should fail)
-    let install_args = env.install_args("cursor", false);
+    // Install should succeed and overwrite existing configuration
+    let install_args = env.install_args("cursor");
     let result = install::execute(install_args).await;
     assert!(
-        result.is_err(),
-        "Install without force should fail when config exists"
+        result.is_ok(),
+        "Install should succeed and overwrite existing configuration"
     );
 
-    let error = result.unwrap_err();
-    let error_msg = format!("{:#}", error); // Include error chain
-    assert!(
-        error_msg.contains("already configured"),
-        "Error should mention already configured"
-    );
-    assert!(
-        error_msg.contains("--force"),
-        "Error should suggest using --force"
-    );
-
-    // Install with force (should succeed)
-    let install_args_force = env.install_args("cursor", true);
+    // Install again (should succeed and overwrite existing configuration)
+    let install_args_force = env.install_args("cursor");
     let response = install::execute(install_args_force).await?;
     assert_eq!(
         response.data.installation_status,
@@ -1542,7 +1523,7 @@ async fn test_uninstall_cursor_end_to_end() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // First install cursor
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let install_response = install::execute(install_args).await?;
     assert_eq!(
         install_response.data.installation_status,
@@ -1554,7 +1535,7 @@ async fn test_uninstall_cursor_end_to_end() -> Result<()> {
     assert!(config_path.exists(), "Config should exist after install");
 
     // Uninstall cursor
-    let uninstall_args = env.uninstall_args("cursor", false, false);
+    let uninstall_args = env.uninstall_args("cursor", false);
     let uninstall_response = uninstall::execute(uninstall_args).await?;
 
     // Verify uninstall response
@@ -1584,7 +1565,7 @@ async fn test_uninstall_cursor_remove_config() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Install cursor (creates only foundry server)
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let install_response = install::execute(install_args).await?;
     assert_eq!(
         install_response.data.installation_status,
@@ -1596,7 +1577,7 @@ async fn test_uninstall_cursor_remove_config() -> Result<()> {
     assert!(config_path.exists());
 
     // Uninstall with config removal
-    let uninstall_args = env.uninstall_args("cursor", true, false);
+    let uninstall_args = env.uninstall_args("cursor", true);
     let uninstall_response = uninstall::execute(uninstall_args).await?;
 
     // Verify config file was completely removed
@@ -1626,7 +1607,7 @@ async fn test_install_cursor_path_command() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Test cursor installation without explicit binary path
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let response = install::execute(install_args).await?;
 
     assert_eq!(
@@ -1658,7 +1639,7 @@ async fn test_install_cursor_path_based() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Test cursor installation using PATH-based command (no binary path needed)
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let result = install::execute(install_args).await;
 
     assert!(
@@ -1688,7 +1669,7 @@ async fn test_install_cursor_runtime_validation() -> Result<()> {
 
     // Cursor installation should succeed as it uses PATH-based command
     // Execution validation happens at runtime when MCP server is started
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let result = install::execute(install_args).await;
 
     assert!(
@@ -1719,7 +1700,7 @@ async fn test_install_cursor_malformed_config() -> Result<()> {
     env.create_existing_cursor_config(malformed_config)?;
 
     // Install should handle malformed config gracefully
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let result = install::execute(install_args).await;
 
     assert!(result.is_err(), "Install should fail with malformed config");
@@ -1740,7 +1721,7 @@ async fn test_uninstall_cursor_not_installed() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Try to uninstall when nothing is installed
-    let uninstall_args = env.uninstall_args("cursor", false, false);
+    let uninstall_args = env.uninstall_args("cursor", false);
     let result = uninstall::execute(uninstall_args).await;
 
     assert!(result.is_err(), "Uninstall should fail when not installed");
@@ -1753,29 +1734,26 @@ async fn test_uninstall_cursor_not_installed() -> Result<()> {
     Ok(())
 }
 
-/// Test uninstall with force flag when not installed
+/// Test uninstall when not installed (should fail)
 #[tokio::test]
-async fn test_uninstall_cursor_not_installed_force() -> Result<()> {
+async fn test_uninstall_cursor_not_installed_fails() -> Result<()> {
     use foundry_mcp::cli::commands::uninstall;
 
     let env = TestEnvironment::new()?;
 
-    // Try to uninstall with force when nothing is installed (should succeed)
-    let uninstall_args = env.uninstall_args("cursor", false, true);
+    // Try to uninstall when nothing is installed (should fail)
+    let uninstall_args = env.uninstall_args("cursor", false);
     let result = uninstall::execute(uninstall_args).await;
 
+    assert!(result.is_err(), "Uninstall should fail when not installed");
+    let error = result.unwrap_err();
+    let error_msg = error.to_string();
+    // The error should contain either the original message or the wrapped message
     assert!(
-        result.is_ok(),
-        "Uninstall with force should succeed even when not installed"
-    );
-    let response = result.unwrap();
-    assert!(
-        response
-            .data
-            .actions_taken
-            .iter()
-            .any(|action| action.contains("not configured")),
-        "Should mention that foundry was not configured"
+        error_msg.contains("not configured")
+            || error_msg.contains("Failed to uninstall from Cursor"),
+        "Error should mention that foundry was not configured. Actual error: {}",
+        error_msg
     );
 
     Ok(())
@@ -1792,7 +1770,7 @@ async fn test_install_cursor_empty_config() -> Result<()> {
     env.create_existing_cursor_config("")?;
 
     // Install should handle empty config gracefully
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let result = install::execute(install_args).await;
 
     assert!(
@@ -1840,7 +1818,7 @@ async fn test_cursor_status_before_after_install() -> Result<()> {
     );
 
     // Install cursor
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     let install_response = install::execute(install_args).await?;
     assert_eq!(
         install_response.data.installation_status,
@@ -1877,7 +1855,7 @@ async fn test_cursor_status_detailed_mode() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Install cursor first
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     install::execute(install_args).await?;
 
     // Test detailed status
@@ -1955,7 +1933,7 @@ async fn test_cursor_status_with_issues() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Install with valid binary
-    let install_args = env.install_args("cursor", false);
+    let install_args = env.install_args("cursor");
     install::execute(install_args).await?;
 
     // Manually corrupt the config to create an issue
@@ -2025,14 +2003,13 @@ fn test_install_args_parsing() {
     }
 
     // Test valid install arguments
-    let args = vec!["foundry", "mcp", "install", "cursor", "--force"];
+    let args = vec!["foundry", "mcp", "install", "cursor"];
     let parsed = TestCli::try_parse_from(args).unwrap();
 
     let TestCommands::Mcp {
         command: TestMcpCommands::Install(install_args),
     } = parsed.command;
     assert_eq!(install_args.target, "cursor");
-    assert!(install_args.force);
     assert!(install_args.binary_path.is_none()); // Default is None
 
     // Test install with binary path
@@ -2050,7 +2027,6 @@ fn test_install_args_parsing() {
         command: TestMcpCommands::Install(install_args),
     } = parsed_with_binary.command;
     assert_eq!(install_args.target, "claude-code");
-    assert!(!install_args.force); // Default is false
     assert_eq!(
         install_args.binary_path,
         Some("/custom/path/foundry".to_string())
@@ -2083,14 +2059,7 @@ fn test_uninstall_args_parsing() {
     }
 
     // Test uninstall with all flags
-    let args = vec![
-        "foundry",
-        "mcp",
-        "uninstall",
-        "cursor",
-        "--remove-config",
-        "--force",
-    ];
+    let args = vec!["foundry", "mcp", "uninstall", "cursor", "--remove-config"];
     let parsed = TestCli::try_parse_from(args).unwrap();
 
     let TestCommands::Mcp {
@@ -2098,7 +2067,6 @@ fn test_uninstall_args_parsing() {
     } = parsed.command;
     assert_eq!(uninstall_args.target, "cursor");
     assert!(uninstall_args.remove_config);
-    assert!(uninstall_args.force);
 
     // Test uninstall with minimal arguments
     let minimal_args = vec!["foundry", "mcp", "uninstall", "claude-code"];
@@ -2109,7 +2077,6 @@ fn test_uninstall_args_parsing() {
     } = parsed_minimal.command;
     assert_eq!(uninstall_args.target, "claude-code");
     assert!(!uninstall_args.remove_config); // Default is false
-    assert!(!uninstall_args.force); // Default is false
 }
 
 /// Test CLI argument parsing for status command

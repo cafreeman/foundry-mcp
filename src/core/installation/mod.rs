@@ -34,10 +34,10 @@ pub use utils::{
 pub use crate::types::responses::EnvironmentStatus;
 
 /// Install Foundry MCP server for the specified target environment
-pub async fn install_for_target(target: &str, force: bool) -> anyhow::Result<InstallationResult> {
+pub async fn install_for_target(target: &str) -> anyhow::Result<InstallationResult> {
     match target {
-        "claude-code" => install_for_claude_code(force).await,
-        "cursor" => install_for_cursor(force).await,
+        "claude-code" => install_for_claude_code().await,
+        "cursor" => install_for_cursor().await,
         _ => Err(anyhow::anyhow!(
             "Unsupported installation target: {}",
             target
@@ -49,11 +49,10 @@ pub async fn install_for_target(target: &str, force: bool) -> anyhow::Result<Ins
 pub async fn uninstall_from_target(
     target: &str,
     remove_config: bool,
-    force: bool,
 ) -> anyhow::Result<UninstallationResult> {
     match target {
-        "claude-code" => uninstall_from_claude_code(force).await,
-        "cursor" => uninstall_from_cursor(remove_config, force).await,
+        "claude-code" => uninstall_from_claude_code().await,
+        "cursor" => uninstall_from_cursor(remove_config).await,
         _ => Err(anyhow::anyhow!(
             "Unsupported uninstallation target: {}",
             target

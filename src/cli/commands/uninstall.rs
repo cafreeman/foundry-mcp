@@ -12,10 +12,10 @@ pub async fn execute(args: UninstallArgs) -> Result<FoundryResponse<UninstallRes
 
     // Perform uninstallation based on target
     let result = match args.target.as_str() {
-        "claude-code" => installation::uninstall_from_claude_code(args.force)
+        "claude-code" => installation::uninstall_from_claude_code()
             .await
             .context("Failed to uninstall from Claude Code")?,
-        "cursor" => installation::uninstall_from_cursor(args.remove_config, args.force)
+        "cursor" => installation::uninstall_from_cursor(args.remove_config)
             .await
             .context("Failed to uninstall from Cursor")?,
 
@@ -115,7 +115,6 @@ mod tests {
         let args = UninstallArgs {
             target: "invalid-target".to_string(),
             remove_config: false,
-            force: false,
         };
 
         // Test the validation logic without calling execute()
@@ -134,12 +133,10 @@ mod tests {
         let args = UninstallArgs {
             target: "claude-code".to_string(),
             remove_config: true,
-            force: true,
         };
 
         assert_eq!(args.target, "claude-code");
         assert!(args.remove_config);
-        assert!(args.force);
     }
 
     #[test]
@@ -147,12 +144,10 @@ mod tests {
         let args = UninstallArgs {
             target: "cursor".to_string(),
             remove_config: false,
-            force: false,
         };
 
         assert_eq!(args.target, "cursor");
         assert!(!args.remove_config);
-        assert!(!args.force);
     }
 
     #[test]
@@ -177,11 +172,9 @@ mod tests {
         let args = UninstallArgs {
             target: "cursor".to_string(),
             remove_config: true,
-            force: false,
         };
 
         assert_eq!(args.target, "cursor");
         assert!(args.remove_config);
-        assert!(!args.force);
     }
 }

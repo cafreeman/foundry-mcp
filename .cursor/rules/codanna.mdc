@@ -2,298 +2,168 @@
 alwaysApply: true
 ---
 
-# Codanna Navigator - MCP Tools Specialist
+# Codanna MCP Tools - Primary Code Exploration Method
 
-You are an expert code navigation specialist with deep knowledge of Codanna's MCP (Model Context Protocol) tools. Your role is to help users explore, understand, and analyze codebases using Codanna's semantic search and relationship analysis capabilities.
+## CRITICAL: Use Codanna Tools for ALL Code Analysis
 
-## Available Codanna MCP Tools
+When any request involves understanding, exploring, or analyzing code:
 
-### Core Information Tools
+1. **ALWAYS start with Codanna tools** before using grep/read_file
+2. **Use semantic search first** - it's more powerful than text-based search
+3. **Chain tools together** to build complete understanding
+4. **Only fall back to basic tools** if Codanna doesn't provide results
 
-- **`mcp__codanna__get_index_info`**: Get overview of the indexed codebase (symbols count, files, languages)
-- **`mcp__codanna__find_symbol`**: Find exact symbol by name (functions, types, variables)
-- **`mcp__codanna__search_symbols`**: Fuzzy search for symbols with filters (kind, module, visibility)
+## Required Tool Usage Patterns
 
-### Semantic Search Tools
+### 🔍 EXPLORATION TRIGGERS
 
-- **`mcp__codanna__semantic_search_docs`**: Natural language search through documentation/comments
-- **`mcp__codanna__semantic_search_with_context`**: Deep semantic search with full surrounding context
+**Use Codanna tools when user asks:**
 
-### Relationship Analysis Tools
+- "How does [feature] work?"
+- "Where is [concept] implemented?"
+- "What calls/uses [function]?"
+- "Find all [pattern] in the code"
+- "Analyze impact of changing [symbol]"
+- "Understand [architectural concept]"
 
-- **`mcp__codanna__get_calls`**: Find what a function calls (dependencies with receiver context)
-- **`mcp__codanna__find_callers`**: Find what calls a function (reverse dependencies)
-- **`mcp__codanna__analyze_impact`**: Analyze change impact radius across codebase
+### 🚀 STANDARD WORKFLOW
 
-## Tool Usage Workflow
+**Always follow this sequence:**
 
-### 1. Start with Index Overview
+1. **Start Investigation**: `mcp_codanna_get_index_info` (understand scope)
+2. **Find Concepts**: `mcp_codanna_semantic_search_docs` (natural language search)
+3. **Locate Symbols**: `mcp_codanna_find_symbol` or `mcp_codanna_search_symbols` (exact/fuzzy search)
+4. **Map Relationships**: `mcp_codanna_get_calls` + `mcp_codanna_find_callers` (dependencies)
+5. **Assess Impact**: `mcp_codanna_analyze_impact` (change planning)
 
-**Always begin investigations with:**
+### 🎯 TOOL SELECTION LOGIC
 
-```
-mcp__codanna__get_index_info
-```
+**For conceptual questions** → `mcp_codanna_semantic_search_docs`
 
-**Provides:** Total symbols, file count, supported languages, index health
-**Use when:** Starting any codebase exploration to understand scope and structure
+- "authentication flow", "error handling patterns", "validation logic"
 
-### 2. Discovery Phase - Find Code
+**For specific symbols** → `mcp_codanna_find_symbol`
 
-**For known symbol names:**
+- Known function/struct/trait names
 
-```
-mcp__codanna__find_symbol name="function_name"
-```
+**For fuzzy exploration** → `mcp_codanna_search_symbols`
 
-**Provides:** Exact matches with file locations, signatures, documentation
-**Use when:** You know the exact function/type/variable name
+- Partial names, exploring patterns, filtering by type
 
-**For exploring related symbols:**
+**For understanding behavior** → `mcp_codanna_get_calls`
 
-```
-mcp__codanna__search_symbols query="auth" kind="function" limit=10
-```
+- "What does this function do internally?"
 
-**Parameters:**
+**For impact analysis** → `mcp_codanna_find_callers` + `mcp_codanna_analyze_impact`
 
-- `query`: Search term (fuzzy matching)
-- `kind`: Filter by type (function, struct, class, method, etc.)
-- `module`: Filter by specific module/file
-- `limit`: Number of results (default 10)
-  **Use when:** Exploring patterns or finding related functionality
+- "What would break if I change this?"
 
-**For concept-based discovery:**
+## MANDATORY Usage Rules
 
-```
-mcp__codanna__semantic_search_docs query="user authentication middleware" limit=5
-```
+### ✅ DO THIS:
 
-**Parameters:**
+- **Start EVERY code exploration** with `mcp_codanna_get_index_info`
+- **Use semantic search with descriptive queries**: "HTTP request parsing with validation"
+- **Chain tools**: semantic_search → find_symbol → get_calls → find_callers
+- **Use lower thresholds (0.3-0.4)** for broader semantic search results
+- **Explain your tool choices** to the user
 
-- `query`: Natural language description of what you're looking for
-- `limit`: Number of results (default 5)
-- `threshold`: Similarity threshold 0.0-1.0 (optional)
-  **Use when:** Finding implementations of specific concepts or patterns
+### ❌ NEVER DO THIS:
 
-**For deep contextual search:**
+- Start with grep/read_file when exploring unfamiliar code
+- Use single-word semantic searches ("auth", "config")
+- Skip relationship analysis (get_calls/find_callers)
+- Stop after first tool - always build complete picture
 
-```
-mcp__codanna__semantic_search_with_context query="error handling patterns" threshold=0.4 limit=3
-```
+## Essential Tool Chaining Patterns
 
-**Parameters:**
+### Pattern 1: Feature Understanding
 
-- `query`: Natural language query
-- `threshold`: Lower values (0.3-0.4) for broader results
-- `limit`: Number of results
-  **Use when:** Need full context around matches, complex architectural questions
+**When user asks: "How does authentication work?"**
 
-### 3. Relationship Analysis - Understand Dependencies
+1. `semantic_search_docs` → Find feature implementation concepts
+2. `find_symbol` → Get exact symbol details from search results
+3. `get_calls` → Understand what the function does internally
+4. `find_callers` → See how/where it's used in the codebase
 
-**Find what a function depends on:**
+### Pattern 2: Impact Analysis
 
-```
-mcp__codanna__get_calls function_name="process_request"
-```
+**When user asks: "What happens if I change this function?"**
 
-**Provides:** List of functions called by the target, with receiver context
-**Use when:** Understanding what a function does internally, tracing data flow
+1. `find_symbol` → Locate the exact symbol
+2. `analyze_impact` → Get full dependency graph with max_depth=3
+3. `find_callers` → Verify all usage patterns
+4. `semantic_search_docs` → Find related patterns that might break
 
-**Find what depends on a function:**
+### Pattern 3: Architecture Exploration
 
-```
-mcp__codanna__find_callers function_name="validate_user"
-```
+**When user asks: "How is error handling implemented?"**
 
-**Provides:** All functions that call the target function
-**Use when:** Understanding impact of changes, finding usage patterns
+1. `get_index_info` → Understand codebase scope and languages
+2. `semantic_search_with_context` → Find architectural patterns with context
+3. `search_symbols` → Explore related components (kind="function", query="error")
+4. **Repeat relationship analysis** on key findings with get_calls/find_callers
 
-**Analyze change impact:**
+### Pattern 4: Debugging & Troubleshooting
 
-```
-mcp__codanna__analyze_impact symbol_name="AuthService" max_depth=3
-```
+**When user asks: "Why is this function being called?"**
 
-**Parameters:**
-
-- `symbol_name`: Target symbol to analyze
-- `max_depth`: How far to traverse dependencies (default 2)
-  **Provides:** Full impact graph showing all affected symbols
-  **Use when:** Planning refactoring, assessing risk of changes
+1. `find_symbol` → Confirm function location and signature
+2. `find_callers` → See all direct callers
+3. `analyze_impact` → Get broader call chain context
+4. `semantic_search_docs` → Find documentation explaining purpose
 
 ## Effective Query Strategies
 
 ### Semantic Search Best Practices
 
 **Be descriptive and specific:**
-✅ Good: "parse configuration files with validation"
-❌ Avoid: "config"
 
-✅ Good: "database connection pool initialization"
-❌ Avoid: "database"
+✅ **Good**: "HTTP request parsing with validation and error handling"
+❌ **Avoid**: "request parsing"
 
-✅ Good: "HTTP middleware for authentication"
-❌ Avoid: "auth middleware"
+✅ **Good**: "database connection pool initialization with retry logic"
+❌ **Avoid**: "database connection"
 
-### Search Pattern Progressions
+✅ **Good**: "user authentication middleware with session management"
+❌ **Avoid**: "auth middleware"
 
-**Pattern 1: Feature Understanding**
+### Tool Parameters Guide
 
-1. `semantic_search_docs` → Find feature implementation
-2. `find_symbol` → Get exact symbol details
-3. `get_calls` → Understand what it does
-4. `find_callers` → See how it's used
+- **For broader results** → Use lower thresholds (0.3-0.4) in semantic search
+- **For precise matches** → Use higher thresholds (0.7+) in semantic search
+- **For exploration** → Use `search_symbols` with `kind` filter (function, struct, trait)
+- **For impact assessment** → Use `analyze_impact` with `max_depth=3` for comprehensive analysis
 
-**Pattern 2: Impact Analysis**
+### Troubleshooting No Results
 
-1. `find_symbol` → Locate the symbol
-2. `analyze_impact` → Get full dependency graph
-3. `find_callers` → Verify usage patterns
-4. `semantic_search_docs` → Find related patterns
+- **Lower semantic search threshold** (try 0.3-0.4)
+- **Broaden search terms** ("auth" → "user authentication flow")
+- **Use fuzzy search_symbols** instead of exact find_symbol
+- **Try different vocabulary** (domain terms vs technical terms)
 
-**Pattern 3: Architecture Exploration**
+## Quick Reference
 
-1. `get_index_info` → Understand codebase scope
-2. `semantic_search_with_context` → Find architectural patterns
-3. `search_symbols` → Explore related components
-4. Repeat relationship analysis on key findings
-
-## Tool Selection Guide
-
-### When to Use Each Tool
-
-**`get_index_info`** - Always start here
-
-- New codebase exploration
-- Verifying index is up to date
-- Understanding project scope
-
-**`find_symbol`** - For precise navigation
-
-- Known function/type names
-- Following up on search results
-- Verifying symbol existence
-
-**`search_symbols`** - For exploration
-
-- Finding related functionality
-- Exploring naming patterns
-- Filtering by symbol type
-
-**`semantic_search_docs`** - For concept discovery
-
-- "How is X implemented?"
-- Finding design patterns
-- Locating cross-cutting concerns
-
-**`semantic_search_with_context`** - For deep understanding
-
-- Complex architectural questions
-- Understanding integration patterns
-- Finding complete implementation examples
-
-**`get_calls`** - For understanding behavior
-
-- "What does this function do?"
-- Tracing execution flow
-- Finding internal dependencies
-
-**`find_callers`** - For impact assessment
-
-- "What uses this function?"
-- Understanding API usage
-- Planning deprecation
-
-**`analyze_impact`** - For change planning
-
-- Refactoring preparation
-- Risk assessment
-- Finding coupling hotspots
-
-## Response Format Template
-
-### Investigation Plan
-
-State what you're investigating and which tools you'll use in sequence.
-
-### Tool Execution
-
-Show each tool call with reasoning:
+### Essential Tool Commands:
 
 ```
-Using mcp__codanna__semantic_search_docs to find authentication patterns...
-Results: Found 3 relevant implementations with similarity > 0.7
+mcp_codanna_get_index_info                    # Always start here
+mcp_codanna_semantic_search_docs query="..."  # Concept discovery
+mcp_codanna_find_symbol name="..."            # Exact symbol lookup
+mcp_codanna_search_symbols query="..."        # Fuzzy symbol search
+mcp_codanna_get_calls function_name="..."     # What function calls
+mcp_codanna_find_callers function_name="..."  # What calls function
+mcp_codanna_analyze_impact symbol_name="..."  # Change impact analysis
 ```
 
-### Key Findings
+### Response Template:
 
-Present results with file locations, similarity scores, and code snippets:
+1. **Investigation Plan**: "I'll use [tools] to explore [concept]"
+2. **Tool Execution**: Execute tools with clear reasoning
+3. **Key Findings**: Symbol locations, relationships, similarity scores
+4. **Relationship Map**: Call graphs and dependencies
+5. **Actionable Insights**: What this means for the user's goals
 
-- **authenticate_user** (src/auth/service.py:45) - Similarity: 0.85
-- **validate_token** (src/auth/middleware.py:23) - Similarity: 0.78
+## Remember: Codanna First, Everything Else Second
 
-### Relationship Map
-
-Show dependencies found through caller/call analysis:
-
-```
-authenticate_user is called by:
-  - login_handler (src/handlers/auth.py:12)
-  - api_middleware (src/middleware/api.py:34)
-
-authenticate_user calls:
-  - validate_credentials (src/auth/validators.py:67)
-  - create_session (src/sessions/manager.py:89)
-```
-
-### Impact Analysis
-
-For refactoring questions, show the complete impact graph:
-
-```
-Changing validate_user would affect:
-  - Direct callers: 5 functions
-  - Indirect impact: 12 functions across 6 files
-  - Critical paths: API authentication flow
-```
-
-### Actionable Recommendations
-
-- Specific next steps based on findings
-- Safe refactoring approaches
-- Additional exploration suggestions
-
-## Advanced Techniques
-
-### Chaining Tools Effectively
-
-1. **Start broad** → `semantic_search_docs` for concepts
-2. **Get specific** → `find_symbol` for exact matches
-3. **Map relationships** → `get_calls` + `find_callers`
-4. **Assess impact** → `analyze_impact` for changes
-
-### Handling No Results
-
-- Lower semantic search threshold (try 0.3-0.4)
-- Broaden search terms
-- Use fuzzy `search_symbols` instead of exact `find_symbol`
-- Try different vocabulary (domain vs. technical terms)
-
-### Quality Indicators
-
-- **High similarity scores** (>0.7) indicate strong matches
-- **Multiple callers** suggest important/stable APIs
-- **Deep call chains** indicate complex functionality
-- **Wide impact radius** suggests architectural significance
-
-## Remember: You Are Teaching Navigation
-
-Your goal is to help users understand their codebase architecture through systematic tool usage. Always:
-
-1. **Explain your tool selection** - Why this tool for this query?
-2. **Interpret results contextually** - What do these findings mean?
-3. **Chain analysis logically** - How does each result inform the next search?
-4. **Provide actionable insights** - What should the user do with this information?
-
-**Focus on understanding relationships, not just finding code.**
+These tools provide semantic understanding and relationship mapping that basic text search cannot match. Use them as your primary exploration method.

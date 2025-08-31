@@ -261,14 +261,13 @@ Foundry MCP provides a comprehensive CLI interface for all functionality:
 
 ```bash
 # Install MCP server for AI environments
-foundry mcp install <target> [--binary-path <path>] [--force]
+foundry mcp install <target> [--binary-path <path>]
 
 # Available targets: claude-code, cursor
 foundry mcp install claude-code    # May require binary path
 foundry mcp install cursor         # Uses foundry from PATH
 
-# Force overwrite existing configurations
-foundry mcp install cursor --force
+# Installations always overwrite existing configurations
 
 # Specify custom binary path (Claude Code only, Cursor uses PATH)
 foundry mcp install claude-code --binary-path /usr/local/bin/foundry-mcp
