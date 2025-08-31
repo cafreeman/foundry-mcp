@@ -33,14 +33,14 @@ impl TestEnvironment {
     }
 
     /// Execute an async test with temporary environment variables set
-    pub async fn with_env_async<F, Fut, R>(&self, test_fn: F) -> R
+    pub fn with_env_async<F, Fut, R>(&self, test_fn: F) -> R
     where
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = R>,
     {
         // temp-env doesn't support async closures directly, so we need to use a blocking approach
         temp_env::with_vars(
-            &[
+            [
                 ("HOME", Some(self.temp_dir.path().to_str().unwrap())),
                 (
                     "CURSOR_CONFIG_DIR",

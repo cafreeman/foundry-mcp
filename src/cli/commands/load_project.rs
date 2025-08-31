@@ -248,7 +248,7 @@ mod tests {
         use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let args = create_test_args("non-existent-project");
             let result = execute(args).await;
 

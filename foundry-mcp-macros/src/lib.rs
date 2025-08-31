@@ -13,7 +13,7 @@ use syn::{Attribute, Data, DeriveInput, Fields, Meta, parse_macro_input};
 ///
 /// # Usage
 ///
-/// ```rust
+/// ```rust,ignore
 /// #[derive(Parser, Debug, McpTool)]
 /// #[mcp(
 ///     name = "create_project",
