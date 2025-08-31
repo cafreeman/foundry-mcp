@@ -32,6 +32,18 @@ pub fn create_server_config(binary_path: &str) -> McpServerConfig {
     }
 }
 
+/// Create a new MCP server configuration entry for Cursor using PATH-based command
+pub fn create_cursor_server_config() -> McpServerConfig {
+    McpServerConfig {
+        command: "foundry".to_string(),
+        args: vec!["serve".to_string()],
+        env: Some(HashMap::from([(
+            "FOUNDRY_LOG_LEVEL".to_string(),
+            "info".to_string(),
+        )])),
+    }
+}
+
 /// Read MCP configuration from a JSON file
 pub fn read_config_file(config_path: &Path) -> Result<McpConfig> {
     if !config_path.exists() {
@@ -126,9 +138,10 @@ pub fn validate_config(config: &McpConfig) -> Result<()> {
             ));
         }
 
-        // Check if command path exists
+        // Check if command path exists (only for absolute paths)
+        // Commands like "foundry" are meant to be found in PATH, so skip validation
         let command_path = Path::new(&server_config.command);
-        if !command_path.exists() {
+        if command_path.is_absolute() && !command_path.exists() {
             return Err(anyhow::anyhow!(
                 "Server '{}' command does not exist: {}",
                 server_name,
@@ -216,6 +229,16 @@ mod tests {
         assert_eq!(config.command, "/usr/bin/foundry");
         assert_eq!(config.args, vec!["serve"]);
         assert!(config.env.is_some());
+    }
+
+    #[test]
+    fn test_create_cursor_server_config() {
+        let config = create_cursor_server_config();
+        assert_eq!(config.command, "foundry");
+        assert_eq!(config.args, vec!["serve"]);
+        assert!(config.env.is_some());
+        let env = config.env.unwrap();
+        assert_eq!(env.get("FOUNDRY_LOG_LEVEL"), Some(&"info".to_string()));
     }
 
     #[test]

@@ -12,7 +12,7 @@ pub async fn execute(args: UninstallArgs) -> Result<FoundryResponse<UninstallRes
 
     // Perform uninstallation based on target
     let result = match args.target.as_str() {
-        "claude-code" => installation::uninstall_from_claude_code(args.remove_config, args.force)
+        "claude-code" => installation::uninstall_from_claude_code(args.force)
             .await
             .context("Failed to uninstall from Claude Code")?,
         "cursor" => installation::uninstall_from_cursor(args.remove_config, args.force)

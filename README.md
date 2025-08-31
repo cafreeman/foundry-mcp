@@ -208,9 +208,9 @@ cargo build --release
 
 **What happens during installation:**
 
-- ✅ **Binary detection**: Foundry automatically finds its own binary path
 - ✅ **Config creation**: Creates/updates configuration files automatically
 - ✅ **Server registration**: Registers Foundry MCP server with your AI environment
+- ✅ **PATH integration**: Uses `foundry` command from PATH (Claude Code and Cursor)
 - ✅ **Validation**: Verifies installation was successful
 
 ## Development and Testing
@@ -264,14 +264,14 @@ Foundry MCP provides a comprehensive CLI interface for all functionality:
 foundry mcp install <target> [--binary-path <path>] [--force]
 
 # Available targets: claude-code, cursor
-foundry mcp install claude-code
-foundry mcp install cursor
+foundry mcp install claude-code    # May require binary path
+foundry mcp install cursor         # Uses foundry from PATH
 
 # Force overwrite existing configurations
 foundry mcp install cursor --force
 
-# Specify custom binary path
-foundry mcp install cursor --binary-path /usr/local/bin/foundry-mcp
+# Specify custom binary path (Claude Code only, Cursor uses PATH)
+foundry mcp install claude-code --binary-path /usr/local/bin/foundry-mcp
 
 # Uninstall MCP server
 foundry mcp uninstall <target>

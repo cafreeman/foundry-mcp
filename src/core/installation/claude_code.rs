@@ -9,15 +9,29 @@ use anyhow::{Context, Result};
 use tokio::process::Command;
 
 /// Install Foundry MCP server for Claude Code
-pub async fn install_for_claude_code(
-    _binary_path: &str,
-    _force: bool,
-) -> Result<InstallationResult> {
+pub async fn install_for_claude_code(force: bool) -> Result<InstallationResult> {
     let mut actions_taken = Vec::new();
 
     // Note: We skip the availability check here since the PATH may differ between
     // interactive shell and cargo run. Instead, let the actual command fail with a clear error.
     actions_taken.push("Attempting to register with Claude Code CLI".to_string());
+
+    // Check if already registered and handle force logic
+    if !force {
+        match verify_claude_code_installation().await {
+            Ok(_) => {
+                return Err(anyhow::anyhow!(
+                    "Foundry MCP server is already registered with Claude Code. Use --force to overwrite."
+                ));
+            }
+            Err(_) => {
+                // Not registered, continue with installation
+                actions_taken.push("Verified no existing registration found".to_string());
+            }
+        }
+    } else {
+        actions_taken.push("Force flag enabled - proceeding with installation".to_string());
+    }
 
     // Register MCP server with Claude Code using CLI
     // Note: We use "foundry" directly since it will be available on PATH
@@ -51,10 +65,7 @@ pub async fn install_for_claude_code(
 }
 
 /// Uninstall Foundry MCP server from Claude Code
-pub async fn uninstall_from_claude_code(
-    _remove_config: bool,
-    force: bool,
-) -> Result<UninstallationResult> {
+pub async fn uninstall_from_claude_code(force: bool) -> Result<UninstallationResult> {
     let mut actions_taken = Vec::new();
     let files_removed = Vec::new();
 
@@ -262,19 +273,13 @@ mod tests {
     }
 
     #[test]
-    fn test_install_for_claude_code_binary_path_ignored() {
+    fn test_install_for_claude_code() {
         use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
 
         let _ = env.with_env_async(|| async {
-            // This test verifies that the binary_path parameter is correctly ignored
-            // since Claude Code CLI uses "foundry" from PATH, not the provided binary path
-
-            // Create a fake binary path - it should be ignored
-            let fake_binary_path = "/fake/path/to/foundry";
-
             // The function should not panic and should handle the case where claude CLI is not available
-            let result = install_for_claude_code(fake_binary_path, false).await;
+            let result = install_for_claude_code(false).await;
 
             // Expect failure if Claude Code CLI is not installed, but it should fail gracefully
             if result.is_err() {

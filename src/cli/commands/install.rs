@@ -6,7 +6,7 @@ use crate::{
     types::responses::{FoundryResponse, InstallResponse, InstallationStatus},
     utils::response::{build_incomplete_response, build_success_response},
 };
-use anyhow::{Context, Result};
+use anyhow::Result;
 
 pub async fn execute(args: InstallArgs) -> Result<FoundryResponse<InstallResponse>> {
     // Validate installation target
@@ -16,22 +16,17 @@ pub async fn execute(args: InstallArgs) -> Result<FoundryResponse<InstallRespons
     let (result, binary_path) = match args.target.as_str() {
         "claude-code" => {
             // Claude Code uses "foundry" from PATH, no need for binary path detection
-            let result = installation::install_for_claude_code("foundry (from PATH)", args.force)
+            let result = installation::install_for_claude_code(args.force)
                 .await
                 .map_err(|e| enhance_installation_error("claude-code", &e, args.force))?;
             (result, "foundry (from PATH)".to_string())
         }
         "cursor" => {
-            // Cursor needs the full binary path for JSON configuration
-            let binary_path = match &args.binary_path {
-                Some(path) => path.clone(),
-                None => installation::detect_binary_path()
-                    .context("Failed to detect current binary path")?,
-            };
-            let result = installation::install_for_cursor(&binary_path, args.force)
+            // Cursor uses "foundry" from PATH, same as Claude Code
+            let result = installation::install_for_cursor(args.force)
                 .await
                 .map_err(|e| enhance_installation_error("cursor", &e, args.force))?;
-            (result, binary_path)
+            (result, "foundry (from PATH)".to_string())
         }
         _ => {
             return Err(anyhow::anyhow!(

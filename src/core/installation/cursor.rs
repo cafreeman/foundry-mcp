@@ -1,18 +1,16 @@
 //! Cursor MCP server installation and management
 
 use crate::core::installation::{
-    InstallationResult, UninstallationResult, add_server_to_config, create_installation_result,
-    create_uninstallation_result, get_cursor_mcp_config_path, has_server_config, read_config_file,
-    remove_server_from_config, validate_binary_path, validate_config_dir_writable,
+    InstallationResult, UninstallationResult, add_server_to_config, create_cursor_server_config,
+    create_installation_result, create_uninstallation_result, get_cursor_mcp_config_path,
+    has_server_config, read_config_file, remove_server_from_config, validate_config_dir_writable,
     write_config_file,
 };
 use crate::types::responses::EnvironmentStatus;
 use anyhow::{Context, Result};
 
 /// Install Foundry MCP server for Cursor
-pub async fn install_for_cursor(binary_path: &str, force: bool) -> Result<InstallationResult> {
-    validate_binary_path(binary_path)?;
-
+pub async fn install_for_cursor(force: bool) -> Result<InstallationResult> {
     let config_path = get_cursor_mcp_config_path()?;
     let config_path_str = config_path.to_string_lossy().to_string();
 
@@ -31,8 +29,8 @@ pub async fn install_for_cursor(binary_path: &str, force: bool) -> Result<Instal
         ));
     }
 
-    // Create server configuration
-    let server_config = crate::core::installation::create_server_config(binary_path);
+    // Create server configuration using PATH-based 'foundry' command
+    let server_config = create_cursor_server_config();
 
     // Add server to configuration
     config = add_server_to_config(config, "foundry", server_config);
@@ -149,14 +147,20 @@ pub async fn get_cursor_status(detailed: bool) -> Result<EnvironmentStatus> {
                     if let Some(server_config) =
                         crate::core::installation::get_server_config(&config, "foundry")
                     {
-                        // Check if binary path exists
-                        binary_accessible = std::path::Path::new(&server_config.command).exists();
-
-                        if !binary_accessible {
-                            issues.push(format!(
-                                "Configured binary does not exist: {}",
-                                server_config.command
-                            ));
+                        // Check if binary is accessible (different logic for PATH vs absolute paths)
+                        let command_path = std::path::Path::new(&server_config.command);
+                        if command_path.is_absolute() {
+                            // For absolute paths, check if file exists
+                            binary_accessible = command_path.exists();
+                            if !binary_accessible {
+                                issues.push(format!(
+                                    "Configured binary does not exist: {}",
+                                    server_config.command
+                                ));
+                            }
+                        } else {
+                            // For PATH-based commands, assume accessible (validation happens at runtime)
+                            binary_accessible = true;
                         }
                     }
                 } else {
@@ -203,9 +207,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
 
         let _ = env.with_env_async(|| async {
-            let binary_path = env.create_mock_binary("foundry").unwrap();
-
-            let result = install_for_cursor(&binary_path.to_string_lossy(), false).await;
+            let result = install_for_cursor(false).await;
 
             assert!(
                 result.is_ok(),
@@ -225,9 +227,9 @@ mod tests {
                 "Config should be a file"
             );
 
-            // Verify config content
+            // Verify config content uses 'foundry' command from PATH
             let config_content = std::fs::read_to_string(env.cursor_config_path()).unwrap();
-            assert!(config_content.contains("foundry"));
+            assert!(config_content.contains("\"command\":\"foundry\""));
             assert!(config_content.contains("mcpServers"));
         });
     }
@@ -237,13 +239,11 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
 
         let _ = env.with_env_async(|| async {
-            let binary_path = env.create_mock_binary("foundry").unwrap();
-
             // Pre-configure with existing foundry server
             env.create_cursor_config(&[("foundry", "/old/foundry/path")])
                 .unwrap();
 
-            let result = install_for_cursor(&binary_path.to_string_lossy(), false).await;
+            let result = install_for_cursor(false).await;
 
             assert!(
                 result.is_err(),
@@ -263,13 +263,11 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
 
         let _ = env.with_env_async(|| async {
-            let binary_path = env.create_mock_binary("foundry").unwrap();
-
             // Pre-configure with existing foundry server
             env.create_cursor_config(&[("foundry", "/old/foundry/path")])
                 .unwrap();
 
-            let result = install_for_cursor(&binary_path.to_string_lossy(), true).await;
+            let result = install_for_cursor(true).await;
 
             assert!(
                 result.is_ok(),
@@ -284,28 +282,27 @@ mod tests {
                     .any(|action| action.contains("Added Foundry MCP server"))
             );
 
-            // Verify config was updated
+            // Verify config was updated to use 'foundry' command from PATH
             let config_content = std::fs::read_to_string(env.cursor_config_path()).unwrap();
-            assert!(config_content.contains(&binary_path.to_string_lossy().to_string()));
+            assert!(config_content.contains("\"command\":\"foundry\""));
         });
     }
 
     #[test]
-    fn test_install_for_cursor_invalid_binary_path() {
+    fn test_install_for_cursor_config_validation() {
         let env = TestEnvironment::new().unwrap();
 
         let _ = env.with_env_async(|| async {
-            let result = install_for_cursor("/nonexistent/path/foundry", false).await;
+            let result = install_for_cursor(false).await;
 
+            assert!(result.is_ok(), "Install should succeed and validate config");
+            let install_result = result.unwrap();
+            assert!(install_result.success);
             assert!(
-                result.is_err(),
-                "Install should fail with invalid binary path"
-            );
-            assert!(
-                result
-                    .unwrap_err()
-                    .to_string()
-                    .contains("Binary path does not exist")
+                install_result
+                    .actions_taken
+                    .iter()
+                    .any(|action| action.contains("Validated MCP configuration"))
             );
         });
     }

@@ -1368,7 +1368,7 @@ async fn test_install_cursor_end_to_end() -> Result<()> {
         .expect("Foundry server config should exist");
     assert!(
         !server_config.command.is_empty(),
-        "Should use mock binary path"
+        "Should use foundry command"
     );
     assert_eq!(
         server_config.args,
@@ -1522,12 +1522,12 @@ async fn test_install_cursor_force_overwrite() -> Result<()> {
         "other-server"
     ));
 
-    // Verify foundry config was updated to new binary path
+    // Verify foundry config was updated
     let foundry_config =
         foundry_mcp::core::installation::get_server_config(&config, "foundry").unwrap();
     assert!(
         !foundry_config.command.is_empty(),
-        "Should use new mock binary path"
+        "Should use foundry command"
     );
 
     Ok(())
@@ -1618,31 +1618,30 @@ async fn test_uninstall_cursor_remove_config() -> Result<()> {
     Ok(())
 }
 
-/// Test install with binary path validation
+/// Test cursor install uses PATH-based command
 #[tokio::test]
-async fn test_install_cursor_binary_validation() -> Result<()> {
+async fn test_install_cursor_path_command() -> Result<()> {
     use foundry_mcp::cli::commands::install;
 
     let env = TestEnvironment::new()?;
 
-    // Test with explicit valid binary path
-    let binary_path = env.mock_binary_path();
-    let install_args = env.install_args_with_binary("cursor", &binary_path, false);
+    // Test cursor installation without explicit binary path
+    let install_args = env.install_args("cursor", false);
     let response = install::execute(install_args).await?;
 
     assert_eq!(
         response.data.installation_status,
         foundry_mcp::types::responses::InstallationStatus::Success
     );
-    assert_eq!(response.data.binary_path, binary_path);
+    assert_eq!(response.data.binary_path, "foundry (from PATH)");
 
-    // Verify config uses the correct binary path
+    // Verify config uses PATH-based 'foundry' command
     let config_content = std::fs::read_to_string(env.cursor_config_path())?;
     let config: foundry_mcp::core::installation::json_config::McpConfig =
         serde_json::from_str(&config_content)?;
     let server_config =
         foundry_mcp::core::installation::get_server_config(&config, "foundry").unwrap();
-    assert_eq!(server_config.command, binary_path);
+    assert_eq!(server_config.command, "foundry");
 
     Ok(())
 }
@@ -1651,48 +1650,50 @@ async fn test_install_cursor_binary_validation() -> Result<()> {
 // ERROR SCENARIO TESTS
 // =============================================================================
 
-/// Test installation with invalid binary path
+/// Test installation with cursor (no binary path validation needed)
 #[tokio::test]
-async fn test_install_cursor_invalid_binary() -> Result<()> {
+async fn test_install_cursor_path_based() -> Result<()> {
     use foundry_mcp::cli::commands::install;
 
     let env = TestEnvironment::new()?;
 
-    // Test with non-existent binary path
-    let invalid_binary = env.invalid_binary_path();
-    let install_args = env.install_args_with_binary("cursor", &invalid_binary, false);
+    // Test cursor installation using PATH-based command (no binary path needed)
+    let install_args = env.install_args("cursor", false);
     let result = install::execute(install_args).await;
 
     assert!(
-        result.is_err(),
-        "Install should fail with invalid binary path"
+        result.is_ok(),
+        "Install should succeed using PATH-based foundry command"
     );
-    let error_msg = format!("{:#}", result.unwrap_err());
-    assert!(
-        error_msg.contains("does not exist"),
-        "Error should mention binary does not exist"
+    let response = result.unwrap();
+    assert_eq!(
+        response.data.installation_status,
+        foundry_mcp::types::responses::InstallationStatus::Success
     );
+    assert_eq!(response.data.binary_path, "foundry (from PATH)");
+
+    // Verify config uses 'foundry' command
+    let config_content = std::fs::read_to_string(env.cursor_config_path())?;
+    assert!(config_content.contains("\"command\": \"foundry\""));
 
     Ok(())
 }
 
-/// Test installation with non-executable binary
+/// Test cursor installation succeeds without binary path concerns
 #[tokio::test]
-async fn test_install_cursor_non_executable_binary() -> Result<()> {
+async fn test_install_cursor_runtime_validation() -> Result<()> {
     use foundry_mcp::cli::commands::install;
 
     let env = TestEnvironment::new()?;
 
-    // Test with non-executable file
-    let non_exec_binary = env.non_executable_binary_path();
-    let install_args = env.install_args_with_binary("cursor", &non_exec_binary, false);
+    // Cursor installation should succeed as it uses PATH-based command
+    // Execution validation happens at runtime when MCP server is started
+    let install_args = env.install_args("cursor", false);
     let result = install::execute(install_args).await;
 
-    // Should succeed because we only validate file existence, not execution permissions
-    // The actual execution validation would happen when the MCP server is started
     assert!(
         result.is_ok(),
-        "Install should succeed with non-executable binary (validation happens at runtime)"
+        "Install should succeed - runtime validation happens when MCP server starts"
     );
 
     Ok(())
