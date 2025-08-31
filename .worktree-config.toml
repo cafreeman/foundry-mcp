@@ -1,0 +1,11 @@
+[copy-patterns]
+include = [".env*", ".codanna", "mise*"]
+exclude = [
+  "node_modules/",
+  "target/",
+  ".git/",
+  "*.log",
+  "*.tmp",
+  "dist/",
+  "build/",
+]
