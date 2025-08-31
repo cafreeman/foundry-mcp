@@ -218,6 +218,12 @@ async fn main() -> Result<()> {
                 );
             } else if error_msg.contains("not found") || error_msg.contains("does not exist") {
                 eprintln!("\n💡 Use 'foundry list-projects' to see available projects");
+            } else if error_msg.contains("Installation failed") {
+                // Installation-specific errors are already enhanced with detailed guidance
+                // No additional hints needed as the error message contains specific instructions
+            } else if error_msg.contains("Unsupported installation target") {
+                eprintln!("\n💡 Supported targets: foundry mcp install claude-code | cursor");
+                eprintln!("💡 Check what's available: foundry mcp status");
             }
 
             eprintln!("\n💡 For help: foundry --help");

@@ -196,7 +196,251 @@ pub fn is_cursor_configured() -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::installation::json_config::McpConfig;
+    use std::collections::HashMap;
     use tempfile::TempDir;
+
+    fn create_test_binary(temp_dir: &TempDir) -> String {
+        let binary_path = temp_dir.path().join("foundry");
+        std::fs::write(&binary_path, b"test binary").unwrap();
+        binary_path.to_string_lossy().to_string()
+    }
+
+    #[allow(dead_code)]
+    fn create_test_config_file(temp_dir: &TempDir, with_foundry: bool) -> String {
+        let config_path = temp_dir.path().join("mcp.json");
+
+        let mut config = McpConfig {
+            mcp_servers: HashMap::new(),
+        };
+
+        if with_foundry {
+            let server_config =
+                crate::core::installation::create_server_config("/test/path/foundry");
+            config =
+                crate::core::installation::add_server_to_config(config, "foundry", server_config);
+        }
+
+        let content = serde_json::to_string_pretty(&config).unwrap();
+        std::fs::write(&config_path, content).unwrap();
+
+        config_path.to_string_lossy().to_string()
+    }
+
+    #[tokio::test]
+    async fn test_install_for_cursor_fresh_install() {
+        let temp_dir = TempDir::new().unwrap();
+        let binary_path = create_test_binary(&temp_dir);
+
+        // Create empty config file
+        let config_path = temp_dir.path().join("mcp.json");
+        let empty_config = McpConfig {
+            mcp_servers: HashMap::new(),
+        };
+        let content = serde_json::to_string_pretty(&empty_config).unwrap();
+        std::fs::write(&config_path, content).unwrap();
+
+        // Mock the get_cursor_mcp_config_path function by using a test that doesn't rely on it
+        // For this test, we'll test the core logic by creating the config manually
+        let mut config = crate::core::installation::read_config_file(&config_path).unwrap();
+
+        // Test the core installation logic
+        assert!(!crate::core::installation::has_server_config(
+            &config, "foundry"
+        ));
+
+        let server_config = crate::core::installation::create_server_config(&binary_path);
+        config = crate::core::installation::add_server_to_config(config, "foundry", server_config);
+
+        assert!(crate::core::installation::has_server_config(
+            &config, "foundry"
+        ));
+
+        // Test writing the config back
+        crate::core::installation::write_config_file(&config_path, &config).unwrap();
+
+        // Verify the config was written correctly
+        let read_config = crate::core::installation::read_config_file(&config_path).unwrap();
+        assert!(crate::core::installation::has_server_config(
+            &read_config,
+            "foundry"
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_install_for_cursor_already_configured_without_force() {
+        let temp_dir = TempDir::new().unwrap();
+        let binary_path = create_test_binary(&temp_dir);
+
+        // Create config file with foundry already configured
+        let config_path = temp_dir.path().join("mcp.json");
+        let mut config = McpConfig {
+            mcp_servers: HashMap::new(),
+        };
+        let server_config = crate::core::installation::create_server_config(&binary_path);
+        config = crate::core::installation::add_server_to_config(config, "foundry", server_config);
+
+        let content = serde_json::to_string_pretty(&config).unwrap();
+        std::fs::write(&config_path, content).unwrap();
+
+        // Test the already configured logic
+        let read_config = crate::core::installation::read_config_file(&config_path).unwrap();
+
+        // This should return true since foundry is already configured
+        assert!(crate::core::installation::has_server_config(
+            &read_config,
+            "foundry"
+        ));
+
+        // In real installation, this would return an error without force flag
+        // We can't test the full install_for_cursor function easily due to path dependencies,
+        // but we can test the core logic
+    }
+
+    #[tokio::test]
+    async fn test_install_for_cursor_with_force_flag() {
+        let temp_dir = TempDir::new().unwrap();
+        let binary_path = create_test_binary(&temp_dir);
+
+        // Create config file with foundry already configured with different path
+        let config_path = temp_dir.path().join("mcp.json");
+        let mut config = McpConfig {
+            mcp_servers: HashMap::new(),
+        };
+        let old_server_config =
+            crate::core::installation::create_server_config("/old/path/foundry");
+        config =
+            crate::core::installation::add_server_to_config(config, "foundry", old_server_config);
+
+        let content = serde_json::to_string_pretty(&config).unwrap();
+        std::fs::write(&config_path, content).unwrap();
+
+        // Test force overwrite logic
+        let mut read_config = crate::core::installation::read_config_file(&config_path).unwrap();
+        assert!(crate::core::installation::has_server_config(
+            &read_config,
+            "foundry"
+        ));
+
+        // Verify old configuration
+        let old_config =
+            crate::core::installation::get_server_config(&read_config, "foundry").unwrap();
+        assert_eq!(old_config.command, "/old/path/foundry");
+
+        // With force flag, we should be able to overwrite
+        let new_server_config = crate::core::installation::create_server_config(&binary_path);
+        read_config = crate::core::installation::add_server_to_config(
+            read_config,
+            "foundry",
+            new_server_config,
+        );
+
+        // Verify new configuration
+        let new_config =
+            crate::core::installation::get_server_config(&read_config, "foundry").unwrap();
+        assert_eq!(new_config.command, binary_path);
+    }
+
+    #[tokio::test]
+    async fn test_install_for_cursor_invalid_binary_path() {
+        // Test validation of binary path
+        let result = crate::core::installation::validate_binary_path("/nonexistent/path/foundry");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("Binary path does not exist")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_install_for_cursor_config_validation() {
+        let temp_dir = TempDir::new().unwrap();
+        let binary_path = create_test_binary(&temp_dir);
+
+        // Create a config with valid foundry server
+        let mut config = McpConfig {
+            mcp_servers: HashMap::new(),
+        };
+        let server_config = crate::core::installation::create_server_config(&binary_path);
+        config = crate::core::installation::add_server_to_config(config, "foundry", server_config);
+
+        // This should pass validation since the binary exists
+        let result = crate::core::installation::validate_config(&config);
+        assert!(result.is_ok());
+
+        // Test with invalid binary path
+        let mut bad_config = McpConfig {
+            mcp_servers: HashMap::new(),
+        };
+        let bad_server_config =
+            crate::core::installation::create_server_config("/nonexistent/path");
+        bad_config = crate::core::installation::add_server_to_config(
+            bad_config,
+            "foundry",
+            bad_server_config,
+        );
+
+        let result = crate::core::installation::validate_config(&bad_config);
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("command does not exist")
+        );
+    }
+
+    #[tokio::test]
+    async fn test_uninstall_for_cursor_success() {
+        let temp_dir = TempDir::new().unwrap();
+        let binary_path = create_test_binary(&temp_dir);
+
+        // Create config file with foundry configured
+        let config_path = temp_dir.path().join("mcp.json");
+        let mut config = McpConfig {
+            mcp_servers: HashMap::new(),
+        };
+        let server_config = crate::core::installation::create_server_config(&binary_path);
+        config = crate::core::installation::add_server_to_config(config, "foundry", server_config);
+
+        let content = serde_json::to_string_pretty(&config).unwrap();
+        std::fs::write(&config_path, content).unwrap();
+
+        // Test removal logic
+        let mut read_config = crate::core::installation::read_config_file(&config_path).unwrap();
+        assert!(crate::core::installation::has_server_config(
+            &read_config,
+            "foundry"
+        ));
+
+        read_config = crate::core::installation::remove_server_from_config(read_config, "foundry");
+        assert!(!crate::core::installation::has_server_config(
+            &read_config,
+            "foundry"
+        ));
+    }
+
+    #[tokio::test]
+    async fn test_uninstall_for_cursor_not_configured() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create empty config file
+        let config_path = temp_dir.path().join("mcp.json");
+        let config = McpConfig {
+            mcp_servers: HashMap::new(),
+        };
+        let content = serde_json::to_string_pretty(&config).unwrap();
+        std::fs::write(&config_path, content).unwrap();
+
+        // Test that foundry is not configured
+        let read_config = crate::core::installation::read_config_file(&config_path).unwrap();
+        assert!(!crate::core::installation::has_server_config(
+            &read_config,
+            "foundry"
+        ));
+    }
 
     #[tokio::test]
     async fn test_get_cursor_status() {
@@ -213,20 +457,5 @@ mod tests {
         // This test will likely return false in most environments
         let configured = is_cursor_configured();
         assert!(configured || !configured); // Just ensure it doesn't panic
-    }
-
-    #[tokio::test]
-    async fn test_install_for_cursor() {
-        let temp_dir = TempDir::new().unwrap();
-        let binary_path = temp_dir.path().join("foundry");
-        std::fs::write(&binary_path, b"test binary").unwrap();
-
-        // Temporarily override the config path for testing
-        // Note: This is a simplified test - in real scenarios we'd mock the config path
-        let result = install_for_cursor(&binary_path.to_string_lossy(), false).await;
-
-        // The result might fail due to permission issues or other reasons,
-        // but we mainly want to ensure it doesn't panic
-        assert!(result.is_ok() || result.is_err());
     }
 }
