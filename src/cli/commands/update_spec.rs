@@ -77,9 +77,9 @@ fn validate_args(args: &UpdateSpecArgs) -> Result<()> {
     }
 
     // Validate at least one content parameter is provided
-    let has_spec = args.spec.as_ref().map_or(false, |s| !s.trim().is_empty());
-    let has_tasks = args.tasks.as_ref().map_or(false, |s| !s.trim().is_empty());
-    let has_notes = args.notes.as_ref().map_or(false, |s| !s.trim().is_empty());
+    let has_spec = args.spec.as_ref().is_some_and(|s| !s.trim().is_empty());
+    let has_tasks = args.tasks.as_ref().is_some_and(|s| !s.trim().is_empty());
+    let has_notes = args.notes.as_ref().is_some_and(|s| !s.trim().is_empty());
 
     if !has_spec && !has_tasks && !has_notes {
         return Err(anyhow::anyhow!(
@@ -88,22 +88,22 @@ fn validate_args(args: &UpdateSpecArgs) -> Result<()> {
     }
 
     // Validate non-empty content for provided parameters
-    if let Some(ref spec_content) = args.spec {
-        if spec_content.trim().is_empty() {
-            return Err(anyhow::anyhow!("Spec content cannot be empty"));
-        }
+    if let Some(ref spec_content) = args.spec
+        && spec_content.trim().is_empty()
+    {
+        return Err(anyhow::anyhow!("Spec content cannot be empty"));
     }
 
-    if let Some(ref tasks_content) = args.tasks {
-        if tasks_content.trim().is_empty() {
-            return Err(anyhow::anyhow!("Tasks content cannot be empty"));
-        }
+    if let Some(ref tasks_content) = args.tasks
+        && tasks_content.trim().is_empty()
+    {
+        return Err(anyhow::anyhow!("Tasks content cannot be empty"));
     }
 
-    if let Some(ref notes_content) = args.notes {
-        if notes_content.trim().is_empty() {
-            return Err(anyhow::anyhow!("Notes content cannot be empty"));
-        }
+    if let Some(ref notes_content) = args.notes
+        && notes_content.trim().is_empty()
+    {
+        return Err(anyhow::anyhow!("Notes content cannot be empty"));
     }
 
     Ok(())

@@ -104,17 +104,19 @@ mod tests {
             target: Some("invalid-target".to_string()),
         };
 
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(execute(args));
-
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("Unsupported status target")
-        );
+        // Test the validation logic without calling execute()
+        if let Some(target) = &args.target {
+            let validation_result = validate_target(target);
+            assert!(validation_result.is_err());
+            assert!(
+                validation_result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Unsupported status target")
+            );
+        } else {
+            panic!("Expected target to be Some");
+        }
     }
 
     #[test]

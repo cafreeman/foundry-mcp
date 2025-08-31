@@ -19,8 +19,8 @@ pub use json_config::{
 };
 
 pub use paths::{
-    get_all_config_paths, get_claude_code_config_dir, get_claude_code_mcp_config_path,
-    get_cursor_config_dir, get_cursor_mcp_config_path, validate_config_dir_writable,
+    get_all_config_paths, get_claude_code_config_dir, get_cursor_config_dir,
+    get_cursor_mcp_config_path, validate_config_dir_writable,
 };
 
 pub use utils::{

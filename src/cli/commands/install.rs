@@ -1,31 +1,38 @@
 //! Implementation of the install command
 
-use crate::cli::args::InstallArgs;
-use crate::core::installation;
-use crate::types::responses::{FoundryResponse, InstallResponse, InstallationStatus};
-use crate::utils::response::{build_incomplete_response, build_success_response};
+use crate::{
+    cli::args::InstallArgs,
+    core::installation,
+    types::responses::{FoundryResponse, InstallResponse, InstallationStatus},
+    utils::response::{build_incomplete_response, build_success_response},
+};
 use anyhow::{Context, Result};
 
 pub async fn execute(args: InstallArgs) -> Result<FoundryResponse<InstallResponse>> {
     // Validate installation target
     validate_target(&args.target)?;
 
-    // Detect or use provided binary path
-    let binary_path = match args.binary_path {
-        Some(path) => path,
-        None => {
-            installation::detect_binary_path().context("Failed to detect current binary path")?
+    // Handle installation and response building in a single match statement
+    let (result, binary_path) = match args.target.as_str() {
+        "claude-code" => {
+            // Claude Code uses "foundry" from PATH, no need for binary path detection
+            let result = installation::install_for_claude_code("foundry (from PATH)", args.force)
+                .await
+                .map_err(|e| enhance_installation_error("claude-code", &e, args.force))?;
+            (result, "foundry (from PATH)".to_string())
         }
-    };
-
-    // Perform installation based on target
-    let result = match args.target.as_str() {
-        "claude-code" => installation::install_for_claude_code(&binary_path, args.force)
-            .await
-            .map_err(|e| enhance_installation_error("claude-code", &e, args.force))?,
-        "cursor" => installation::install_for_cursor(&binary_path, args.force)
-            .await
-            .map_err(|e| enhance_installation_error("cursor", &e, args.force))?,
+        "cursor" => {
+            // Cursor needs the full binary path for JSON configuration
+            let binary_path = match &args.binary_path {
+                Some(path) => path.clone(),
+                None => installation::detect_binary_path()
+                    .context("Failed to detect current binary path")?,
+            };
+            let result = installation::install_for_cursor(&binary_path, args.force)
+                .await
+                .map_err(|e| enhance_installation_error("cursor", &e, args.force))?;
+            (result, binary_path)
+        }
         _ => {
             return Err(anyhow::anyhow!(
                 "Unsupported installation target: {}. Supported targets: claude-code, cursor",
@@ -37,7 +44,7 @@ pub async fn execute(args: InstallArgs) -> Result<FoundryResponse<InstallRespons
     // Build response
     let response_data = InstallResponse {
         target: args.target.clone(),
-        binary_path: binary_path.clone(),
+        binary_path,
         config_path: result.config_path,
         installation_status: if result.success {
             InstallationStatus::Success
@@ -225,13 +232,11 @@ mod tests {
             force: false,
         };
 
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(execute(args));
-
-        assert!(result.is_err());
+        // Test the validation logic without calling execute()
+        let validation_result = validate_target(&args.target);
+        assert!(validation_result.is_err());
         assert!(
-            result
+            validation_result
                 .unwrap_err()
                 .to_string()
                 .contains("Unsupported installation target")

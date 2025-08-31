@@ -118,13 +118,11 @@ mod tests {
             force: false,
         };
 
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(execute(args));
-
-        assert!(result.is_err());
+        // Test the validation logic without calling execute()
+        let validation_result = validate_target(&args.target);
+        assert!(validation_result.is_err());
         assert!(
-            result
+            validation_result
                 .unwrap_err()
                 .to_string()
                 .contains("Unsupported uninstallation target")
