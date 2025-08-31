@@ -14,13 +14,14 @@ pub use claude_code::{
 pub use cursor::{get_cursor_status, install_for_cursor, uninstall_from_cursor};
 
 pub use json_config::{
-    McpConfig, add_server_to_config, create_server_config, get_server_config, has_server_config,
-    read_config_file, remove_server_from_config, validate_config, write_config_file,
+    McpConfig, add_server_to_config, create_cursor_server_config, create_server_config,
+    get_server_config, has_server_config, read_config_file, remove_server_from_config,
+    validate_config, write_config_file,
 };
 
 pub use paths::{
-    get_all_config_paths, get_claude_code_config_dir, get_claude_code_mcp_config_path,
-    get_cursor_config_dir, get_cursor_mcp_config_path, validate_config_dir_writable,
+    get_all_config_paths, get_claude_code_config_dir, get_cursor_config_dir,
+    get_cursor_mcp_config_path, validate_config_dir_writable,
 };
 
 pub use utils::{
@@ -33,14 +34,10 @@ pub use utils::{
 pub use crate::types::responses::EnvironmentStatus;
 
 /// Install Foundry MCP server for the specified target environment
-pub async fn install_for_target(
-    target: &str,
-    binary_path: &str,
-    force: bool,
-) -> anyhow::Result<InstallationResult> {
+pub async fn install_for_target(target: &str) -> anyhow::Result<InstallationResult> {
     match target {
-        "claude-code" => install_for_claude_code(binary_path, force).await,
-        "cursor" => install_for_cursor(binary_path, force).await,
+        "claude-code" => install_for_claude_code().await,
+        "cursor" => install_for_cursor().await,
         _ => Err(anyhow::anyhow!(
             "Unsupported installation target: {}",
             target
@@ -52,11 +49,10 @@ pub async fn install_for_target(
 pub async fn uninstall_from_target(
     target: &str,
     remove_config: bool,
-    force: bool,
 ) -> anyhow::Result<UninstallationResult> {
     match target {
-        "claude-code" => uninstall_from_claude_code(remove_config, force).await,
-        "cursor" => uninstall_from_cursor(remove_config, force).await,
+        "claude-code" => uninstall_from_claude_code().await,
+        "cursor" => uninstall_from_cursor(remove_config).await,
         _ => Err(anyhow::anyhow!(
             "Unsupported uninstallation target: {}",
             target

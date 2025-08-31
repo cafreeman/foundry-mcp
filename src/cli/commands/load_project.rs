@@ -243,14 +243,19 @@ mod tests {
         );
     }
 
-    #[tokio::test]
-    async fn test_execute_with_missing_project() {
-        let args = create_test_args("non-existent-project");
-        let result = execute(args).await;
+    #[test]
+    fn test_execute_with_missing_project() {
+        use crate::test_utils::TestEnvironment;
+        let env = TestEnvironment::new().unwrap();
 
-        assert!(result.is_err());
-        let error_message = result.unwrap_err().to_string();
-        assert!(error_message.contains("not found"));
+        let _ = env.with_env_async(|| async {
+            let args = create_test_args("non-existent-project");
+            let result = execute(args).await;
+
+            assert!(result.is_err());
+            let error_message = result.unwrap_err().to_string();
+            assert!(error_message.contains("not found"));
+        });
     }
 
     #[test]
@@ -260,10 +265,10 @@ mod tests {
         let project_path = temp_dir.path();
 
         // Create minimal project structure without files
-        filesystem::create_dir_all(&project_path).unwrap();
+        filesystem::create_dir_all(project_path).unwrap();
         filesystem::create_dir_all(project_path.join("specs")).unwrap();
 
-        let context = load_project_context(project_name, &project_path).unwrap();
+        let context = load_project_context(project_name, project_path).unwrap();
 
         assert_eq!(context.name, project_name);
         // Should handle missing files gracefully with empty strings
@@ -290,7 +295,7 @@ mod tests {
         filesystem::create_dir_all(&spec1_dir).unwrap();
         filesystem::create_dir_all(&spec2_dir).unwrap();
 
-        let context = load_project_context(project_name, &project_path).unwrap();
+        let context = load_project_context(project_name, project_path).unwrap();
 
         assert_eq!(context.name, project_name);
         assert_eq!(context.specs_available.len(), 2);

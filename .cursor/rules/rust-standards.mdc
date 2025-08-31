@@ -76,3 +76,27 @@ redundant_closure = "deny"
 - Follow latest Rust idioms and community standards
 - Use modern patterns, avoid deprecated approaches
 - Leverage latest language features appropriately
+
+## Testing Standards
+
+- **USE**: `TestEnvironment` with `assert_fs` + `temp-env` for filesystem tests
+- **PATTERN**: `#[test]` + `with_env_async` for async tests requiring isolation
+- **AVOID**: `#[tokio::test]`, trait-based mocking, manual environment management
+- **REFERENCE**: See [testing-patterns.mdc](mdc:.cursor/rules/testing-patterns.mdc) for detailed patterns
+
+```rust
+// ✅ Modern Testing Pattern (Use)
+#[test]
+fn test_name() {
+    let env = TestEnvironment::new().unwrap();
+    let _ = env.with_env_async(|| async {
+        // Test logic with perfect isolation
+    });
+}
+
+// ❌ Old Pattern (Avoid)
+#[tokio::test]
+async fn test_name() {
+    // No isolation, potential interference
+}
+```

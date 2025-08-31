@@ -2,35 +2,116 @@
 
 use crate::cli::args::*;
 use anyhow::Result;
-use std::env;
-use tempfile::TempDir;
+use assert_fs::TempDir;
+use std::path::PathBuf;
 
-/// Test environment that sets up a temporary foundry directory
+/// Test environment that sets up temporary directories with assert_fs for isolated testing
 pub struct TestEnvironment {
     pub temp_dir: TempDir,
-    pub original_home: Option<String>,
+    pub foundry_dir: PathBuf,
+    pub cursor_config_dir: PathBuf,
+    pub claude_config_dir: PathBuf,
 }
 
 impl TestEnvironment {
-    /// Create a new test environment with isolated foundry directory
+    /// Create a new test environment with isolated directories
     pub fn new() -> Result<Self> {
         let temp_dir = TempDir::new()?;
-        let original_home = env::var("HOME").ok();
+        let base = temp_dir.path();
 
-        // Set HOME to temp directory so foundry uses temp/.foundry
-        unsafe {
-            env::set_var("HOME", temp_dir.path());
-        }
+        // Create directory structure
+        let foundry_dir = base.join(".foundry");
+        let cursor_config_dir = base.join(".cursor");
+        let claude_config_dir = base.join(".claude");
 
         Ok(TestEnvironment {
             temp_dir,
-            original_home,
+            foundry_dir,
+            cursor_config_dir,
+            claude_config_dir,
         })
     }
 
+    /// Execute an async test with temporary environment variables set
+    pub async fn with_env_async<F, Fut, R>(&self, test_fn: F) -> R
+    where
+        F: FnOnce() -> Fut,
+        Fut: std::future::Future<Output = R>,
+    {
+        // temp-env doesn't support async closures directly, so we need to use a blocking approach
+        temp_env::with_vars(
+            &[
+                ("HOME", Some(self.temp_dir.path().to_str().unwrap())),
+                (
+                    "CURSOR_CONFIG_DIR",
+                    Some(self.cursor_config_dir.to_str().unwrap()),
+                ),
+                (
+                    "CLAUDE_CONFIG_DIR",
+                    Some(self.claude_config_dir.to_str().unwrap()),
+                ),
+            ],
+            || {
+                // Create a new async runtime for this scope
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(test_fn())
+            },
+        )
+    }
+
     /// Get the foundry directory path within the test environment
-    pub fn foundry_dir(&self) -> std::path::PathBuf {
-        self.temp_dir.path().join(".foundry")
+    pub fn foundry_dir(&self) -> &PathBuf {
+        &self.foundry_dir
+    }
+
+    /// Create a mock binary file for testing
+    pub fn create_mock_binary(&self, name: &str) -> Result<PathBuf> {
+        let binary_path = self.temp_dir.path().join(name);
+        std::fs::write(&binary_path, b"mock foundry binary")?;
+
+        // Make it executable on Unix systems
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&binary_path)?.permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&binary_path, perms)?;
+        }
+
+        Ok(binary_path)
+    }
+
+    /// Get the cursor config file path
+    pub fn cursor_config_path(&self) -> PathBuf {
+        self.cursor_config_dir.join("mcp.json")
+    }
+
+    /// Get the claude config directory (claude uses directory, not file)
+    pub fn claude_config_dir(&self) -> &PathBuf {
+        &self.claude_config_dir
+    }
+
+    /// Create a pre-configured cursor config for testing
+    pub fn create_cursor_config(&self, server_configs: &[(&str, &str)]) -> Result<()> {
+        std::fs::create_dir_all(&self.cursor_config_dir)?;
+
+        let mut servers = serde_json::Map::new();
+        for (name, command) in server_configs {
+            let server_config = serde_json::json!({
+                "command": command,
+                "args": ["serve"]
+            });
+            servers.insert(name.to_string(), server_config);
+        }
+
+        let config = serde_json::json!({
+            "mcpServers": servers
+        });
+
+        let config_content = serde_json::to_string_pretty(&config)?;
+        std::fs::write(self.cursor_config_path(), config_content)?;
+
+        Ok(())
     }
 
     /// Create valid test arguments for create_project
@@ -58,19 +139,6 @@ impl TestEnvironment {
     pub fn load_project_args(&self, project_name: &str) -> LoadProjectArgs {
         LoadProjectArgs {
             project_name: project_name.to_string(),
-        }
-    }
-}
-
-impl Drop for TestEnvironment {
-    fn drop(&mut self) {
-        // Restore original HOME environment variable
-        unsafe {
-            if let Some(original_home) = &self.original_home {
-                env::set_var("HOME", original_home);
-            } else {
-                env::remove_var("HOME");
-            }
         }
     }
 }

@@ -7,47 +7,33 @@ use std::path::{Path, PathBuf};
 
 /// Get the configuration directory path for Claude Code
 ///
-/// Claude Code stores MCP configurations in a platform-specific location
+/// Claude Code stores user settings in ~/.claude/
+/// Can be overridden with CLAUDE_CONFIG_DIR environment variable for testing
 pub fn get_claude_code_config_dir() -> Result<PathBuf> {
+    if let Ok(test_dir) = env::var("CLAUDE_CONFIG_DIR") {
+        return Ok(PathBuf::from(test_dir));
+    }
     let home = get_home_dir()?;
-
-    #[cfg(target_os = "macos")]
-    {
-        Ok(home.join("Library/Application Support/ClaudeCode"))
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        // Use XDG config directory if available, otherwise fallback to home
-        if let Ok(xdg_config) = env::var("XDG_CONFIG_HOME") {
-            Ok(PathBuf::from(xdg_config).join("claude-code"))
-        } else {
-            Ok(home.join(".config/claude-code"))
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        // On Windows, use %APPDATA%\ClaudeCode
-        if let Ok(appdata) = env::var("APPDATA") {
-            Ok(PathBuf::from(appdata).join("ClaudeCode"))
-        } else {
-            Ok(home.join("AppData/Roaming/ClaudeCode"))
-        }
-    }
+    Ok(home.join(".claude"))
 }
 
 /// Get the MCP configuration file path for Claude Code
+///
+/// Claude Code uses ~/.claude.json for MCP server configurations.
+/// This returns the MCP config file at ~/.claude.json
 pub fn get_claude_code_mcp_config_path() -> Result<PathBuf> {
-    let config_dir = get_claude_code_config_dir()?;
-    ensure_directory_exists(&config_dir)?;
-    Ok(config_dir.join("mcp.json"))
+    let home = get_home_dir()?;
+    Ok(home.join(".claude.json"))
 }
 
 /// Get the configuration directory path for Cursor
 ///
 /// Cursor stores MCP configurations in ~/.cursor/
+/// Can be overridden with CURSOR_CONFIG_DIR environment variable for testing
 pub fn get_cursor_config_dir() -> Result<PathBuf> {
+    if let Ok(test_dir) = env::var("CURSOR_CONFIG_DIR") {
+        return Ok(PathBuf::from(test_dir));
+    }
     let home = get_home_dir()?;
     Ok(home.join(".cursor"))
 }
@@ -60,6 +46,9 @@ pub fn get_cursor_mcp_config_path() -> Result<PathBuf> {
 }
 
 /// Get all supported MCP configuration paths
+///
+/// Returns the configuration file paths for both Claude Code and Cursor.
+/// Claude Code uses ~/.claude.json for MCP server configurations.
 pub fn get_all_config_paths() -> Vec<(String, PathBuf)> {
     vec![
         (
@@ -120,15 +109,7 @@ mod tests {
             "Should be able to get Claude Code config dir"
         );
         let path = result.unwrap();
-        assert!(path.ends_with("ClaudeCode") || path.ends_with("claude-code"));
-    }
-
-    #[test]
-    fn test_get_cursor_config_dir() {
-        let result = get_cursor_config_dir();
-        assert!(result.is_ok(), "Should be able to get Cursor config dir");
-        let path = result.unwrap();
-        assert!(path.ends_with(".cursor"));
+        assert!(path.ends_with(".claude"));
     }
 
     #[test]
@@ -139,7 +120,16 @@ mod tests {
             "Should be able to get Claude Code MCP config path"
         );
         let path = result.unwrap();
-        assert!(path.ends_with("mcp.json"));
+        assert!(path.ends_with(".claude.json"));
+        assert!(path.to_string_lossy().contains(".claude"));
+    }
+
+    #[test]
+    fn test_get_cursor_config_dir() {
+        let result = get_cursor_config_dir();
+        assert!(result.is_ok(), "Should be able to get Cursor config dir");
+        let path = result.unwrap();
+        assert!(path.ends_with(".cursor"));
     }
 
     #[test]

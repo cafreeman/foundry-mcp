@@ -1,0 +1,212 @@
+---
+alwaysApply: false
+description: Testing patterns and infrastructure for Foundry MCP using assert_fs and temp-env
+---
+
+# Foundry MCP Testing Patterns & Infrastructure
+
+## Overview
+
+This project uses a modern, reliable testing approach with `assert_fs` + `temp-env` that provides perfect isolation and real filesystem operations. The old trait-based mocking approach was replaced due to "leaky abstractions" and complexity.
+
+## Core Testing Philosophy
+
+**Why This Approach Won:**
+
+- **Real Operations**: Tests use actual filesystem calls, matching production exactly
+- **Perfect Isolation**: Each test gets unique temporary environment with automatic cleanup
+- **No Mocking Complexity**: Eliminates fragile trait hierarchies and dependency injection
+- **Production Fidelity**: Tests catch real bugs that mocked tests might miss
+
+## TestEnvironment Pattern
+
+### Basic Structure
+
+```rust
+#[test]
+fn test_name() {
+    use crate::test_utils::TestEnvironment;
+    let env = TestEnvironment::new().unwrap();
+
+    let _ = env.with_env_async(|| async {
+        // Test logic with real filesystem operations
+        // Full environment isolation guaranteed
+    });
+}
+```
+
+### Key Components
+
+- **`TestEnvironment`**: Manages temporary directories and environment variables
+- **`with_env_async`**: Bridges sync temp-env with async test execution
+- **`assert_fs::TempDir`**: Automatic cleanup and cross-platform support
+- **`temp-env`**: Scoped environment variable management
+
+## Environment Isolation
+
+### How It Works
+
+```rust
+// Each test gets isolated environment:
+// - HOME = temp directory
+// - CURSOR_CONFIG_DIR = temp/.cursor
+// - CLAUDE_CONFIG_DIR = temp/.claude
+// - Foundry specs = temp/.foundry
+
+env.with_env_async(|| async {
+    // Test runs in completely isolated environment
+    // No risk of polluting user's real ~/.foundry
+});
+```
+
+### Benefits
+
+- **Parallel Execution**: Tests can run simultaneously without interference
+- **Panic Safety**: Environment restored even if tests panic
+- **Automatic Cleanup**: No manual teardown required
+- **Cross-Platform**: Works consistently across macOS, Linux, Windows
+
+## Helper Methods
+
+### TestEnvironment Utilities
+
+```rust
+// Create mock binaries for testing
+let binary_path = env.create_mock_binary("foundry").unwrap();
+
+// Access isolated paths
+let config_path = env.cursor_config_path();
+let foundry_dir = env.foundry_dir();
+
+// Pre-populate configurations
+env.create_cursor_config(&[("foundry", "/path/to/binary")]).unwrap();
+```
+
+### Common Patterns
+
+```rust
+// Test with fresh environment
+let env = TestEnvironment::new().unwrap();
+let _ = env.with_env_async(|| async {
+    let result = function_under_test().await;
+    assert!(result.is_ok());
+
+    // Verify filesystem state
+    assert!(env.cursor_config_path().exists());
+    assert!(env.cursor_config_path().is_file());
+});
+```
+
+## Migration from Old Patterns
+
+### What Was Removed
+
+- ❌ `#[tokio::test]` attributes
+- ❌ `FileSystemOperations` trait and implementations
+- ❌ `CommandExecutor` trait and implementations
+- ❌ `_with_fs` and `_with_executor` function variants
+- ❌ Complex mocking infrastructure
+
+### What Was Added
+
+- ✅ `#[test]` + `with_env_async` pattern
+- ✅ `TestEnvironment` with `assert_fs::TempDir`
+- ✅ `temp-env` for scoped environment variables
+- ✅ Real filesystem operations in tests
+
+## Best Practices
+
+### Writing New Tests
+
+1. **Always use `TestEnvironment`** for tests that need filesystem isolation
+2. **Use `with_env_async`** for async tests that need environment variables
+3. **Prefer real operations** over mocking when possible
+4. **Test actual behavior** not implementation details
+
+### Test Structure
+
+```rust
+#[test]
+fn test_feature_name() {
+    let env = TestEnvironment::new().unwrap();
+
+    let _ = env.with_env_async(|| async {
+        // Setup
+        let input = env.create_mock_binary("test-binary").unwrap();
+
+        // Execute
+        let result = function_under_test(&input).await;
+
+        // Assert
+        assert!(result.is_ok());
+        assert!(env.some_path().exists());
+    });
+}
+```
+
+### Environment Variables
+
+- **Don't use `std::env::set_var`** - it's not isolated
+- **Use `TestEnvironment::with_env_async`** for proper scoping
+- **Environment is automatically restored** after each test
+
+## Performance Characteristics
+
+- **Full test suite**: ~1.18 seconds for 144 tests
+- **Individual tests**: <10ms each
+- **Memory usage**: Minimal, temporary files cleaned up automatically
+- **Parallel execution**: Safe and efficient
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Test interference**: Ensure you're using `with_env_async` for isolation
+2. **Path issues**: Use `env.cursor_config_path()` not hardcoded paths
+3. **Async problems**: Always use `with_env_async` for async tests
+
+### Debug Tips
+
+```rust
+// If tests fail, check environment isolation
+println!("HOME: {:?}", std::env::var("HOME"));
+println!("CURSOR_CONFIG_DIR: {:?}", std::env::var("CURSOR_CONFIG_DIR"));
+
+// Verify temporary directory structure
+println!("Temp dir: {:?}", env.temp_dir.path());
+```
+
+## Dependencies
+
+### Required in Cargo.toml
+
+```toml
+[dev-dependencies]
+assert_fs = "1.1"
+predicates = "3.0"
+temp-env = "0.3.6"
+```
+
+### Why These Crates
+
+- **`assert_fs`**: Temporary directories with automatic cleanup
+- **`predicates`**: Rich assertions for filesystem validation
+- **`temp-env`**: Scoped environment variable management
+
+## Integration with Existing Tests
+
+- **Unit tests**: Use `TestEnvironment` pattern
+- **Integration tests**: Maintain existing mutex-based isolation (working well)
+- **CLI tests**: Use `TestEnvironment` for filesystem operations
+- **MCP tests**: Use `TestEnvironment` for configuration isolation
+
+## Future Considerations
+
+- **Pattern is established** and documented for consistency
+- **Easy to extend** with new helper methods as needed
+- **Maintainable** - minimal custom infrastructure required
+- **Scalable** - works well as test suite grows
+
+---
+
+**Remember**: This approach solved the "leaky abstractions" problem from trait-based mocking. Sometimes the simple approach (real operations with isolation) beats complex abstractions (trait hierarchies).

@@ -201,7 +201,7 @@ pub struct StatusResponse {
 }
 
 /// Installation/uninstallation status
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum InstallationStatus {
     /// Installation/uninstallation completed successfully

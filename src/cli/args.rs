@@ -526,13 +526,6 @@ pub struct InstallArgs {
     /// Useful for installations where the binary is in a custom location
     #[arg(long)]
     pub binary_path: Option<String>,
-
-    /// Force overwrite existing configuration
-    ///
-    /// If set, will overwrite existing MCP server configuration
-    /// without prompting for confirmation
-    #[arg(long)]
-    pub force: bool,
 }
 
 /// Arguments for uninstall command
@@ -551,10 +544,6 @@ pub struct UninstallArgs {
     /// unregistering the MCP server
     #[arg(long)]
     pub remove_config: bool,
-
-    /// Force uninstall without confirmation prompts
-    #[arg(long)]
-    pub force: bool,
 }
 
 /// Arguments for status command
@@ -625,15 +614,6 @@ impl crate::mcp::traits::McpToolDefinition for InstallArgs {
         );
         properties.insert("binary_path".to_string(), binary_path_prop);
 
-        // force property
-        let mut force_prop = serde_json::Map::new();
-        force_prop.insert("type".to_string(), serde_json::json!("boolean"));
-        force_prop.insert(
-            "description".to_string(),
-            serde_json::json!("Force overwrite existing configuration without prompting"),
-        );
-        properties.insert("force".to_string(), force_prop);
-
         rust_mcp_sdk::schema::Tool {
             name: "install".to_string(),
             description: Some("Install Foundry MCP server for AI development environments. Creates necessary configuration files and registers the MCP server.".to_string()),
@@ -656,12 +636,9 @@ impl crate::mcp::traits::McpToolDefinition for InstallArgs {
 
         let binary_path = params["binary_path"].as_str().map(|s| s.to_string());
 
-        let force = params["force"].as_bool().unwrap_or(false);
-
         Ok(Self {
             target,
             binary_path,
-            force,
         })
     }
 }
@@ -688,15 +665,6 @@ impl crate::mcp::traits::McpToolDefinition for UninstallArgs {
         );
         properties.insert("remove_config".to_string(), remove_config_prop);
 
-        // force property
-        let mut force_prop = serde_json::Map::new();
-        force_prop.insert("type".to_string(), serde_json::json!("boolean"));
-        force_prop.insert(
-            "description".to_string(),
-            serde_json::json!("Force uninstall without confirmation prompts"),
-        );
-        properties.insert("force".to_string(), force_prop);
-
         rust_mcp_sdk::schema::Tool {
             name: "uninstall".to_string(),
             description: Some("Uninstall Foundry MCP server from AI development environments. Removes MCP server configuration and optionally cleans up files.".to_string()),
@@ -719,12 +687,9 @@ impl crate::mcp::traits::McpToolDefinition for UninstallArgs {
 
         let remove_config = params["remove_config"].as_bool().unwrap_or(false);
 
-        let force = params["force"].as_bool().unwrap_or(false);
-
         Ok(Self {
             target,
             remove_config,
-            force,
         })
     }
 }

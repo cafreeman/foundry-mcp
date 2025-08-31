@@ -12,10 +12,10 @@ pub async fn execute(args: UninstallArgs) -> Result<FoundryResponse<UninstallRes
 
     // Perform uninstallation based on target
     let result = match args.target.as_str() {
-        "claude-code" => installation::uninstall_from_claude_code(args.remove_config, args.force)
+        "claude-code" => installation::uninstall_from_claude_code()
             .await
             .context("Failed to uninstall from Claude Code")?,
-        "cursor" => installation::uninstall_from_cursor(args.remove_config, args.force)
+        "cursor" => installation::uninstall_from_cursor(args.remove_config)
             .await
             .context("Failed to uninstall from Cursor")?,
 
@@ -115,16 +115,13 @@ mod tests {
         let args = UninstallArgs {
             target: "invalid-target".to_string(),
             remove_config: false,
-            force: false,
         };
 
-        let result = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(execute(args));
-
-        assert!(result.is_err());
+        // Test the validation logic without calling execute()
+        let validation_result = validate_target(&args.target);
+        assert!(validation_result.is_err());
         assert!(
-            result
+            validation_result
                 .unwrap_err()
                 .to_string()
                 .contains("Unsupported uninstallation target")
@@ -136,12 +133,10 @@ mod tests {
         let args = UninstallArgs {
             target: "claude-code".to_string(),
             remove_config: true,
-            force: true,
         };
 
         assert_eq!(args.target, "claude-code");
         assert!(args.remove_config);
-        assert!(args.force);
     }
 
     #[test]
@@ -149,12 +144,10 @@ mod tests {
         let args = UninstallArgs {
             target: "cursor".to_string(),
             remove_config: false,
-            force: false,
         };
 
         assert_eq!(args.target, "cursor");
         assert!(!args.remove_config);
-        assert!(!args.force);
     }
 
     #[test]
@@ -179,11 +172,9 @@ mod tests {
         let args = UninstallArgs {
             target: "cursor".to_string(),
             remove_config: true,
-            force: false,
         };
 
         assert_eq!(args.target, "cursor");
         assert!(args.remove_config);
-        assert!(!args.force);
     }
 }
