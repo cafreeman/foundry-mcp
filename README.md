@@ -13,6 +13,7 @@ Foundry MCP enables AI assistants like Claude to:
 
 **Primary Use**: MCP server integration with AI development environments
 **Bonus Feature**: CLI interface available for testing and debugging MCP tools
+**Installation**: Easy one-command setup for Claude Code and Cursor
 
 ## Problem Statement
 
@@ -129,6 +130,10 @@ Foundry MCP enables powerful workflows for AI assistants like Claude:
 
 ### Installation
 
+Foundry MCP can be installed in two ways:
+
+#### Option 1: Build from Source
+
 ```bash
 # Clone and build
 git clone <repository-url>
@@ -139,6 +144,38 @@ cargo build --release
 ./target/release/foundry-mcp serve
 ```
 
+#### Option 2: Install MCP Server for AI Development Environments
+
+Foundry MCP provides easy installation commands for popular AI development environments:
+
+```bash
+# Install for Claude Code
+foundry mcp install claude-code
+
+# Install for Cursor
+foundry mcp install cursor
+
+# Check installation status
+foundry mcp status
+
+# Uninstall if needed
+foundry mcp uninstall cursor
+```
+
+**Supported Environments:**
+
+- **Claude Code**: Uses `claude mcp add` CLI commands for server registration
+- **Cursor**: Manages `~/.cursor/mcp.json` configuration file automatically
+
+**Installation Features:**
+
+- ✅ **Automatic binary detection** - Finds Foundry MCP binary automatically
+- ✅ **Configuration management** - Creates/updates config files without manual editing
+- ✅ **Conflict resolution** - Handles existing configurations gracefully
+- ✅ **Cross-platform support** - Works on macOS, Linux, and Windows
+- ✅ **Status reporting** - Comprehensive installation status checking
+- ✅ **Clean uninstallation** - Complete removal of configurations
+
 ### Integration with AI Clients
 
 Configure your AI development environment to use Foundry MCP:
@@ -148,6 +185,33 @@ Configure your AI development environment to use Foundry MCP:
 **Cursor**: Set up as MCP server
 
 _Note: Specific integration guides coming soon_
+
+### Quick Start
+
+Get Foundry MCP running in your AI development environment in under 2 minutes:
+
+```bash
+# 1. Build Foundry MCP
+git clone <repository-url>
+cd foundry-mcp
+cargo build --release
+
+# 2. Install for your preferred environment
+./target/release/foundry-mcp mcp install cursor      # For Cursor
+./target/release/foundry-mcp mcp install claude-code # For Claude Code
+
+# 3. Verify installation
+./target/release/foundry-mcp mcp status
+
+# 4. Start using Foundry MCP tools in your AI environment!
+```
+
+**What happens during installation:**
+
+- ✅ **Binary detection**: Foundry automatically finds its own binary path
+- ✅ **Config creation**: Creates/updates configuration files automatically
+- ✅ **Server registration**: Registers Foundry MCP server with your AI environment
+- ✅ **Validation**: Verifies installation was successful
 
 ## Development and Testing
 
@@ -188,6 +252,101 @@ foundry mcp validate-content --content-type vision --content "..."
 ```
 
 _Note: CLI usage is primarily for development and testing. The main value is in MCP server integration with AI assistants._
+
+## CLI Commands Reference
+
+Foundry MCP provides a comprehensive CLI interface for all functionality:
+
+### Installation Commands
+
+```bash
+# Install MCP server for AI environments
+foundry mcp install <target> [--binary-path <path>] [--force]
+
+# Available targets: claude-code, cursor
+foundry mcp install claude-code
+foundry mcp install cursor
+
+# Force overwrite existing configurations
+foundry mcp install cursor --force
+
+# Specify custom binary path
+foundry mcp install cursor --binary-path /usr/local/bin/foundry-mcp
+
+# Uninstall MCP server
+foundry mcp uninstall <target>
+foundry mcp uninstall cursor
+
+# Check installation status
+foundry mcp status                    # Basic status
+foundry mcp status --detailed         # Detailed status with troubleshooting
+```
+
+### Project Management Commands
+
+```bash
+# Create new project
+foundry mcp create-project <name> --vision "<vision>" --tech-stack "<tech>" --summary "<summary>"
+
+# Analyze existing codebase
+foundry mcp analyze-project <name> --vision "<vision>" --tech-stack "<tech>" --summary "<summary>"
+
+# List all projects
+foundry mcp list-projects
+
+# Load project context
+foundry mcp load-project <name>
+```
+
+### Specification Management Commands
+
+```bash
+# Create new specification
+foundry mcp create-spec <project> <feature> --spec "<spec>" --notes "<notes>" --tasks "<tasks>"
+
+# Load specification
+foundry mcp load-spec <project> <spec>
+
+# Update specification
+foundry mcp update-spec <project> <spec> --spec "<content>" --operation <replace|append>
+
+# Delete specification
+foundry mcp delete-spec <project> <spec>
+```
+
+### Utility Commands
+
+```bash
+# Validate content before creating
+foundry mcp validate-content --content-type <type> --content "<content>"
+
+# Get workflow help
+foundry mcp get-foundry-help [topic]
+
+# Available help topics: workflows, content-examples, project-structure, parameter-guidance
+foundry mcp get-foundry-help workflows
+```
+
+### Command Examples
+
+```bash
+# Complete workflow example
+foundry mcp create-project my-web-app \
+  --vision "Build a modern task management web application" \
+  --tech-stack "React frontend, Node.js backend, PostgreSQL database" \
+  --summary "Full-stack task management app with user authentication"
+
+foundry mcp create-spec my-web-app user-auth \
+  --spec "Implement user authentication system with JWT tokens" \
+  --notes "Use bcrypt for password hashing, JWT for session management" \
+  --tasks "- [ ] Set up user model and database schema\n- [ ] Implement registration endpoint\n- [ ] Add login/logout functionality"
+
+# Check what's installed
+foundry mcp status --detailed
+
+# Install for Cursor development
+foundry mcp install cursor
+```
 
 ## Development
 
@@ -263,18 +422,21 @@ Foundry MCP is **feature-complete** and production-ready:
 
 - **8 MCP Tools**: Full project and specification management
 - **CLI Interface**: All MCP tools available via command line for testing
+- **Installation System**: Easy MCP server installation for Claude Code and Cursor
 - **Robust Architecture**: Comprehensive error handling and validation
-- **Clean Codebase**: 59 tests passing, zero compiler warnings
+- **Clean Codebase**: 135 tests passing, zero compiler warnings
 - **Documentation**: Complete implementation and usage guides
 
 ### 🧪 Testing
 
-Comprehensive test coverage: **59 tests passing**
+Comprehensive test coverage: **135 tests passing**
 
-- Unit tests for all core business logic
-- Integration tests for complete workflows
-- MCP protocol compatibility tests
-- File system operation tests
+- **96 Unit tests** for all core business logic
+- **39 Integration tests** for complete end-to-end workflows
+- **Installation testing** with full filesystem isolation
+- **Cross-platform compatibility** (Unix/Windows)
+- **MCP protocol compatibility** tests
+- **File system operation** tests with perfect isolation
 
 ### 📋 Optional Enhancements
 
