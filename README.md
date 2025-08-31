@@ -13,7 +13,7 @@ Foundry MCP enables AI assistants like Claude to:
 
 **Primary Use**: MCP server integration with AI development environments
 **Bonus Feature**: CLI interface available for testing and debugging MCP tools
-**Installation**: Easy one-command setup for Claude Code and Cursor
+**Installation**: Easy one-command setup for Claude Code and Cursor with PATH-based reliability
 
 ## Problem Statement
 
@@ -23,6 +23,7 @@ Current AI coding assistant workflows suffer from several critical issues:
 - **Project directory pollution**: Context management files clutter the actual codebase
 - **Context loss**: No reliable way to pause/resume complex development tasks across sessions
 - **Error-prone prompting**: Relying on natural language instructions for file system operations leads to inconsistent behavior
+- **Installation complexity**: Traditional MCP installation requires manual configuration and binary path management
 
 ## Solution Overview
 
@@ -34,6 +35,7 @@ Foundry MCP provides a set of MCP tools that enable deterministic project and sp
 2. **Clean project separation**: Context files stored outside project directories
 3. **Persistent context**: Natural pause/resume functionality through structured file storage
 4. **Hierarchical organization**: Project-level context with individual specs and task lists
+5. **Simplified installation**: One-command setup with PATH-based reliability and automatic configuration
 
 ## MCP Tools
 
@@ -125,6 +127,7 @@ Foundry MCP enables powerful workflows for AI assistants like Claude:
 - **Structured planning**: Specs and task lists guide implementation
 - **Clean codebases**: Context stored outside project directories
 - **Resumable work**: Load complete context instantly in any session
+- **Reliable installation**: Simple, predictable MCP server setup with PATH-based commands
 
 ## MCP Server Setup
 
@@ -167,11 +170,17 @@ foundry mcp uninstall cursor
 - **Claude Code**: Uses `claude mcp add` CLI commands for server registration
 - **Cursor**: Manages `~/.cursor/mcp.json` configuration file automatically
 
+**Installation Behavior:**
+
+- **Always Overwrite**: Installations automatically replace existing configurations
+- **PATH Integration**: Both environments use `foundry` command from system PATH
+- **No Force Flags**: Simplified installation process with predictable behavior
+
 **Installation Features:**
 
-- ✅ **Automatic binary detection** - Finds Foundry MCP binary automatically
+- ✅ **PATH-based commands** - Uses `foundry` command from system PATH for reliability
 - ✅ **Configuration management** - Creates/updates config files without manual editing
-- ✅ **Conflict resolution** - Handles existing configurations gracefully
+- ✅ **Always overwrite** - Installations automatically overwrite existing configurations
 - ✅ **Cross-platform support** - Works on macOS, Linux, and Windows
 - ✅ **Status reporting** - Comprehensive installation status checking
 - ✅ **Clean uninstallation** - Complete removal of configurations
@@ -211,6 +220,7 @@ cargo build --release
 - ✅ **Config creation**: Creates/updates configuration files automatically
 - ✅ **Server registration**: Registers Foundry MCP server with your AI environment
 - ✅ **PATH integration**: Uses `foundry` command from PATH (Claude Code and Cursor)
+- ✅ **Always overwrite**: Existing configurations are automatically replaced
 - ✅ **Validation**: Verifies installation was successful
 
 ## Development and Testing
@@ -428,14 +438,30 @@ Foundry MCP is **feature-complete** and production-ready:
 
 ### 🧪 Testing
 
-Comprehensive test coverage: **135 tests passing**
+Comprehensive test coverage: **166 tests passing**
 
-- **96 Unit tests** for all core business logic
-- **39 Integration tests** for complete end-to-end workflows
+- **121 Unit tests** for all core business logic
+- **45 Integration tests** for complete end-to-end workflows
 - **Installation testing** with full filesystem isolation
 - **Cross-platform compatibility** (Unix/Windows)
 - **MCP protocol compatibility** tests
 - **File system operation** tests with perfect isolation
+
+### 🚀 Recent Improvements
+
+**Latest Updates (August 2025):**
+
+- **Simplified Installation**: Removed `--force` flag complexity - installations now always overwrite existing configurations
+- **Enhanced Cursor Support**: Cursor installation now uses PATH-based `"foundry"` command for better reliability
+- **Improved Error Handling**: Cleaner error messages without force flag suggestions
+- **Code Simplification**: Removed ~500 lines of complex conditional logic
+- **Better Testing**: Comprehensive test coverage with 166 tests passing
+
+**Breaking Changes:**
+
+- `--force` flag no longer available on install/uninstall commands
+- Cursor installation no longer accepts `--binary-path` parameter
+- Installations always overwrite existing configurations
 
 ### 📋 Optional Enhancements
 
