@@ -40,31 +40,10 @@ pub async fn execute(args: UninstallArgs) -> Result<FoundryResponse<UninstallRes
         files_removed: result.files_removed,
     };
 
-    let next_steps = vec![
-        format!("Foundry MCP server uninstalled from {}", args.target),
-        "Restart your AI development environment to complete the uninstallation".to_string(),
-        "Check status with: foundry status".to_string(),
-    ];
-
-    let workflow_hints = vec![
-        "Uninstallation complete - MCP server has been removed from your environment".to_string(),
-        "If you removed config files, they will need to be recreated for future installations"
-            .to_string(),
-        "Use 'foundry install' to reinstall if needed".to_string(),
-    ];
-
     if result.success {
-        Ok(build_success_response(
-            response_data,
-            next_steps,
-            workflow_hints,
-        ))
+        Ok(build_success_response(response_data, vec![], vec![]))
     } else {
-        Ok(build_incomplete_response(
-            response_data,
-            next_steps,
-            workflow_hints,
-        ))
+        Ok(build_incomplete_response(response_data, vec![], vec![]))
     }
 }
 

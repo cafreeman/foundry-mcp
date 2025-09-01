@@ -135,37 +135,6 @@ fn format_environment_status(env: &EnvironmentStatus, detailed: bool) -> String 
     lines.join("\n")
 }
 
-/// Get next steps as formatted text
-pub fn format_next_steps(next_steps: &[String]) -> String {
-    if next_steps.is_empty() {
-        return String::new();
-    }
-
-    let mut output = Vec::new();
-    output.push(format!("{}", style("Next Steps:").bold().cyan()));
-
-    for (i, step) in next_steps.iter().enumerate() {
-        output.push(format!("  {}. {}", i + 1, step));
-    }
-
-    output.join("\n")
-}
-
-/// Get workflow hints as formatted text
-pub fn format_workflow_hints(hints: &[String]) -> String {
-    if hints.is_empty() {
-        return String::new();
-    }
-
-    let mut output = Vec::new();
-    output.push(format!("{}", style("Tips:").bold().yellow()));
-
-    for hint in hints {
-        output.push(format!("  {} {}", style("•").yellow(), hint));
-    }
-
-    output.join("\n")
-}
 
 #[cfg(test)]
 mod tests {
@@ -219,28 +188,4 @@ mod tests {
         assert!(output.contains("Config file missing"));
     }
 
-    #[test]
-    fn test_format_next_steps() {
-        let steps = vec!["First step".to_string(), "Second step".to_string()];
-
-        let output = format_next_steps(&steps);
-
-        assert!(output.contains("Next Steps:"));
-        assert!(output.contains("1. First step"));
-        assert!(output.contains("2. Second step"));
-    }
-
-    #[test]
-    fn test_format_workflow_hints() {
-        let hints = vec![
-            "This is a tip".to_string(),
-            "Another helpful hint".to_string(),
-        ];
-
-        let output = format_workflow_hints(&hints);
-
-        assert!(output.contains("Tips:"));
-        assert!(output.contains("This is a tip"));
-        assert!(output.contains("Another helpful hint"));
-    }
 }

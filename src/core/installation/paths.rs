@@ -28,14 +28,15 @@ pub fn get_claude_code_mcp_config_path() -> Result<PathBuf> {
 
 /// Get the configuration directory path for Cursor
 ///
-/// Cursor stores MCP configurations in ~/.cursor/
+/// Cursor stores MCP configurations in ./.cursor/ (project-local directory)
 /// Can be overridden with CURSOR_CONFIG_DIR environment variable for testing
 pub fn get_cursor_config_dir() -> Result<PathBuf> {
     if let Ok(test_dir) = env::var("CURSOR_CONFIG_DIR") {
         return Ok(PathBuf::from(test_dir));
     }
-    let home = get_home_dir()?;
-    Ok(home.join(".cursor"))
+    let current_dir = std::env::current_dir()
+        .context("Failed to get current working directory")?;
+    Ok(current_dir.join(".cursor"))
 }
 
 /// Get the MCP configuration file path for Cursor
@@ -129,7 +130,8 @@ mod tests {
         let result = get_cursor_config_dir();
         assert!(result.is_ok(), "Should be able to get Cursor config dir");
         let path = result.unwrap();
-        assert!(path.ends_with(".cursor"));
+        assert!(path.ends_with(".cursor"), "Path should end with '.cursor', got: {}", path.display());
+        assert!(path.is_absolute(), "Path should be absolute");
     }
 
     #[test]

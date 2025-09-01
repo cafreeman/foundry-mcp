@@ -49,30 +49,10 @@ pub async fn execute(args: InstallArgs) -> Result<FoundryResponse<InstallRespons
         actions_taken: result.actions_taken,
     };
 
-    let next_steps = vec![
-        format!("Foundry MCP server installed for {}", args.target),
-        "Restart your AI development environment to pick up the changes".to_string(),
-        "Test the installation with: foundry status".to_string(),
-    ];
-
-    let workflow_hints = vec![
-        "Installation complete - MCP server is now available in your environment".to_string(),
-        "If you encounter issues, use 'foundry status --detailed' to diagnose".to_string(),
-        "Consider testing with a simple command like 'foundry mcp list-projects'".to_string(),
-    ];
-
     if result.success {
-        Ok(build_success_response(
-            response_data,
-            next_steps,
-            workflow_hints,
-        ))
+        Ok(build_success_response(response_data, vec![], vec![]))
     } else {
-        Ok(build_incomplete_response(
-            response_data,
-            next_steps,
-            workflow_hints,
-        ))
+        Ok(build_incomplete_response(response_data, vec![], vec![]))
     }
 }
 

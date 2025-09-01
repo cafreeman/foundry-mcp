@@ -226,9 +226,7 @@ impl TestEnvironment {
         &self,
         target: Option<&str>,
         detailed: bool,
-    ) -> anyhow::Result<
-        crate::types::responses::FoundryResponse<crate::types::responses::StatusResponse>,
-    > {
+    ) -> anyhow::Result<crate::types::responses::StatusResponse> {
         use crate::cli::commands::status;
 
         let status_args = self.status_args_json(target, detailed);

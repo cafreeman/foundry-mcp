@@ -3,7 +3,6 @@
 use crate::cli::args::StatusArgs;
 use crate::core::installation;
 use crate::types::responses::StatusResponse;
-use crate::utils::response::build_success_response;
 use crate::utils::status_formatter;
 use anyhow::{Context, Result};
 
@@ -36,44 +35,13 @@ pub async fn execute(args: StatusArgs) -> Result<String> {
         environments,
     };
 
-    let next_steps = vec![
-        "MCP server status checked successfully".to_string(),
-        "Review the installation status for each environment".to_string(),
-        "Use --detailed flag for more configuration information".to_string(),
-    ];
-
-    let workflow_hints = vec![
-        "Green checkmarks indicate properly installed environments".to_string(),
-        "Red X marks indicate missing or misconfigured installations".to_string(),
-        "Use 'foundry install <target>' to install for missing environments".to_string(),
-        "Use 'foundry uninstall <target>' to remove unwanted installations".to_string(),
-    ];
-
-    let full_response = build_success_response(response_data, next_steps, workflow_hints);
-
     // Format output based on requested format
     if args.json {
-        // Return JSON format
-        Ok(serde_json::to_string_pretty(&full_response)?)
+        // Return JSON format - only include the data for clean CLI output
+        Ok(serde_json::to_string_pretty(&response_data)?)
     } else {
         // Return human-readable format
-        let mut output = status_formatter::format_status_output(&full_response.data, args.detailed);
-
-        // Add next steps and hints if present
-        if !full_response.next_steps.is_empty() {
-            output.push_str(&format!(
-                "\n\n{}",
-                status_formatter::format_next_steps(&full_response.next_steps)
-            ));
-        }
-        if !full_response.workflow_hints.is_empty() {
-            output.push_str(&format!(
-                "\n\n{}",
-                status_formatter::format_workflow_hints(&full_response.workflow_hints)
-            ));
-        }
-
-        Ok(output)
+        Ok(status_formatter::format_status_output(&response_data, args.detailed))
     }
 }
 
