@@ -52,12 +52,12 @@ pub async fn execute(args: InstallArgs) -> Result<FoundryResponse<InstallRespons
     let next_steps = vec![
         format!("Foundry MCP server installed for {}", args.target),
         "Restart your AI development environment to pick up the changes".to_string(),
-        "Test the installation with: foundry mcp status".to_string(),
+        "Test the installation with: foundry status".to_string(),
     ];
 
     let workflow_hints = vec![
         "Installation complete - MCP server is now available in your environment".to_string(),
-        "If you encounter issues, use 'foundry mcp status --detailed' to diagnose".to_string(),
+        "If you encounter issues, use 'foundry status --detailed' to diagnose".to_string(),
         "Consider testing with a simple command like 'foundry mcp list-projects'".to_string(),
     ];
 
@@ -96,7 +96,7 @@ fn enhance_installation_error(target: &str, original_error: &anyhow::Error) -> a
         anyhow::anyhow!(
             "Installation failed for {}: {}\n\n\
             💡 Foundry MCP is already installed for {} but will be overwritten.\n\
-            💡 Check current status: foundry mcp status --detailed",
+            💡 Check current status: foundry status --detailed",
             target,
             error_msg,
             target
@@ -108,7 +108,7 @@ fn enhance_installation_error(target: &str, original_error: &anyhow::Error) -> a
             💡   • Running via 'cargo run' (use explicit path: --binary-path /path/to/foundry)\n\
             💡   • Binary was moved or deleted after compilation\n\
             💡   • Permissions prevent access to the binary\n\
-            💡 Try: foundry mcp install {} --binary-path $(which foundry)",
+            💡 Try: foundry install {} --binary-path $(which foundry)",
             target,
             error_msg,
             target
@@ -119,7 +119,7 @@ fn enhance_installation_error(target: &str, original_error: &anyhow::Error) -> a
             💡 The configured binary path is invalid. This usually means:\n\
             💡   • The Foundry binary was moved or deleted\n\
             💡   • The configuration points to an old development build\n\
-            💡 Try: foundry mcp install {} --binary-path $(which foundry)",
+            💡 Try: foundry install {} --binary-path $(which foundry)",
             target,
             error_msg,
             target
@@ -129,7 +129,7 @@ fn enhance_installation_error(target: &str, original_error: &anyhow::Error) -> a
             "Installation failed for {}: {}\n\n\
             💡 {} is not installed or not available in PATH.\n\
             💡 Please install {} first, then retry the installation.\n\
-            💡 Check installation status: foundry mcp status --detailed",
+            💡 Check installation status: foundry status --detailed",
             target,
             error_msg,
             target,
@@ -154,7 +154,7 @@ fn enhance_installation_error(target: &str, original_error: &anyhow::Error) -> a
             💡   • Insufficient disk space\n\
             💡   • Corrupted configuration file\n\
             💡   • File system permissions issue\n\
-            💡 Try: foundry mcp status --detailed to diagnose the problem",
+            💡 Try: foundry status --detailed to diagnose the problem",
             target,
             error_msg
         )
@@ -162,9 +162,9 @@ fn enhance_installation_error(target: &str, original_error: &anyhow::Error) -> a
         // Generic enhancement for unknown errors
         anyhow::anyhow!(
             "Installation failed for {}: {}\n\n\
-            💡 For detailed diagnosis: foundry mcp status --detailed\n\
-            💡 For help: foundry mcp install --help\n\
-            💡 To report this issue: include the error above and output of 'foundry mcp status --detailed'",
+            💡 For detailed diagnosis: foundry status --detailed\n\
+            💡 For help: foundry install --help\n\
+            💡 To report this issue: include the error above and output of 'foundry status --detailed'",
             target,
             error_msg
         )
@@ -432,7 +432,7 @@ mod tests {
         assert!(error_msg.contains("Installation failed for cursor"));
         assert!(error_msg.contains("Some unexpected error occurred"));
         assert!(error_msg.contains("detailed diagnosis"));
-        assert!(error_msg.contains("foundry mcp status --detailed"));
+        assert!(error_msg.contains("foundry status --detailed"));
         assert!(error_msg.contains("report this issue"));
     }
 }

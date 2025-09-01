@@ -8,6 +8,34 @@ use crate::types::responses::EnvironmentStatus;
 use anyhow::{Context, Result};
 use tokio::process::Command;
 
+/// Execute a claude command through the user's shell
+/// This properly handles aliases, shell functions, and PATH resolution
+async fn execute_claude_command(args: &[&str]) -> Result<std::process::Output> {
+    // Determine the shell to use
+    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+
+    // Build the command string
+    let mut cmd_parts = vec!["claude"];
+    cmd_parts.extend(args);
+    let cmd_string = cmd_parts.join(" ");
+
+    // Execute through shell to handle aliases and PATH properly
+    // Use -i flag for interactive shell to load aliases
+    let mut command = Command::new(&shell);
+
+    // For bash/zsh, use interactive shell to load aliases
+    if shell.contains("bash") || shell.contains("zsh") {
+        command.args(["-i", "-c", &cmd_string]);
+    } else {
+        command.args(["-c", &cmd_string]);
+    }
+
+    command
+        .output()
+        .await
+        .context("Failed to execute claude command through shell")
+}
+
 /// Install Foundry MCP server for Claude Code
 pub async fn install_for_claude_code() -> Result<InstallationResult> {
     let mut actions_taken = Vec::new();
@@ -85,7 +113,8 @@ pub async fn uninstall_from_claude_code() -> Result<UninstallationResult> {
 
 /// Check if Claude Code CLI is available on the system
 pub async fn is_claude_code_available() -> bool {
-    match Command::new("claude").args(["--version"]).output().await {
+    // Execute through shell to handle aliases and PATH properly
+    match execute_claude_command(&["--version"]).await {
         Ok(output) => output.status.success(),
         Err(_) => false,
     }
@@ -93,9 +122,7 @@ pub async fn is_claude_code_available() -> bool {
 
 /// Register MCP server with Claude Code CLI
 pub async fn register_with_claude_code() -> Result<()> {
-    let output = Command::new("claude")
-        .args(["mcp", "add", "foundry", "--", "foundry", "serve"])
-        .output()
+    let output = execute_claude_command(&["mcp", "add", "foundry", "--", "foundry", "serve"])
         .await
         .context("Failed to execute claude mcp add command")?;
 
@@ -111,9 +138,7 @@ pub async fn register_with_claude_code() -> Result<()> {
 
 /// Unregister MCP server from Claude Code CLI
 pub async fn unregister_from_claude_code() -> Result<()> {
-    let output = Command::new("claude")
-        .args(["mcp", "remove", "foundry"])
-        .output()
+    let output = execute_claude_command(&["mcp", "remove", "foundry"])
         .await
         .context("Failed to execute claude mcp remove command")?;
 
@@ -129,9 +154,7 @@ pub async fn unregister_from_claude_code() -> Result<()> {
 
 /// Verify Claude Code MCP installation
 pub async fn verify_claude_code_installation() -> Result<()> {
-    let output = Command::new("claude")
-        .args(["mcp", "list"])
-        .output()
+    let output = execute_claude_command(&["mcp", "list"])
         .await
         .context("Failed to execute claude mcp list command")?;
 
@@ -154,9 +177,7 @@ pub async fn verify_claude_code_installation() -> Result<()> {
 
 /// Get detailed server information from Claude Code CLI
 pub async fn get_claude_code_server_details() -> Result<String> {
-    let output = Command::new("claude")
-        .args(["mcp", "get", "foundry"])
-        .output()
+    let output = execute_claude_command(&["mcp", "get", "foundry"])
         .await
         .context("Failed to execute claude mcp get command")?;
 

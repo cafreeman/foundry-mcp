@@ -547,7 +547,7 @@ pub struct UninstallArgs {
 }
 
 /// Arguments for status command
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Clone)]
 pub struct StatusArgs {
     /// Show detailed configuration information
     ///
@@ -562,6 +562,13 @@ pub struct StatusArgs {
     /// instead of all supported environments
     #[arg(long)]
     pub target: Option<String>,
+
+    /// Output status information in JSON format
+    ///
+    /// When enabled, outputs structured JSON data instead of
+    /// human-readable formatted text with colors
+    #[arg(long)]
+    pub json: bool,
 }
 
 // MCP parameter conversion implementations
@@ -586,155 +593,5 @@ impl crate::mcp::traits::McpToolDefinition for ListProjectsArgs {
 
     fn from_mcp_params(_params: &serde_json::Value) -> anyhow::Result<Self> {
         Ok(Self)
-    }
-}
-
-// Manual implementations for installation commands (McpTool derive not compatible with bool fields)
-impl crate::mcp::traits::McpToolDefinition for InstallArgs {
-    fn tool_definition() -> rust_mcp_sdk::schema::Tool {
-        let mut properties = std::collections::HashMap::new();
-
-        // target property
-        let mut target_prop = serde_json::Map::new();
-        target_prop.insert("type".to_string(), serde_json::json!("string"));
-        target_prop.insert(
-            "description".to_string(),
-            serde_json::json!("Target environment: 'claude-code' or 'cursor'"),
-        );
-        properties.insert("target".to_string(), target_prop);
-
-        // binary_path property (optional)
-        let mut binary_path_prop = serde_json::Map::new();
-        binary_path_prop.insert("type".to_string(), serde_json::json!("string"));
-        binary_path_prop.insert(
-            "description".to_string(),
-            serde_json::json!(
-                "Custom path to foundry binary (optional, auto-detected if not provided)"
-            ),
-        );
-        properties.insert("binary_path".to_string(), binary_path_prop);
-
-        rust_mcp_sdk::schema::Tool {
-            name: "install".to_string(),
-            description: Some("Install Foundry MCP server for AI development environments. Creates necessary configuration files and registers the MCP server.".to_string()),
-            title: None,
-            input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
-                vec!["target".to_string()], // target is required
-                Some(properties),
-            ),
-            annotations: None,
-            meta: None,
-            output_schema: None,
-        }
-    }
-
-    fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
-        let target = params["target"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing target parameter"))?
-            .to_string();
-
-        let binary_path = params["binary_path"].as_str().map(|s| s.to_string());
-
-        Ok(Self {
-            target,
-            binary_path,
-        })
-    }
-}
-
-impl crate::mcp::traits::McpToolDefinition for UninstallArgs {
-    fn tool_definition() -> rust_mcp_sdk::schema::Tool {
-        let mut properties = std::collections::HashMap::new();
-
-        // target property
-        let mut target_prop = serde_json::Map::new();
-        target_prop.insert("type".to_string(), serde_json::json!("string"));
-        target_prop.insert(
-            "description".to_string(),
-            serde_json::json!("Target environment: 'claude-code' or 'cursor'"),
-        );
-        properties.insert("target".to_string(), target_prop);
-
-        // remove_config property
-        let mut remove_config_prop = serde_json::Map::new();
-        remove_config_prop.insert("type".to_string(), serde_json::json!("boolean"));
-        remove_config_prop.insert(
-            "description".to_string(),
-            serde_json::json!("Also remove configuration files (not just unregister)"),
-        );
-        properties.insert("remove_config".to_string(), remove_config_prop);
-
-        rust_mcp_sdk::schema::Tool {
-            name: "uninstall".to_string(),
-            description: Some("Uninstall Foundry MCP server from AI development environments. Removes MCP server configuration and optionally cleans up files.".to_string()),
-            title: None,
-            input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
-                vec!["target".to_string()], // target is required
-                Some(properties),
-            ),
-            annotations: None,
-            meta: None,
-            output_schema: None,
-        }
-    }
-
-    fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
-        let target = params["target"]
-            .as_str()
-            .ok_or_else(|| anyhow::anyhow!("Missing target parameter"))?
-            .to_string();
-
-        let remove_config = params["remove_config"].as_bool().unwrap_or(false);
-
-        Ok(Self {
-            target,
-            remove_config,
-        })
-    }
-}
-
-impl crate::mcp::traits::McpToolDefinition for StatusArgs {
-    fn tool_definition() -> rust_mcp_sdk::schema::Tool {
-        let mut properties = std::collections::HashMap::new();
-
-        // detailed property
-        let mut detailed_prop = serde_json::Map::new();
-        detailed_prop.insert("type".to_string(), serde_json::json!("boolean"));
-        detailed_prop.insert(
-            "description".to_string(),
-            serde_json::json!("Show detailed configuration information and file contents"),
-        );
-        properties.insert("detailed".to_string(), detailed_prop);
-
-        // target property (optional)
-        let mut target_prop = serde_json::Map::new();
-        target_prop.insert("type".to_string(), serde_json::json!("string"));
-        target_prop.insert(
-            "description".to_string(),
-            serde_json::json!("Check only specific target: 'claude-code' or 'cursor'"),
-        );
-        properties.insert("target".to_string(), target_prop);
-
-        rust_mcp_sdk::schema::Tool {
-            name: "status".to_string(),
-            description: Some("Show MCP server installation status across all supported AI development environments.".to_string()),
-            title: None,
-            input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
-                vec![], // no required parameters
-                Some(properties),
-            ),
-            annotations: None,
-            meta: None,
-            output_schema: None,
-        }
-    }
-
-    fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
-        let detailed = params["detailed"].as_bool().unwrap_or(false);
-
-        let target = params["target"].as_str().map(|s| s.to_string());
-
-        Ok(Self { detailed, target })
     }
 }

@@ -43,14 +43,14 @@ pub async fn execute(args: UninstallArgs) -> Result<FoundryResponse<UninstallRes
     let next_steps = vec![
         format!("Foundry MCP server uninstalled from {}", args.target),
         "Restart your AI development environment to complete the uninstallation".to_string(),
-        "Check status with: foundry mcp status".to_string(),
+        "Check status with: foundry status".to_string(),
     ];
 
     let workflow_hints = vec![
         "Uninstallation complete - MCP server has been removed from your environment".to_string(),
         "If you removed config files, they will need to be recreated for future installations"
             .to_string(),
-        "Use 'foundry mcp install' to reinstall if needed".to_string(),
+        "Use 'foundry install' to reinstall if needed".to_string(),
     ];
 
     if result.success {

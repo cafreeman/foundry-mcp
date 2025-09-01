@@ -208,7 +208,33 @@ impl TestEnvironment {
         StatusArgs {
             target: target.map(|s| s.to_string()),
             detailed,
+            json: false,
         }
+    }
+
+    /// Create test arguments for status command with JSON output for testing
+    pub fn status_args_json(&self, target: Option<&str>, detailed: bool) -> StatusArgs {
+        StatusArgs {
+            target: target.map(|s| s.to_string()),
+            detailed,
+            json: true,
+        }
+    }
+
+    /// Execute status command and return parsed structured response for testing
+    pub async fn get_status_response(
+        &self,
+        target: Option<&str>,
+        detailed: bool,
+    ) -> anyhow::Result<
+        crate::types::responses::FoundryResponse<crate::types::responses::StatusResponse>,
+    > {
+        use crate::cli::commands::status;
+
+        let status_args = self.status_args_json(target, detailed);
+        let json_output = status::execute(status_args).await?;
+        let response = serde_json::from_str(&json_output)?;
+        Ok(response)
     }
 
     /// Return a realistic binary path without creating actual file

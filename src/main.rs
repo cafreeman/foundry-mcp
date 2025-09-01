@@ -17,6 +17,10 @@ use foundry_mcp::{cli, mcp};
 
 Examples:
   foundry serve                                   # Start MCP server
+  foundry install claude-code                     # Install MCP server for Claude Code
+  foundry install cursor                          # Install MCP server for Cursor IDE
+  foundry status                                  # Check installation status
+  foundry uninstall claude-code                   # Remove MCP server from Claude Code
   foundry mcp create-project my-app --vision '...' --tech-stack '...' --summary '...'
   foundry mcp load-project my-app                 # Load complete project context
   foundry mcp create-spec my-app user-auth --spec '...' --notes '...' --tasks '...'
@@ -25,7 +29,7 @@ Examples:
 
 The core LLM workflow is: create → list → load → create spec → validate → get help → work
 
-For more help: foundry <COMMAND> --help or foundry mcp <TOOL> --help"
+For more help: foundry --help or foundry mcp <TOOL> --help"
 )]
 struct Args {
     #[command(subcommand)]
@@ -39,6 +43,24 @@ enum Commands {
     /// Runs Foundry as an MCP (Model Context Protocol) server for integration
     /// with AI development environments like Claude Desktop or VS Code
     Serve(cli::args::ServeArgs),
+
+    /// Install Foundry MCP server for AI development environments
+    ///
+    /// Supports installation for claude-code and cursor environments
+    /// Creates necessary configuration files and registers the MCP server
+    Install(cli::args::InstallArgs),
+
+    /// Uninstall Foundry MCP server from AI development environments
+    ///
+    /// Removes MCP server configuration from claude-code and cursor environments
+    /// Optionally cleans up configuration files
+    Uninstall(cli::args::UninstallArgs),
+
+    /// Show MCP server installation status across all supported tools
+    ///
+    /// Displays installation status, binary paths, and configuration details
+    /// for all supported AI development environments
+    Status(cli::args::StatusArgs),
 
     /// Test MCP tools via command line interface
     ///
@@ -111,24 +133,6 @@ enum McpCommands {
     /// Removes spec directory and all associated files (spec.md, task-list.md, notes.md)
     /// Requires confirmation flag - this action cannot be undone
     DeleteSpec(cli::args::DeleteSpecArgs),
-
-    /// Install Foundry MCP server for AI development environments
-    ///
-    /// Supports installation for claude-code and cursor environments
-    /// Creates necessary configuration files and registers the MCP server
-    Install(cli::args::InstallArgs),
-
-    /// Uninstall Foundry MCP server from AI development environments
-    ///
-    /// Removes MCP server configuration from claude-code and cursor environments
-    /// Optionally cleans up configuration files
-    Uninstall(cli::args::UninstallArgs),
-
-    /// Show MCP server installation status across all supported tools
-    ///
-    /// Displays installation status, binary paths, and configuration details
-    /// for all supported AI development environments
-    Status(cli::args::StatusArgs),
 }
 
 #[tokio::main]
@@ -150,6 +154,17 @@ async fn main() -> Result<()> {
                 eprintln!("MCP server error: {}", e);
                 std::process::exit(1);
             });
+        }
+        Commands::Install(args) => cli::commands::install::execute(args)
+            .await
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+        Commands::Uninstall(args) => cli::commands::uninstall::execute(args)
+            .await
+            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+        Commands::Status(args) => {
+            let output = cli::commands::status::execute(args).await?;
+            println!("{}", output);
+            return Ok(());
         }
         Commands::Mcp { command } => match command {
             McpCommands::CreateProject(args) => cli::commands::create_project::execute(args)
@@ -180,15 +195,6 @@ async fn main() -> Result<()> {
                 .await
                 .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
             McpCommands::DeleteSpec(args) => cli::commands::delete_spec::execute(args)
-                .await
-                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-            McpCommands::Install(args) => cli::commands::install::execute(args)
-                .await
-                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-            McpCommands::Uninstall(args) => cli::commands::uninstall::execute(args)
-                .await
-                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-            McpCommands::Status(args) => cli::commands::status::execute(args)
                 .await
                 .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
         },
@@ -222,8 +228,8 @@ async fn main() -> Result<()> {
                 // Installation-specific errors are already enhanced with detailed guidance
                 // No additional hints needed as the error message contains specific instructions
             } else if error_msg.contains("Unsupported installation target") {
-                eprintln!("\n💡 Supported targets: foundry mcp install claude-code | cursor");
-                eprintln!("💡 Check what's available: foundry mcp status");
+                eprintln!("\n💡 Supported targets: foundry install claude-code | cursor");
+                eprintln!("💡 Check what's available: foundry status");
             }
 
             eprintln!("\n💡 For help: foundry --help");

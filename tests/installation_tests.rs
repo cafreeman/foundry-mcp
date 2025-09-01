@@ -4,7 +4,7 @@
 //! workflows for Cursor and Claude Code environments.
 
 use anyhow::Result;
-use foundry_mcp::cli::commands::{install, status, uninstall};
+use foundry_mcp::cli::commands::{install, uninstall};
 use foundry_mcp::types::responses::InstallationStatus;
 
 // Import TestEnvironment from the main crate
@@ -462,8 +462,7 @@ async fn test_cursor_status_before_after_install() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Test status before installation
-    let status_args = env.status_args(Some("cursor"), false);
-    let status_response = status::execute(status_args).await?;
+    let status_response = env.get_status_response(Some("cursor"), false).await?;
 
     assert_eq!(status_response.data.environments.len(), 1);
     let cursor_status = &status_response.data.environments[0];
@@ -486,8 +485,7 @@ async fn test_cursor_status_before_after_install() -> Result<()> {
     );
 
     // Test status after installation
-    let status_args_after = env.status_args(Some("cursor"), false);
-    let status_response_after = status::execute(status_args_after).await?;
+    let status_response_after = env.get_status_response(Some("cursor"), false).await?;
 
     let cursor_status_after = &status_response_after.data.environments[0];
     assert_eq!(cursor_status_after.name, "cursor");
@@ -517,8 +515,7 @@ async fn test_cursor_status_detailed_mode() -> Result<()> {
     install::execute(install_args).await?;
 
     // Test detailed status
-    let status_args = env.status_args(Some("cursor"), true);
-    let status_response = status::execute(status_args).await?;
+    let status_response = env.get_status_response(Some("cursor"), true).await?;
 
     let cursor_status = &status_response.data.environments[0];
     assert!(
@@ -545,8 +542,7 @@ async fn test_status_all_environments() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     // Test status for all environments (no target specified)
-    let status_args = env.status_args(None, false);
-    let status_response = status::execute(status_args).await?;
+    let status_response = env.get_status_response(None, false).await?;
 
     // Should return status for both claude-code and cursor
     assert_eq!(
@@ -602,8 +598,7 @@ async fn test_cursor_status_with_issues() -> Result<()> {
     env.create_existing_cursor_config(corrupt_config)?;
 
     // Test status - should detect issues
-    let status_args = env.status_args(Some("cursor"), false);
-    let status_response = status::execute(status_args).await?;
+    let status_response = env.get_status_response(Some("cursor"), false).await?;
 
     let cursor_status = &status_response.data.environments[0];
     assert!(

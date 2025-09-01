@@ -3,6 +3,7 @@
 pub mod formatting;
 pub mod paths;
 pub mod response;
+pub mod status_formatter;
 pub mod timestamp;
 pub mod validation;
 

@@ -153,16 +153,16 @@ Foundry MCP provides easy installation commands for popular AI development envir
 
 ```bash
 # Install for Claude Code
-foundry mcp install claude-code
+foundry install claude-code
 
 # Install for Cursor
-foundry mcp install cursor
+foundry install cursor
 
 # Check installation status
-foundry mcp status
+foundry status
 
 # Uninstall if needed
-foundry mcp uninstall cursor
+foundry uninstall cursor
 ```
 
 **Supported Environments:**
@@ -206,11 +206,11 @@ cd foundry-mcp
 cargo build --release
 
 # 2. Install for your preferred environment
-./target/release/foundry-mcp mcp install cursor      # For Cursor
-./target/release/foundry-mcp mcp install claude-code # For Claude Code
+./target/release/foundry-mcp install cursor      # For Cursor
+./target/release/foundry-mcp install claude-code # For Claude Code
 
 # 3. Verify installation
-./target/release/foundry-mcp mcp status
+./target/release/foundry-mcp status
 
 # 4. Start using Foundry MCP tools in your AI environment!
 ```
@@ -271,24 +271,26 @@ Foundry MCP provides a comprehensive CLI interface for all functionality:
 
 ```bash
 # Install MCP server for AI environments
-foundry mcp install <target> [--binary-path <path>]
+foundry install <target> [--binary-path <path>]
 
 # Available targets: claude-code, cursor
-foundry mcp install claude-code    # May require binary path
-foundry mcp install cursor         # Uses foundry from PATH
+foundry install claude-code    # May require binary path
+foundry install cursor         # Uses foundry from PATH
 
 # Installations always overwrite existing configurations
 
 # Specify custom binary path (Claude Code only, Cursor uses PATH)
-foundry mcp install claude-code --binary-path /usr/local/bin/foundry-mcp
+foundry install claude-code --binary-path /usr/local/bin/foundry-mcp
 
 # Uninstall MCP server
-foundry mcp uninstall <target>
-foundry mcp uninstall cursor
+foundry uninstall <target>
+foundry uninstall cursor
 
 # Check installation status
-foundry mcp status                    # Basic status
-foundry mcp status --detailed         # Detailed status with troubleshooting
+foundry status                        # Basic status for all environments
+foundry status --detailed             # Detailed status with troubleshooting
+foundry status --target claude-code   # Check specific environment only
+foundry status --json                 # JSON output format
 ```
 
 ### Project Management Commands
@@ -351,10 +353,10 @@ foundry mcp create-spec my-web-app user-auth \
   --tasks "- [ ] Set up user model and database schema\n- [ ] Implement registration endpoint\n- [ ] Add login/logout functionality"
 
 # Check what's installed
-foundry mcp status --detailed
+foundry status --detailed
 
 # Install for Cursor development
-foundry mcp install cursor
+foundry install cursor
 ```
 
 ## Development

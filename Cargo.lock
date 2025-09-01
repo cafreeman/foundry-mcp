@@ -728,6 +728,7 @@ dependencies = [
  "chrono",
  "clap",
  "clap_complete",
+ "console",
  "dashmap",
  "dirs",
  "foundry-mcp-macros",

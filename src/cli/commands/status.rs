@@ -2,11 +2,12 @@
 
 use crate::cli::args::StatusArgs;
 use crate::core::installation;
-use crate::types::responses::{FoundryResponse, StatusResponse};
+use crate::types::responses::StatusResponse;
 use crate::utils::response::build_success_response;
+use crate::utils::status_formatter;
 use anyhow::{Context, Result};
 
-pub async fn execute(args: StatusArgs) -> Result<FoundryResponse<StatusResponse>> {
+pub async fn execute(args: StatusArgs) -> Result<String> {
     // Detect binary path
     let binary_path =
         installation::detect_binary_path().context("Failed to detect current binary path")?;
@@ -44,15 +45,36 @@ pub async fn execute(args: StatusArgs) -> Result<FoundryResponse<StatusResponse>
     let workflow_hints = vec![
         "Green checkmarks indicate properly installed environments".to_string(),
         "Red X marks indicate missing or misconfigured installations".to_string(),
-        "Use 'foundry mcp install <target>' to install for missing environments".to_string(),
-        "Use 'foundry mcp uninstall <target>' to remove unwanted installations".to_string(),
+        "Use 'foundry install <target>' to install for missing environments".to_string(),
+        "Use 'foundry uninstall <target>' to remove unwanted installations".to_string(),
     ];
 
-    Ok(build_success_response(
-        response_data,
-        next_steps,
-        workflow_hints,
-    ))
+    let full_response = build_success_response(response_data, next_steps, workflow_hints);
+
+    // Format output based on requested format
+    if args.json {
+        // Return JSON format
+        Ok(serde_json::to_string_pretty(&full_response)?)
+    } else {
+        // Return human-readable format
+        let mut output = status_formatter::format_status_output(&full_response.data, args.detailed);
+
+        // Add next steps and hints if present
+        if !full_response.next_steps.is_empty() {
+            output.push_str(&format!(
+                "\n\n{}",
+                status_formatter::format_next_steps(&full_response.next_steps)
+            ));
+        }
+        if !full_response.workflow_hints.is_empty() {
+            output.push_str(&format!(
+                "\n\n{}",
+                status_formatter::format_workflow_hints(&full_response.workflow_hints)
+            ));
+        }
+
+        Ok(output)
+    }
 }
 
 /// Validate the status target
@@ -102,6 +124,7 @@ mod tests {
         let args = StatusArgs {
             detailed: false,
             target: Some("invalid-target".to_string()),
+            json: false,
         };
 
         // Test the validation logic without calling execute()
@@ -124,6 +147,7 @@ mod tests {
         let args = StatusArgs {
             detailed: true,
             target: Some("claude-code".to_string()),
+            json: false,
         };
 
         assert!(args.detailed);
@@ -135,6 +159,7 @@ mod tests {
         let args = StatusArgs {
             detailed: false,
             target: None,
+            json: false,
         };
 
         assert!(!args.detailed);
@@ -146,6 +171,7 @@ mod tests {
         let args = StatusArgs {
             detailed: true,
             target: Some("cursor".to_string()),
+            json: false,
         };
 
         assert!(args.detailed);
