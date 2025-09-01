@@ -15,7 +15,6 @@ pub mod mcp;
 pub mod types;
 pub mod utils;
 
-#[cfg(test)]
 pub mod test_utils;
 
 // Selective reexports from core modules (only what's needed for CLI functionality)

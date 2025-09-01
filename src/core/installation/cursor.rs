@@ -211,7 +211,7 @@ mod tests {
 
             // Verify config content uses 'foundry' command from PATH
             let config_content = std::fs::read_to_string(env.cursor_config_path()).unwrap();
-            assert!(config_content.contains("\"command\":\"foundry\""));
+            assert!(config_content.contains("\"command\": \"foundry\""));
             assert!(config_content.contains("mcpServers"));
         });
     }
@@ -268,7 +268,7 @@ mod tests {
 
             // Verify config was updated to use 'foundry' command from PATH
             let config_content = std::fs::read_to_string(env.cursor_config_path()).unwrap();
-            assert!(config_content.contains("\"command\":\"foundry\""));
+            assert!(config_content.contains("\"command\": \"foundry\""));
         });
     }
 
@@ -340,7 +340,8 @@ mod tests {
                 result.is_err(),
                 "Uninstall should fail when foundry is not configured"
             );
-            assert!(result.unwrap_err().to_string().contains("not configured"));
+            let error_msg = result.unwrap_err().to_string();
+            assert!(error_msg.contains("not configured"));
         });
     }
 
@@ -470,7 +471,7 @@ mod tests {
 
         let _ = env.with_env_async(|| async {
             // Create invalid config file
-            std::fs::create_dir_all(&env.cursor_config_dir).unwrap();
+            std::fs::create_dir_all(&env.cursor_config_dir()).unwrap();
             std::fs::write(env.cursor_config_path(), "invalid json content").unwrap();
 
             let result = get_cursor_status(false).await;

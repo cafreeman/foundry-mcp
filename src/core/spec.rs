@@ -622,8 +622,12 @@ mod tests {
 
     #[test]
     fn test_directory_management() {
-        let _lock = acquire_test_lock();
-        let (_temp_dir, project_name) = setup_test_environment();
+        // Use proper TestEnvironment for isolation instead of setup_test_environment
+        use crate::test_utils::TestEnvironment;
+        let _env = TestEnvironment::new().unwrap();
+
+        // Use a consistent project name for this test
+        let project_name = "test_directory_management_project";
 
         // Test directory creation
         let specs_dir = ensure_specs_directory(&project_name).unwrap();
@@ -636,7 +640,7 @@ mod tests {
 
         // Create a spec and test spec path
         let config = SpecConfig {
-            project_name: project_name.clone(),
+            project_name: project_name.to_string(),
             feature_name: "path_test".to_string(),
             spec_content: "Path test spec".to_string(),
             notes: "Path test notes".to_string(),
@@ -645,6 +649,7 @@ mod tests {
 
         let created_spec = create_spec(config).unwrap();
         let spec_path = get_spec_path(&project_name, &created_spec.name).unwrap();
+
         assert_eq!(spec_path, created_spec.path);
         assert!(spec_path.exists());
     }
