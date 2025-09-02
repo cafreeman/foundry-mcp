@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-09-02
+
 ### Added
 
 - Modern testing infrastructure with assert_fs and temp-env integration
@@ -74,5 +76,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON serialization with serde
 - Workspace support for internal macro crate
 
-[Unreleased]: https://github.com/cafreeman/foundry-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/cafreeman/foundry-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/cafreeman/foundry-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/cafreeman/foundry-mcp/releases/tag/v0.1.0
