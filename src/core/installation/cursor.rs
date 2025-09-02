@@ -188,7 +188,7 @@ mod tests {
     fn test_install_for_cursor_fresh_environment() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let result = install_for_cursor().await;
 
             assert!(
@@ -220,7 +220,7 @@ mod tests {
     fn test_install_for_cursor_already_configured() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Pre-configure with existing foundry server
             env.create_cursor_config(&[("foundry", "/old/foundry/path")])
                 .unwrap();
@@ -246,7 +246,7 @@ mod tests {
     fn test_install_for_cursor_overwrites_existing() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Pre-configure with existing foundry server
             env.create_cursor_config(&[("foundry", "/old/foundry/path")])
                 .unwrap();
@@ -276,7 +276,7 @@ mod tests {
     fn test_install_for_cursor_config_validation() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let result = install_for_cursor().await;
 
             assert!(result.is_ok(), "Install should succeed and validate config");
@@ -295,7 +295,7 @@ mod tests {
     fn test_uninstall_from_cursor_configured() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Pre-configure with foundry server and another server
             env.create_cursor_config(&[
                 ("foundry", "/usr/local/bin/foundry"),
@@ -330,7 +330,7 @@ mod tests {
     fn test_uninstall_from_cursor_not_configured() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create empty config
             env.create_cursor_config(&[]).unwrap();
 
@@ -349,7 +349,7 @@ mod tests {
     fn test_uninstall_from_cursor_not_configured_fails() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create empty config
             env.create_cursor_config(&[]).unwrap();
 
@@ -367,7 +367,7 @@ mod tests {
     fn test_uninstall_from_cursor_remove_config_when_empty() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Pre-configure with only foundry server
             env.create_cursor_config(&[("foundry", "/usr/local/bin/foundry")])
                 .unwrap();
@@ -402,7 +402,7 @@ mod tests {
     fn test_get_cursor_status_not_installed() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let result = get_cursor_status(false).await;
 
             assert!(result.is_ok(), "Should be able to get Cursor status");
@@ -411,7 +411,7 @@ mod tests {
             assert!(!status.installed);
             assert!(!status.config_exists);
             assert!(!status.binary_accessible);
-            assert!(status.issues.len() >= 1);
+            assert!(!status.issues.is_empty());
             assert!(
                 status
                     .issues
@@ -425,7 +425,7 @@ mod tests {
     fn test_get_cursor_status_installed() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let binary_path = env.create_mock_binary("foundry").unwrap();
             env.create_cursor_config(&[("foundry", &binary_path.to_string_lossy())])
                 .unwrap();
@@ -446,7 +446,7 @@ mod tests {
     fn test_get_cursor_status_detailed() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let binary_path = env.create_mock_binary("foundry").unwrap();
             env.create_cursor_config(&[("foundry", &binary_path.to_string_lossy())])
                 .unwrap();
@@ -469,9 +469,9 @@ mod tests {
     fn test_get_cursor_status_invalid_config() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create invalid config file
-            std::fs::create_dir_all(&env.cursor_config_dir()).unwrap();
+            std::fs::create_dir_all(env.cursor_config_dir()).unwrap();
             std::fs::write(env.cursor_config_path(), "invalid json content").unwrap();
 
             let result = get_cursor_status(false).await;
@@ -494,7 +494,7 @@ mod tests {
     fn test_get_cursor_status_missing_binary() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Configure with non-existent binary path
             env.create_cursor_config(&[("foundry", "/nonexistent/foundry")])
                 .unwrap();
@@ -519,7 +519,7 @@ mod tests {
     fn test_is_cursor_configured() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Initially not configured
             assert!(!is_cursor_configured());
 

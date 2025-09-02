@@ -9,6 +9,7 @@
 
 pub mod error;
 pub mod handlers;
+pub mod macros;
 pub mod server;
 pub mod tools;
 pub mod traits;

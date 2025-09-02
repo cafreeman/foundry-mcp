@@ -630,12 +630,12 @@ mod tests {
         let project_name = "test_directory_management_project";
 
         // Test directory creation
-        let specs_dir = ensure_specs_directory(&project_name).unwrap();
+        let specs_dir = ensure_specs_directory(project_name).unwrap();
         assert!(specs_dir.exists());
         assert!(specs_dir.is_dir());
 
         // Test path getters
-        let specs_dir_path = get_specs_directory(&project_name).unwrap();
+        let specs_dir_path = get_specs_directory(project_name).unwrap();
         assert_eq!(specs_dir, specs_dir_path);
 
         // Create a spec and test spec path
@@ -648,7 +648,7 @@ mod tests {
         };
 
         let created_spec = create_spec(config).unwrap();
-        let spec_path = get_spec_path(&project_name, &created_spec.name).unwrap();
+        let spec_path = get_spec_path(project_name, &created_spec.name).unwrap();
 
         assert_eq!(spec_path, created_spec.path);
         assert!(spec_path.exists());

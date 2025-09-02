@@ -1,0 +1,39 @@
+# Configuration for cargo-release
+# https://github.com/crate-ci/cargo-release/blob/master/docs/reference.md
+
+# Quality assurance hooks before release
+# Note: Run these manually before release due to cargo-release environment limitations:
+# - cargo fmt --check
+# - cargo clippy --all-targets --all-features -- -D warnings
+# - cargo test
+# - cargo build --release
+
+# Git configuration
+tag-message = "Release {{crate_name}} v{{version}}"
+tag-prefix = "v"
+tag-name = "v{{version}}"
+
+# Commit configuration
+tag = true
+push = true
+sign-commit = false
+sign-tag = false
+
+# Release commit message
+pre-release-commit-message = "Release v{{version}}"
+
+publish = true
+
+# Verify the contents look right before any operations
+verify = true
+
+# Automatic changelog updates
+[[pre-release-replacements]]
+file = "CHANGELOG.md"
+search = "## \\[Unreleased\\]"
+replace = "## [Unreleased]\n\n## [{{version}}] - {{date}}"
+
+[[pre-release-replacements]]
+file = "CHANGELOG.md"
+search = "\\[Unreleased\\]: https://github.com/cafreeman/foundry-mcp/compare/v[0-9]+\\.[0-9]+\\.[0-9]+\\.\\.\\.HEAD"
+replace = "[Unreleased]: https://github.com/cafreeman/foundry-mcp/compare/v{{version}}...HEAD\n[{{version}}]: https://github.com/cafreeman/foundry-mcp/compare/v{{prev_version}}...v{{version}}"

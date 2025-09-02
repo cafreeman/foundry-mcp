@@ -6,9 +6,6 @@
 //! This library provides the core functionality for managing project specifications
 //! and maintaining context for LLM-based coding assistants.
 
-// Re-export the macro for use throughout the crate
-pub use foundry_mcp_macros::McpTool;
-
 pub mod cli;
 pub mod core;
 pub mod mcp;

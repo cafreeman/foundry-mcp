@@ -251,7 +251,7 @@ mod tests {
         use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // This test will likely return false in most environments unless Claude Code is installed
             let _available = is_claude_code_available().await;
             // Just ensure it doesn't panic - function completes successfully
@@ -263,7 +263,7 @@ mod tests {
         use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let result = get_claude_code_status(false).await;
             assert!(result.is_ok(), "Should be able to get Claude Code status");
 
@@ -280,13 +280,13 @@ mod tests {
         use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // The function should not panic and should handle the case where claude CLI is not available
             let result = install_for_claude_code().await;
 
             // Expect failure if Claude Code CLI is not installed, but it should fail gracefully
-            if result.is_err() {
-                let error_msg = result.unwrap_err().to_string();
+            if let Err(error) = result {
+                let error_msg = error.to_string();
                 // Should contain information about Claude Code CLI not being available
                 assert!(
                     error_msg.contains("Failed to register MCP server")

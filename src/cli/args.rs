@@ -1,20 +1,15 @@
 //! CLI argument structures
 
-use crate::McpTool;
+use crate::impl_mcp_tool;
 use clap::Args;
 
 /// Arguments for create_project command
-#[derive(Args, Debug, McpTool)]
-#[mcp(
-    name = "create_project",
-    description = "Create new project structure with LLM-provided content. Creates ~/.foundry/PROJECT_NAME/ with vision.md, tech-stack.md, and summary.md"
-)]
+#[derive(Args, Debug)]
 pub struct CreateProjectArgs {
     /// Project name in kebab-case (e.g., my-awesome-project)
     ///
     /// Must contain only lowercase letters, numbers, and hyphens
     /// Cannot contain spaces, underscores, or special characters
-    #[mcp(description = "Descriptive project name using kebab-case (e.g., 'my-awesome-app')")]
     pub project_name: String,
 
     /// High-level product vision content (2-4 paragraphs, 200+ characters)
@@ -34,10 +29,6 @@ pub struct CreateProjectArgs {
     ///
     /// Goes into vision.md
     #[arg(long, required = true)]
-    #[mcp(
-        description = "High-level product vision (2-4 paragraphs, 200+ chars) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Use markdown with ## headers, bullet points, and clear structure. Include specific examples. Goes into vision.md",
-        min_length = 200
-    )]
     pub vision: String,
 
     /// Technology stack and architecture decisions (150+ characters)
@@ -58,10 +49,6 @@ pub struct CreateProjectArgs {
     ///
     /// Goes into tech-stack.md
     #[arg(long, required = true)]
-    #[mcp(
-        description = "Comprehensive technology decisions (150+ chars) including languages, frameworks, databases, deployment platforms, and rationale. Use markdown with ## headers for categories, bullet points for technologies, and brief explanations. Include constraints, preferences, or team standards. Goes into tech-stack.md",
-        min_length = 150
-    )]
     pub tech_stack: String,
 
     /// Concise summary of vision and tech stack (100+ characters)
@@ -80,25 +67,39 @@ pub struct CreateProjectArgs {
     ///
     /// Goes into summary.md
     #[arg(long, required = true)]
-    #[mcp(
-        description = "Concise summary (100+ chars) of vision and tech-stack for quick context loading. Should capture essential project essence in 2-3 sentences using clear, professional language. Combine main value proposition with primary technology. Goes into summary.md",
-        min_length = 100
-    )]
     pub summary: String,
 }
 
+// Generate MCP tool implementation for CreateProjectArgs
+impl_mcp_tool! {
+    name = "create_project",
+    description = "Create new project structure with LLM-provided content. Creates ~/.foundry/PROJECT_NAME/ with vision.md, tech-stack.md, and summary.md",
+    struct CreateProjectArgs {
+        project_name: String {
+            description = "Descriptive project name using kebab-case (e.g., 'my-awesome-app')"
+        },
+        vision: String {
+            description = "High-level product vision (2-4 paragraphs, 200+ chars) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Use markdown with ## headers, bullet points, and clear structure. Include specific examples. Goes into vision.md",
+            min_length = 200
+        },
+        tech_stack: String {
+            description = "Comprehensive technology decisions (150+ chars) including languages, frameworks, databases, deployment platforms, and rationale. Use markdown with ## headers for categories, bullet points for technologies, and brief explanations. Include constraints, preferences, or team standards. Goes into tech-stack.md",
+            min_length = 150
+        },
+        summary: String {
+            description = "Concise summary (100+ chars) of vision and tech-stack for quick context loading. Should capture essential project essence in 2-3 sentences using clear, professional language. Combine main value proposition with primary technology. Goes into summary.md",
+            min_length = 100
+        }
+    }
+}
+
 /// Arguments for analyze_project command
-#[derive(Args, Debug, McpTool)]
-#[mcp(
-    name = "analyze_project",
-    description = "Create project structure by analyzing existing codebase. LLM analyzes codebase and provides vision, tech-stack, and summary content."
-)]
+#[derive(Args, Debug)]
 pub struct AnalyzeProjectArgs {
     /// Project name to create with your analyzed content
     ///
     /// Must be in kebab-case format (lowercase letters, numbers, hyphens only)
     /// Cannot contain spaces, underscores, or special characters
-    #[mcp(description = "Descriptive project name using kebab-case (e.g., 'my-analyzed-project')")]
     pub project_name: String,
 
     /// High-level product vision content (2-4 paragraphs, 200+ characters) based on your codebase analysis
@@ -118,10 +119,6 @@ pub struct AnalyzeProjectArgs {
     ///
     /// Goes into vision.md
     #[arg(long, required = true)]
-    #[mcp(
-        description = "LLM-analyzed product vision (200+ chars) based on codebase examination. Use Search/Grep/Read tools first. Structure with ## headers, bullet points, and specific examples from code. Cover problem solved, target users, and value proposition derived from actual functionality. Goes into vision.md",
-        min_length = 200
-    )]
     pub vision: String,
 
     /// Technology stack and architecture decisions (150+ characters) based on your codebase exploration
@@ -141,10 +138,6 @@ pub struct AnalyzeProjectArgs {
     ///
     /// Goes into tech-stack.md
     #[arg(long, required = true)]
-    #[mcp(
-        description = "LLM-detected technology stack (150+ chars) based on codebase analysis. Examine package files, configs, and code patterns. Structure with ## headers for categories, list technologies with versions, include rationale from observed patterns. Reference specific files discovered. Goes into tech-stack.md",
-        min_length = 150
-    )]
     pub tech_stack: String,
 
     /// Concise summary (100+ characters) combining vision and tech stack from your analysis
@@ -153,32 +146,45 @@ pub struct AnalyzeProjectArgs {
     /// Use this to understand the project essence before diving into implementation
     /// Goes into summary.md
     #[arg(long, required = true)]
-    #[mcp(
-        description = "LLM-created concise summary (100+ chars) of analyzed project combining vision and tech-stack insights for quick context loading. Goes into summary.md",
-        min_length = 100
-    )]
     pub summary: String,
 }
 
+// Generate MCP tool implementation for AnalyzeProjectArgs
+impl_mcp_tool! {
+    name = "analyze_project",
+    description = "Create project structure by analyzing existing codebase. LLM analyzes codebase and provides vision, tech-stack, and summary content.",
+    struct AnalyzeProjectArgs {
+        project_name: String {
+            description = "Descriptive project name using kebab-case (e.g., 'my-analyzed-project')"
+        },
+        vision: String {
+            description = "LLM-analyzed product vision (200+ chars) based on codebase examination. Use Search/Grep/Read tools first. Structure with ## headers, bullet points, and specific examples from code. Cover problem solved, target users, and value proposition derived from actual functionality. Goes into vision.md",
+            min_length = 200
+        },
+        tech_stack: String {
+            description = "LLM-detected technology stack (150+ chars) based on codebase analysis. Examine package files, configs, and code patterns. Structure with ## headers for categories, list technologies with versions, include rationale from observed patterns. Reference specific files discovered. Goes into tech-stack.md",
+            min_length = 150
+        },
+        summary: String {
+            description = "LLM-created concise summary (100+ chars) of analyzed project combining vision and tech-stack insights for quick context loading. Goes into summary.md",
+            min_length = 100
+        }
+    }
+}
+
 /// Arguments for create_spec command
-#[derive(Args, Debug, McpTool)]
-#[mcp(
-    name = "create_spec",
-    description = "Create timestamped specification for a feature. Creates YYYYMMDD_HHMMSS_FEATURE_NAME directory with spec.md, task-list.md, and notes.md"
-)]
+#[derive(Args, Debug)]
 pub struct CreateSpecArgs {
     /// Project name to create spec for
     ///
     /// Must be an existing project in ~/.foundry/
     /// Use 'foundry list-projects' to see available projects
-    #[mcp(description = "Name of the existing project to create spec for")]
     pub project_name: String,
 
     /// Feature name in snake_case (e.g., user_authentication)
     ///
     /// Used to create timestamped directory: YYYYMMDD_HHMMSS_feature_name
     /// Should be descriptive and use underscores, not spaces or hyphens
-    #[mcp(description = "Descriptive feature name using snake_case (e.g., 'user_authentication')")]
     pub feature_name: String,
 
     /// Detailed specification content
@@ -200,10 +206,6 @@ pub struct CreateSpecArgs {
     ///
     /// Goes into spec.md
     #[arg(long, required = true)]
-    #[mcp(
-        description = "Detailed feature specification (200+ chars) with comprehensive markdown structure. Use # for feature name, ## for major sections (Overview, Requirements, Implementation, Testing). Include code blocks, bullet points, and tables. Cover functional requirements, acceptance criteria, technical approach, and constraints. Goes into spec.md",
-        min_length = 200
-    )]
     pub spec: String,
 
     /// Implementation notes and considerations
@@ -224,10 +226,6 @@ pub struct CreateSpecArgs {
     ///
     /// Goes into notes.md
     #[arg(long, required = true)]
-    #[mcp(
-        description = "Additional context and design decisions (50+ chars) for feature implementation. Use ## headers for categories, bullet points for considerations. Include design rationale, tradeoffs, dependencies, constraints, and future opportunities. Keep technical but conversational. Goes into notes.md",
-        min_length = 50
-    )]
     pub notes: String,
 
     /// Task list content
@@ -248,25 +246,42 @@ pub struct CreateSpecArgs {
     ///
     /// Goes into task-list.md
     #[arg(long, required = true)]
-    #[mcp(
-        description = "Markdown checklist (100+ chars) of implementation steps organized by phases. Use ## headers for phases, - [ ] for uncompleted tasks, - [x] for completed. Break feature into actionable, testable tasks including setup, development, testing, and deployment. Keep tasks specific and measurable. Goes into task-list.md",
-        min_length = 100
-    )]
     pub tasks: String,
 }
 
+// Generate MCP tool implementation for CreateSpecArgs
+impl_mcp_tool! {
+    name = "create_spec",
+    description = "Create timestamped specification for a feature. Creates YYYYMMDD_HHMMSS_FEATURE_NAME directory with spec.md, task-list.md, and notes.md",
+    struct CreateSpecArgs {
+        project_name: String {
+            description = "Name of the existing project to create spec for"
+        },
+        feature_name: String {
+            description = "Descriptive feature name using snake_case (e.g., 'user_authentication')"
+        },
+        spec: String {
+            description = "Detailed feature specification (200+ chars) with comprehensive markdown structure. Use # for feature name, ## for major sections (Overview, Requirements, Implementation, Testing). Include code blocks, bullet points, and tables. Cover functional requirements, acceptance criteria, technical approach, and constraints. Goes into spec.md",
+            min_length = 200
+        },
+        notes: String {
+            description = "Additional context and design decisions (50+ chars) for feature implementation. Use ## headers for categories, bullet points for considerations. Include design rationale, tradeoffs, dependencies, constraints, and future opportunities. Keep technical but conversational. Goes into notes.md",
+            min_length = 50
+        },
+        tasks: String {
+            description = "Markdown checklist (100+ chars) of implementation steps organized by phases. Use ## headers for phases, - [ ] for uncompleted tasks, - [x] for completed. Break feature into actionable, testable tasks including setup, development, testing, and deployment. Keep tasks specific and measurable. Goes into task-list.md",
+            min_length = 100
+        }
+    }
+}
+
 /// Arguments for load_spec command
-#[derive(Args, Debug, McpTool)]
-#[mcp(
-    name = "load_spec",
-    description = "Load specific specification content with project context. If spec_name is omitted, lists available specs."
-)]
+#[derive(Args, Debug)]
 pub struct LoadSpecArgs {
     /// Project name to load spec from
     ///
     /// Must be an existing project in ~/.foundry/
     /// Use 'foundry list-projects' to see available projects
-    #[mcp(description = "Name of the project containing the spec")]
     pub project_name: String,
 
     /// Specific spec name (if not provided, lists available specs)
@@ -274,26 +289,72 @@ pub struct LoadSpecArgs {
     /// Spec names are in format: YYYYMMDD_HHMMSS_feature_name
     /// If omitted, returns list of all available specs for the project
     /// Use 'foundry load-project PROJECT_NAME' to see project context first
-    #[mcp(
-        description = "Optional: specific spec to load (YYYYMMDD_HHMMSS_feature_name format). If omitted, lists available specs"
-    )]
     pub spec_name: Option<String>,
 }
 
+// Manual MCP tool implementation for LoadSpecArgs (has optional field)
+impl crate::mcp::traits::McpToolDefinition for LoadSpecArgs {
+    fn tool_definition() -> rust_mcp_sdk::schema::Tool {
+        let mut properties = std::collections::HashMap::new();
+
+        let mut project_name_prop = serde_json::Map::new();
+        project_name_prop.insert("type".to_string(), serde_json::json!("string"));
+        project_name_prop.insert(
+            "description".to_string(),
+            serde_json::json!("Name of the project containing the spec"),
+        );
+        properties.insert("project_name".to_string(), project_name_prop);
+
+        let mut spec_name_prop = serde_json::Map::new();
+        spec_name_prop.insert("type".to_string(), serde_json::json!("string"));
+        spec_name_prop.insert("description".to_string(), serde_json::json!("Optional: specific spec to load (YYYYMMDD_HHMMSS_feature_name format). If omitted, lists available specs"));
+        properties.insert("spec_name".to_string(), spec_name_prop);
+
+        rust_mcp_sdk::schema::Tool {
+            name: "load_spec".to_string(),
+            description: Some("Load specific specification content with project context. If spec_name is omitted, lists available specs.".to_string()),
+            title: None,
+            input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
+                vec!["project_name".to_string()], // Only project_name is required
+                Some(properties),
+            ),
+            annotations: None,
+            meta: None,
+            output_schema: None,
+        }
+    }
+
+    fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            project_name: params["project_name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing project_name parameter"))?
+                .to_string(),
+            spec_name: params["spec_name"].as_str().map(|s| s.to_string()),
+        })
+    }
+}
+
 /// Arguments for load_project command
-#[derive(Args, Debug, McpTool)]
-#[mcp(
-    name = "load_project",
-    description = "Load complete project context (vision, tech-stack, summary) for LLM sessions. Essential for resuming work on existing projects."
-)]
+#[derive(Args, Debug)]
 pub struct LoadProjectArgs {
     /// Project name to load context from (must exist in ~/.foundry/)
     ///
     /// Returns complete project context: vision, tech-stack, summary, and available specs
     /// Essential for resuming work on existing projects
     /// Use 'foundry list-projects' to see available project names
-    #[mcp(description = "Name of the existing project to load (must exist in ~/.foundry/)")]
     pub project_name: String,
+}
+
+// Generate MCP tool implementation for LoadProjectArgs
+impl_mcp_tool! {
+    name = "load_project",
+    description = "Load complete project context (vision, tech-stack, summary) for LLM sessions. Essential for resuming work on existing projects.",
+    struct LoadProjectArgs {
+        project_name: String {
+            description = "Name of the existing project to load (must exist in ~/.foundry/)"
+        }
+    }
 }
 
 /// Arguments for list_projects command
@@ -305,11 +366,7 @@ pub struct ListProjectsArgs;
 // Use this to discover available projects before loading or creating specs
 
 /// Arguments for get_foundry_help command
-#[derive(Args, Debug, McpTool)]
-#[mcp(
-    name = "get_foundry_help",
-    description = "Get comprehensive workflow guidance, content examples, and usage patterns. Essential for understanding foundry workflows and content standards."
-)]
+#[derive(Args, Debug)]
 pub struct GetFoundryHelpArgs {
     /// Help topic for detailed guidance
     ///
@@ -322,18 +379,42 @@ pub struct GetFoundryHelpArgs {
     /// - tool-capabilities: When each tool is appropriate and what user input is required
     ///
     /// If omitted, provides overview and available topics
-    #[mcp(
-        description = "Optional: specific help topic (workflows, decision-points, content-examples, project-structure, parameter-guidance, tool-capabilities). If omitted, provides general guidance"
-    )]
     pub topic: Option<String>,
 }
 
+// Manual MCP tool implementation for GetFoundryHelpArgs (has optional field)
+impl crate::mcp::traits::McpToolDefinition for GetFoundryHelpArgs {
+    fn tool_definition() -> rust_mcp_sdk::schema::Tool {
+        let mut properties = std::collections::HashMap::new();
+
+        let mut topic_prop = serde_json::Map::new();
+        topic_prop.insert("type".to_string(), serde_json::json!("string"));
+        topic_prop.insert("description".to_string(), serde_json::json!("Optional: specific help topic (workflows, decision-points, content-examples, project-structure, parameter-guidance, tool-capabilities). If omitted, provides general guidance"));
+        properties.insert("topic".to_string(), topic_prop);
+
+        rust_mcp_sdk::schema::Tool {
+            name: "get_foundry_help".to_string(),
+            description: Some("Get comprehensive workflow guidance, content examples, and usage patterns. Essential for understanding foundry workflows and content standards.".to_string()),
+            title: None,
+            input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
+                vec![], // No required fields
+                Some(properties),
+            ),
+            annotations: None,
+            meta: None,
+            output_schema: None,
+        }
+    }
+
+    fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            topic: params["topic"].as_str().map(|s| s.to_string()),
+        })
+    }
+}
+
 /// Arguments for validate_content command
-#[derive(Args, Debug, McpTool)]
-#[mcp(
-    name = "validate_content",
-    description = "Validate content against schema requirements with improvement suggestions. Helps ensure content meets foundry standards before creation."
-)]
+#[derive(Args, Debug)]
 pub struct ValidateContentArgs {
     /// Content to validate
     ///
@@ -341,7 +422,6 @@ pub struct ValidateContentArgs {
     /// Validation includes: length, format, content quality, improvement suggestions
     /// Returns detailed feedback for content improvement
     #[arg(long, required = true)]
-    #[mcp(description = "Content to validate against the specified type's requirements")]
     pub content: String,
 
     /// Content type to validate
@@ -349,33 +429,36 @@ pub struct ValidateContentArgs {
     /// Must be one of: vision, tech-stack, summary, spec, notes, tasks
     /// Each type has specific length and quality requirements
     /// Use this to check content before creating projects/specs
-    #[mcp(
-        description = "Type of content to validate (vision, tech-stack, summary, spec, notes, tasks)"
-    )]
     pub content_type: String,
 }
 
+// Generate MCP tool implementation for ValidateContentArgs
+impl_mcp_tool! {
+    name = "validate_content",
+    description = "Validate content against schema requirements with improvement suggestions. Helps ensure content meets foundry standards before creation.",
+    struct ValidateContentArgs {
+        content: String {
+            description = "Content to validate against the specified type's requirements"
+        },
+        content_type: String {
+            description = "Type of content to validate (vision, tech-stack, summary, spec, notes, tasks)"
+        }
+    }
+}
+
 /// Arguments for update_spec command
-#[derive(Args, Debug, McpTool)]
-#[mcp(
-    name = "update_spec",
-    description = "Update multiple spec files in a single operation with explicit control over content replacement strategy. Update spec.md, task-list.md, and/or notes.md with replace or append operations."
-)]
+#[derive(Args, Debug)]
 pub struct UpdateSpecArgs {
     /// Project name containing the spec to update
     ///
     /// Must be an existing project in ~/.foundry/
     /// Use 'foundry list-projects' to see available projects
-    #[mcp(description = "Name of the existing project containing the spec")]
     pub project_name: String,
 
     /// Spec name to update (YYYYMMDD_HHMMSS_feature_name format)
     ///
     /// Must be an existing spec within the project
     /// Use 'foundry load-project PROJECT_NAME' to see available specs
-    #[mcp(
-        description = "Name of the existing spec to update (YYYYMMDD_HHMMSS_feature_name format)"
-    )]
     pub spec_name: String,
 
     /// New content for spec.md (optional)
@@ -396,9 +479,6 @@ pub struct UpdateSpecArgs {
     /// - Include functional requirements, acceptance criteria, technical approach
     /// - Use bullet points, numbered lists, and code blocks as needed
     #[arg(long)]
-    #[mcp(
-        description = "New content for spec.md (optional). Use with --operation replace to completely rewrite the spec, or --operation append to add new requirements while preserving existing content. Include functional requirements, acceptance criteria, and implementation approach."
-    )]
     pub spec: Option<String>,
 
     /// New content for task-list.md (optional)
@@ -419,9 +499,6 @@ pub struct UpdateSpecArgs {
     /// - Use "- [x] Task description" for completed tasks
     /// - Include implementation details and dependencies
     #[arg(long)]
-    #[mcp(
-        description = "New content for task-list.md (optional). Use with --operation append to add new tasks or mark existing tasks complete while preserving history. Use --operation replace to completely restructure the implementation plan."
-    )]
     pub tasks: Option<String>,
 
     /// New content for notes.md (optional)
@@ -442,9 +519,6 @@ pub struct UpdateSpecArgs {
     /// - Include code snippets, external references, and future considerations
     /// - Keep notes conversational but technical
     #[arg(long)]
-    #[mcp(
-        description = "New content for notes.md (optional). Use with --operation append to accumulate design decisions and implementation notes over time. Use --operation replace to restructure or consolidate notes."
-    )]
     pub notes: Option<String>,
 
     /// Content replacement strategy (REQUIRED)
@@ -461,24 +535,94 @@ pub struct UpdateSpecArgs {
     ///
     /// Applies to ALL files being updated in this command.
     #[arg(long, required = true)]
-    #[mcp(
-        description = "REQUIRED: Content replacement strategy - 'replace' (completely overwrite) or 'append' (add to existing content). Applies to all files being updated. Use 'replace' for major changes, 'append' for iterative development."
-    )]
     pub operation: String,
 }
 
+// Manual MCP tool implementation for UpdateSpecArgs (has optional fields)
+impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
+    fn tool_definition() -> rust_mcp_sdk::schema::Tool {
+        let mut properties = std::collections::HashMap::new();
+
+        let mut project_name_prop = serde_json::Map::new();
+        project_name_prop.insert("type".to_string(), serde_json::json!("string"));
+        project_name_prop.insert(
+            "description".to_string(),
+            serde_json::json!("Name of the existing project containing the spec"),
+        );
+        properties.insert("project_name".to_string(), project_name_prop);
+
+        let mut spec_name_prop = serde_json::Map::new();
+        spec_name_prop.insert("type".to_string(), serde_json::json!("string"));
+        spec_name_prop.insert(
+            "description".to_string(),
+            serde_json::json!(
+                "Name of the existing spec to update (YYYYMMDD_HHMMSS_feature_name format)"
+            ),
+        );
+        properties.insert("spec_name".to_string(), spec_name_prop);
+
+        let mut spec_prop = serde_json::Map::new();
+        spec_prop.insert("type".to_string(), serde_json::json!("string"));
+        spec_prop.insert("description".to_string(), serde_json::json!("New content for spec.md (optional). Use with --operation replace to completely rewrite the spec, or --operation append to add new requirements while preserving existing content. Include functional requirements, acceptance criteria, and implementation approach."));
+        properties.insert("spec".to_string(), spec_prop);
+
+        let mut tasks_prop = serde_json::Map::new();
+        tasks_prop.insert("type".to_string(), serde_json::json!("string"));
+        tasks_prop.insert("description".to_string(), serde_json::json!("New content for task-list.md (optional). Use with --operation append to add new tasks or mark existing tasks complete while preserving history. Use --operation replace to completely restructure the implementation plan."));
+        properties.insert("tasks".to_string(), tasks_prop);
+
+        let mut notes_prop = serde_json::Map::new();
+        notes_prop.insert("type".to_string(), serde_json::json!("string"));
+        notes_prop.insert("description".to_string(), serde_json::json!("New content for notes.md (optional). Use with --operation append to accumulate design decisions and implementation notes over time. Use --operation replace to restructure or consolidate notes."));
+        properties.insert("notes".to_string(), notes_prop);
+
+        let mut operation_prop = serde_json::Map::new();
+        operation_prop.insert("type".to_string(), serde_json::json!("string"));
+        operation_prop.insert("description".to_string(), serde_json::json!("REQUIRED: Content replacement strategy - 'replace' (completely overwrite) or 'append' (add to existing content). Applies to all files being updated. Use 'replace' for major changes, 'append' for iterative development."));
+        properties.insert("operation".to_string(), operation_prop);
+
+        rust_mcp_sdk::schema::Tool {
+            name: "update_spec".to_string(),
+            description: Some("Update multiple spec files in a single operation with explicit control over content replacement strategy. Update spec.md, task-list.md, and/or notes.md with replace or append operations.".to_string()),
+            title: None,
+            input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
+                vec!["project_name".to_string(), "spec_name".to_string(), "operation".to_string()], // Required fields
+                Some(properties),
+            ),
+            annotations: None,
+            meta: None,
+            output_schema: None,
+        }
+    }
+
+    fn from_mcp_params(params: &serde_json::Value) -> anyhow::Result<Self> {
+        Ok(Self {
+            project_name: params["project_name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing project_name parameter"))?
+                .to_string(),
+            spec_name: params["spec_name"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing spec_name parameter"))?
+                .to_string(),
+            spec: params["spec"].as_str().map(|s| s.to_string()),
+            tasks: params["tasks"].as_str().map(|s| s.to_string()),
+            notes: params["notes"].as_str().map(|s| s.to_string()),
+            operation: params["operation"]
+                .as_str()
+                .ok_or_else(|| anyhow::anyhow!("Missing operation parameter"))?
+                .to_string(),
+        })
+    }
+}
+
 /// Arguments for delete_spec command
-#[derive(Args, Debug, McpTool)]
-#[mcp(
-    name = "delete_spec",
-    description = "Delete an existing specification and all its files (spec.md, task-list.md, notes.md). This action cannot be undone."
-)]
+#[derive(Args, Debug)]
 pub struct DeleteSpecArgs {
     /// Project name containing the spec to delete
     ///
     /// Must be an existing project in ~/.foundry/
     /// Use 'foundry list-projects' to see available projects
-    #[mcp(description = "Name of the existing project containing the spec")]
     pub project_name: String,
 
     /// Spec name to delete (YYYYMMDD_HHMMSS_feature_name format)
@@ -486,9 +630,6 @@ pub struct DeleteSpecArgs {
     /// Must be an existing spec within the project
     /// Use 'foundry load-project PROJECT_NAME' to see available specs
     /// **Warning: This will permanently delete all spec files**
-    #[mcp(
-        description = "Name of the spec to delete (YYYYMMDD_HHMMSS_feature_name format). WARNING: This permanently deletes all spec files."
-    )]
     pub spec_name: String,
 
     /// Confirmation flag - must be "true" to proceed
@@ -496,10 +637,24 @@ pub struct DeleteSpecArgs {
     /// This is a safety mechanism to prevent accidental deletions
     /// Must explicitly set to "true": --confirm true
     #[arg(long, required = true)]
-    #[mcp(
-        description = "Confirmation flag - must be set to 'true' to proceed with deletion (safety mechanism)"
-    )]
     pub confirm: String,
+}
+
+// Generate MCP tool implementation for DeleteSpecArgs
+impl_mcp_tool! {
+    name = "delete_spec",
+    description = "Delete an existing specification and all its files (spec.md, task-list.md, notes.md). This action cannot be undone.",
+    struct DeleteSpecArgs {
+        project_name: String {
+            description = "Name of the existing project containing the spec"
+        },
+        spec_name: String {
+            description = "Name of the spec to delete (YYYYMMDD_HHMMSS_feature_name format). WARNING: This permanently deletes all spec files."
+        },
+        confirm: String {
+            description = "Confirmation flag - must be set to 'true' to proceed with deletion (safety mechanism)"
+        }
+    }
 }
 
 /// Arguments for serve command

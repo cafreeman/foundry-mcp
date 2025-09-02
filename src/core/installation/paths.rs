@@ -34,8 +34,7 @@ pub fn get_cursor_config_dir() -> Result<PathBuf> {
     if let Ok(test_dir) = env::var("CURSOR_CONFIG_DIR") {
         return Ok(PathBuf::from(test_dir));
     }
-    let current_dir = std::env::current_dir()
-        .context("Failed to get current working directory")?;
+    let current_dir = std::env::current_dir().context("Failed to get current working directory")?;
     Ok(current_dir.join(".cursor"))
 }
 
@@ -130,7 +129,11 @@ mod tests {
         let result = get_cursor_config_dir();
         assert!(result.is_ok(), "Should be able to get Cursor config dir");
         let path = result.unwrap();
-        assert!(path.ends_with(".cursor"), "Path should end with '.cursor', got: {}", path.display());
+        assert!(
+            path.ends_with(".cursor"),
+            "Path should end with '.cursor', got: {}",
+            path.display()
+        );
         assert!(path.is_absolute(), "Path should be absolute");
     }
 

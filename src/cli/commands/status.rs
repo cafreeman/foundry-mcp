@@ -41,7 +41,10 @@ pub async fn execute(args: StatusArgs) -> Result<String> {
         Ok(serde_json::to_string_pretty(&response_data)?)
     } else {
         // Return human-readable format
-        Ok(status_formatter::format_status_output(&response_data, args.detailed))
+        Ok(status_formatter::format_status_output(
+            &response_data,
+            args.detailed,
+        ))
     }
 }
 

@@ -135,7 +135,6 @@ fn format_environment_status(env: &EnvironmentStatus, detailed: bool) -> String 
     lines.join("\n")
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,5 +186,4 @@ mod tests {
         assert!(output.contains("Binary not found"));
         assert!(output.contains("Config file missing"));
     }
-
 }
