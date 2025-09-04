@@ -60,7 +60,7 @@ Foundry MCP provides a set of MCP tools that enable deterministic project and sp
 
 ## MCP Tools
 
-Foundry provides 8 MCP tools that enable comprehensive project management for AI assistants:
+Foundry provides 9 MCP tools that enable comprehensive project management for AI assistants:
 
 ### Project Management
 
@@ -73,6 +73,8 @@ Foundry provides 8 MCP tools that enable comprehensive project management for AI
 
 - **`create_spec`**: Create timestamped specification with task breakdown
 - **`load_spec`**: Load specification content with project context
+- **`update_spec`**: Update multiple spec files with replace or append operations
+- **`delete_spec`**: Delete existing specification and all its files
 
 ### Content & Workflow
 
@@ -124,6 +126,13 @@ Day 5: "Let's work on authentication"
 - **Better code quality**: Specifications guide implementation details
 - **Reduced hallucination**: Structured context prevents AI from making assumptions
 
+### 🤝 **Collaborative User Experience**
+
+- **Option-based guidance**: All tools provide "You can..." suggestions instead of directive commands
+- **Content creation acknowledgment**: Tools explicitly recognize AI assistant's role in content generation
+- **Workflow efficiency**: Smart guidance for optimal tool selection and usage patterns
+- **User decision-making control**: Preserves user agency while providing helpful guidance
+
 ## MCP Tools Available
 
 Once installed, AI assistants have access to these tools:
@@ -134,6 +143,8 @@ Once installed, AI assistants have access to these tools:
 - **`list_projects`** - List all available projects with metadata
 - **`create_spec`** - Create timestamped specification with task breakdown
 - **`load_spec`** - Load specification content with project context
+- **`update_spec`** - Update multiple spec files with replace or append operations
+- **`delete_spec`** - Delete existing specification and all its files
 - **`validate_content`** - Validate content against schema requirements
 - **`get_foundry_help`** - Get workflow guidance and examples
 

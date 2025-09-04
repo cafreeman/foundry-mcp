@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Comprehensive MCP tool improvements with enhanced user experience patterns
+- Option-based guidance replacing directive language across all 9 MCP tools
+- Content creation acknowledgment in tool responses to recognize AI assistant's role
+- Workflow efficiency improvements with smart guidance for optimal tool selection
+- Consistent user experience patterns across all tools with collaborative language
+
+### Changed
+
+- **BREAKING**: All MCP tool descriptions enhanced with structural guidance and user experience improvements
+- **BREAKING**: Response patterns updated to use "You can..." instead of directive language
+- **BREAKING**: Workflow hints and next steps now provide option-based guidance
+- Enhanced load_project tool with critical workflow efficiency improvements
+- Improved create_spec and analyze_project tools with content creation acknowledgment
+- Updated load_spec, delete_spec, and list_projects tools with consistent user experience patterns
+- Enhanced update_spec, validate_content, and get_foundry_help tools with improved response patterns
+
+### Fixed
+
+- Eliminated all directive language ("Use when...") across all 9 MCP tools
+- Improved user decision-making control with collaborative guidance patterns
+- Enhanced workflow efficiency with smart tool selection guidance
+
 ## [0.2.0] - 2025-09-02
 
 ### Added
