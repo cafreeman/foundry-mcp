@@ -23,10 +23,10 @@ async fn execute_claude_command(args: &[&str]) -> Result<std::process::Output> {
         let mut command = Command::new(&claude_path);
         command.args(args);
 
-        if let Ok(output) = command.output().await {
-            if output.status.success() {
-                return Ok(output);
-            }
+        if let Ok(output) = command.output().await
+            && output.status.success()
+        {
+            return Ok(output);
         }
     }
 
@@ -46,10 +46,9 @@ async fn execute_claude_command(args: &[&str]) -> Result<std::process::Output> {
         .env("PATH", &current_path)
         .output()
         .await
+        && output.status.success()
     {
-        if output.status.success() {
-            return Ok(output);
-        }
+        return Ok(output);
     }
 
     // If all approaches fail, return a descriptive error

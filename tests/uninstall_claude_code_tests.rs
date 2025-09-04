@@ -127,8 +127,8 @@ fn test_uninstall_claude_code_not_installed() -> Result<()> {
         assert!(result.is_err(), "Uninstall should fail when not installed");
         let error_msg = format!("{:#}", result.unwrap_err());
         assert!(
-            error_msg.contains("No MCP server found"),
-            "Error should mention that no MCP server was found. Actual: {}",
+            error_msg.contains("Failed to unregister MCP server from Claude Code"),
+            "Error should mention unregistration failure. Actual: {}",
             error_msg
         );
 
@@ -143,7 +143,7 @@ fn test_uninstall_claude_code_not_installed() -> Result<()> {
 fn test_uninstall_claude_code_cli_not_available() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    let _ = env.with_env_and_path_async(|| async {
         // Don't create mock claude binary - test without claude CLI available
         let uninstall_args = env.uninstall_args("claude-code", false);
         let result = env.uninstall_with_args(uninstall_args).await;

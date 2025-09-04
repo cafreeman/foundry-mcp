@@ -16,7 +16,7 @@ use foundry_mcp::test_utils::TestEnvironment;
 fn test_create_spec_full_workflow() {
     let env = TestEnvironment::new().unwrap();
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // First create a project
         let project_args = env.create_project_args("test-spec-project");
         foundry_mcp::cli::commands::create_project::execute(project_args)
@@ -60,7 +60,7 @@ fn test_create_spec_full_workflow() {
 #[test]
 fn test_error_spec_missing_project() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Try to create spec in non-existent project
         let spec_args = env.create_spec_args("missing-project", "some_feature");
         let result = create_spec::execute(spec_args).await;
@@ -78,7 +78,7 @@ fn test_error_spec_missing_project() {
 #[test]
 fn test_load_spec_list_empty_project() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         let project_name = "spec-list-test";
 
         // Create project first
@@ -129,7 +129,7 @@ fn test_load_spec_list_empty_project() {
 #[test]
 fn test_load_spec_list_with_specs() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         let project_name = "spec-list-populated";
 
         // Create project
@@ -197,7 +197,7 @@ fn test_load_spec_list_with_specs() {
 #[test]
 fn test_load_spec_specific_spec() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
 
         let project_name = "spec-load-test";
 
@@ -276,7 +276,7 @@ fn test_load_spec_specific_spec() {
 #[test]
 fn test_load_spec_missing_project() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         let load_args = LoadSpecArgs {
             project_name: "non-existent-project".to_string(),
             spec_name: None,
@@ -295,7 +295,7 @@ fn test_load_spec_missing_project() {
 #[test]
 fn test_load_spec_missing_spec() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         let project_name = "missing-spec-test";
 
         // Create project but no specs
@@ -322,7 +322,7 @@ fn test_load_spec_missing_spec() {
 #[test]
 fn test_load_spec_invalid_spec_name() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         let project_name = "invalid-spec-test";
 
         // Create project
@@ -349,7 +349,7 @@ fn test_load_spec_invalid_spec_name() {
 #[test]
 fn test_load_spec_end_to_end_workflow() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         let project_name = "e2e-spec-workflow";
 
         // Step 1: Create project
@@ -418,7 +418,7 @@ fn test_load_spec_end_to_end_workflow() {
 #[test]
 fn test_update_spec_replace() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Setup: Create project and spec
         let project_args = env.create_project_args("update-test-project");
         foundry_mcp::cli::commands::create_project::execute(project_args)
@@ -478,7 +478,7 @@ fn test_update_spec_replace() {
 #[test]
 fn test_update_spec_append() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Setup: Create project and spec
         let project_args = env.create_project_args("append-test-project");
         foundry_mcp::cli::commands::create_project::execute(project_args)
@@ -521,7 +521,7 @@ fn test_update_spec_append() {
 #[test]
 fn test_update_spec_task_list() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
 
 
         // Setup
@@ -566,7 +566,7 @@ fn test_update_spec_task_list() {
 #[test]
 fn test_update_spec_error_handling() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Test nonexistent project
         let update_args =
             env.update_spec_args_single("nonexistent-project", "fake-spec", "spec", "replace");
@@ -619,7 +619,7 @@ fn test_update_spec_error_handling() {
 #[test]
 fn test_delete_spec_success() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Setup: Create project and spec
         let project_args = env.create_project_args("delete-test-project");
         foundry_mcp::cli::commands::create_project::execute(project_args)
@@ -673,7 +673,7 @@ fn test_delete_spec_success() {
 #[test]
 fn test_delete_spec_error_handling() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Test nonexistent project
         let delete_args = env.delete_spec_args("nonexistent-project", "fake-spec");
         let result = delete_spec::execute(delete_args).await;
@@ -714,7 +714,7 @@ fn test_delete_spec_error_handling() {
 #[test]
 fn test_spec_lifecycle_workflow() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
 
 
         // Setup: Create project and spec

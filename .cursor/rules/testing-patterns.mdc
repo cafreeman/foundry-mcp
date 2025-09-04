@@ -1,6 +1,6 @@
 ---
 alwaysApply: false
-description: Testing patterns and infrastructure for Foundry MCP using assert_fs and temp-env
+description: Use this *any time* you are interacting with tests at all.
 ---
 
 # Foundry MCP Testing Patterns & Infrastructure

@@ -11,7 +11,7 @@ use foundry_mcp::types::responses::ValidationStatus;
 #[test]
 fn test_create_project_full_workflow() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         let args = env.create_project_args("test-integration-project");
 
         // Execute create_project command
@@ -61,7 +61,7 @@ fn test_create_project_full_workflow() {
 #[test]
 fn test_load_project_empty() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Create project without specs
         let project_args = env.create_project_args("empty-project");
         create_project::execute(project_args).await.unwrap();
@@ -103,7 +103,7 @@ fn test_load_project_empty() {
 #[test]
 fn test_load_project_with_specs() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Create project and add specs
         let project_args = env.create_project_args("project-with-specs");
         create_project::execute(project_args).await.unwrap();
@@ -162,7 +162,7 @@ fn test_load_project_with_specs() {
 #[test]
 fn test_error_missing_project() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Try to load non-existent project
         let load_args = foundry_mcp::cli::args::LoadProjectArgs {
             project_name: "non-existent-project".to_string(),
@@ -187,7 +187,7 @@ fn test_error_missing_project() {
 #[test]
 fn test_end_to_end_workflow() {
     let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         let project_name = "e2e-test-project";
 
         // Step 1: Create project
@@ -242,7 +242,7 @@ fn test_filesystem_isolation() {
     // Create and drop first environment
     {
         let env1 = TestEnvironment::new().unwrap();
-        let _ = env1.with_env_async(|| async {
+        env1.with_env_async(|| async {
             let args = env1.create_project_args(project_name);
             create_project::execute(args).await.unwrap();
 
@@ -255,7 +255,7 @@ fn test_filesystem_isolation() {
     // Create second environment - should not see first project
     {
         let env2 = TestEnvironment::new().unwrap();
-        let _ = env2.with_env_async(|| async {
+        env2.with_env_async(|| async {
             let foundry_dir = env2.foundry_dir();
             assert!(
                 !foundry_dir.join(project_name).exists(),
