@@ -1,11 +1,15 @@
 //! Claude Code MCP server installation and management
 
+use crate::core::filesystem::write_file_atomic;
 use crate::core::installation::{
     InstallationResult, UninstallationResult, create_installation_result,
-    create_uninstallation_result,
+    create_uninstallation_result, get_claude_code_config_dir,
 };
+use crate::core::templates::ClientTemplate;
+use crate::core::templates::claude_subagent::ClaudeSubagentTemplate;
 use crate::types::responses::EnvironmentStatus;
 use anyhow::{Context, Result};
+use std::fs;
 use tokio::process::Command;
 
 /// Execute a claude command through the user's shell
@@ -70,6 +74,20 @@ pub async fn install_for_claude_code() -> Result<InstallationResult> {
         }
     }
 
+    // Install Claude subagent template
+    match install_claude_subagent_template().await {
+        Ok(template_message) => {
+            actions_taken.push(template_message);
+        }
+        Err(e) => {
+            // Template installation failure is non-fatal - just log a warning
+            actions_taken.push(format!(
+                "Warning: Failed to install Claude subagent template: {}",
+                e
+            ));
+        }
+    }
+
     Ok(create_installation_result(
         true,
         "Claude Code CLI (managed internally)".to_string(),
@@ -98,6 +116,25 @@ pub async fn uninstall_from_claude_code() -> Result<UninstallationResult> {
         Err(e) => {
             return Err(anyhow::anyhow!(
                 "Failed to unregister MCP server from Claude Code: {}",
+                e
+            ));
+        }
+    }
+
+    // Remove Claude subagent template
+    let mut files_removed = files_removed;
+    match remove_claude_subagent_template().await {
+        Ok(Some(template_message)) => {
+            actions_taken.push(template_message);
+            files_removed.push("Claude subagent template".to_string());
+        }
+        Ok(None) => {
+            // Template didn't exist - that's fine
+        }
+        Err(e) => {
+            // Template removal failure is non-fatal - just log a warning
+            actions_taken.push(format!(
+                "Warning: Failed to remove Claude subagent template: {}",
                 e
             ));
         }
@@ -240,6 +277,79 @@ pub async fn get_claude_code_status(detailed: bool) -> Result<EnvironmentStatus>
         config_content,
         issues,
     })
+}
+
+/// Install Claude subagent template
+async fn install_claude_subagent_template() -> Result<String> {
+    // Get the Claude Code config directory
+    let config_dir =
+        get_claude_code_config_dir().context("Failed to get Claude Code config directory")?;
+
+    // Get the template file path
+    let template_path = ClaudeSubagentTemplate::file_path(&config_dir)
+        .context("Failed to resolve Claude subagent template path")?;
+
+    // Create parent directory if needed
+    if let Some(parent) = template_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create template directory: {:?}", parent))?;
+    }
+
+    // Get the embedded template content
+    let content = ClaudeSubagentTemplate::content();
+
+    // Write template content atomically
+    write_file_atomic(&template_path, content).with_context(|| {
+        format!(
+            "Failed to write Claude subagent template: {:?}",
+            template_path
+        )
+    })?;
+
+    // Return success message
+    Ok(format!(
+        "Created Claude subagent template: {}",
+        template_path.to_string_lossy()
+    ))
+}
+
+/// Remove Claude subagent template
+async fn remove_claude_subagent_template() -> Result<Option<String>> {
+    // Get the Claude Code config directory
+    let config_dir =
+        get_claude_code_config_dir().context("Failed to get Claude Code config directory")?;
+
+    // Get the template file path
+    let template_path = ClaudeSubagentTemplate::file_path(&config_dir)
+        .context("Failed to resolve Claude subagent template path")?;
+
+    // Check if template file exists
+    if !template_path.exists() {
+        return Ok(None);
+    }
+
+    // Remove the template file
+    fs::remove_file(&template_path).with_context(|| {
+        format!(
+            "Failed to remove Claude subagent template: {:?}",
+            template_path
+        )
+    })?;
+
+    // Clean up empty parent directories
+    if let Some(parent) = template_path.parent() {
+        // Only remove if directory is empty and not the config root
+        if parent.read_dir()?.next().is_none() && parent != config_dir {
+            fs::remove_dir(parent)
+                .with_context(|| format!("Failed to remove empty directory: {:?}", parent))?;
+        }
+    }
+
+    // Return success message
+    Ok(Some(format!(
+        "Removed Claude subagent template: {}",
+        template_path.to_string_lossy()
+    )))
 }
 
 #[cfg(test)]

@@ -15,7 +15,7 @@ use foundry_mcp::test_utils::TestEnvironment;
 fn test_install_cursor_end_to_end() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Verify config doesn't exist initially
         let config_path = env.cursor_config_path();
         assert!(!config_path.exists(), "Config should not exist initially");
@@ -66,11 +66,24 @@ fn test_install_cursor_end_to_end() -> Result<()> {
             "Should have environment variables"
         );
 
+        // Verify rules template was created with expected content
+        env.verify_cursor_rules_template()?;
+
+        // Verify response mentions rules creation
+        assert!(
+            response
+                .data
+                .actions_taken
+                .iter()
+                .any(|action| action.contains("rules")),
+            "Actions should mention rules file creation"
+        );
+
         // Verify we get a successful response structure (no workflow guidance needed)
         assert_eq!(response.validation_status, ValidationStatus::Complete);
 
         Ok::<(), anyhow::Error>(())
-    });
+    })?;
 
     Ok(())
 }
@@ -675,6 +688,52 @@ fn test_cursor_status_with_issues() -> Result<()> {
 
         Ok::<(), anyhow::Error>(())
     });
+
+    Ok(())
+}
+
+/// Test Claude Code installation end-to-end workflow with template creation
+#[test]
+fn test_install_claude_code_end_to_end() -> Result<()> {
+    let env = TestEnvironment::new()?;
+
+    env.with_env_async(|| async {
+        // Verify subagent doesn't exist initially
+        let subagent_path = env.claude_subagent_path();
+        assert!(
+            !subagent_path.exists(),
+            "Subagent should not exist initially"
+        );
+
+        // Execute install command
+        let install_args = env.install_args("claude-code");
+        let response = install::execute(install_args).await?;
+
+        // Verify response structure
+        assert_eq!(response.data.target, "claude-code");
+        assert_eq!(
+            response.data.installation_status,
+            InstallationStatus::Success
+        );
+
+        // Verify subagent template was created with expected content
+        env.verify_claude_subagent_template()?;
+
+        // Verify response mentions subagent creation
+        assert!(
+            response
+                .data
+                .actions_taken
+                .iter()
+                .any(|action| action.contains("subagent")),
+            "Response should mention subagent creation"
+        );
+
+        // Verify we get a successful response structure
+        assert_eq!(response.validation_status, ValidationStatus::Complete);
+
+        Ok::<(), anyhow::Error>(())
+    })?;
 
     Ok(())
 }

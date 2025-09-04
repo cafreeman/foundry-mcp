@@ -1,13 +1,17 @@
 //! Cursor MCP server installation and management
 
+use crate::core::filesystem::write_file_atomic;
 use crate::core::installation::{
     InstallationResult, UninstallationResult, add_server_to_config, create_cursor_server_config,
     create_installation_result, create_uninstallation_result, get_cursor_mcp_config_path,
     has_server_config, read_config_file, remove_server_from_config, validate_config_dir_writable,
     write_config_file,
 };
+use crate::core::templates::ClientTemplate;
+use crate::core::templates::cursor_rules::CursorRulesTemplate;
 use crate::types::responses::EnvironmentStatus;
 use anyhow::{Context, Result};
+use std::fs;
 
 /// Install Foundry MCP server for Cursor
 pub async fn install_for_cursor() -> Result<InstallationResult> {
@@ -39,6 +43,20 @@ pub async fn install_for_cursor() -> Result<InstallationResult> {
     crate::core::installation::validate_config(&config)
         .context("Configuration validation failed")?;
     actions_taken.push("Validated MCP configuration".to_string());
+
+    // Install Cursor rules template
+    match install_cursor_rules_template(&config_path).await {
+        Ok(template_message) => {
+            actions_taken.push(template_message);
+        }
+        Err(e) => {
+            // Template installation failure is non-fatal - just log a warning
+            actions_taken.push(format!(
+                "Warning: Failed to install Cursor rules template: {}",
+                e
+            ));
+        }
+    }
 
     Ok(create_installation_result(
         true,
@@ -83,6 +101,24 @@ pub async fn uninstall_from_cursor(remove_config: bool) -> Result<Uninstallation
         write_config_file(&config_path, &config)
             .context("Failed to write updated MCP configuration")?;
         actions_taken.push(format!("Updated configuration file: {}", config_path_str));
+    }
+
+    // Remove Cursor rules template
+    match remove_cursor_rules_template(&config_path).await {
+        Ok(Some(template_message)) => {
+            actions_taken.push(template_message);
+            files_removed.push("Cursor rules template".to_string());
+        }
+        Ok(None) => {
+            // Template didn't exist - that's fine
+        }
+        Err(e) => {
+            // Template removal failure is non-fatal - just log a warning
+            actions_taken.push(format!(
+                "Warning: Failed to remove Cursor rules template: {}",
+                e
+            ));
+        }
     }
 
     Ok(create_uninstallation_result(
@@ -177,6 +213,77 @@ pub fn is_cursor_configured() -> bool {
     get_cursor_mcp_config_path().is_ok_and(|config_path| {
         read_config_file(&config_path).is_ok_and(|config| has_server_config(&config, "foundry"))
     })
+}
+
+/// Install Cursor rules template
+async fn install_cursor_rules_template(config_path: &std::path::Path) -> Result<String> {
+    // Get the config directory (parent of the mcp.json file)
+    let config_dir = config_path
+        .parent()
+        .context("Failed to get config directory from config path")?;
+
+    // Get the template file path
+    let template_path = CursorRulesTemplate::file_path(config_dir)
+        .context("Failed to resolve Cursor rules template path")?;
+
+    // Create parent directory if needed
+    if let Some(parent) = template_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create template directory: {:?}", parent))?;
+    }
+
+    // Get the embedded template content
+    let content = CursorRulesTemplate::content();
+
+    // Write template content atomically
+    write_file_atomic(&template_path, content)
+        .with_context(|| format!("Failed to write Cursor rules template: {:?}", template_path))?;
+
+    // Return success message
+    Ok(format!(
+        "Created Cursor rules template: {}",
+        template_path.to_string_lossy()
+    ))
+}
+
+/// Remove Cursor rules template
+async fn remove_cursor_rules_template(config_path: &std::path::Path) -> Result<Option<String>> {
+    // Get the config directory (parent of the mcp.json file)
+    let config_dir = config_path
+        .parent()
+        .context("Failed to get config directory from config path")?;
+
+    // Get the template file path
+    let template_path = CursorRulesTemplate::file_path(config_dir)
+        .context("Failed to resolve Cursor rules template path")?;
+
+    // Check if template file exists
+    if !template_path.exists() {
+        return Ok(None);
+    }
+
+    // Remove the template file
+    fs::remove_file(&template_path).with_context(|| {
+        format!(
+            "Failed to remove Cursor rules template: {:?}",
+            template_path
+        )
+    })?;
+
+    // Clean up empty parent directories
+    if let Some(parent) = template_path.parent() {
+        // Only remove if directory is empty and not the config root
+        if parent.read_dir()?.next().is_none() && parent != config_dir {
+            fs::remove_dir(parent)
+                .with_context(|| format!("Failed to remove empty directory: {:?}", parent))?;
+        }
+    }
+
+    // Return success message
+    Ok(Some(format!(
+        "Removed Cursor rules template: {}",
+        template_path.to_string_lossy()
+    )))
 }
 
 #[cfg(test)]

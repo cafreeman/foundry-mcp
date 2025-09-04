@@ -261,6 +261,26 @@ impl TestEnvironment {
         self.temp_dir.path().join(".claude.json")
     }
 
+    /// Get Claude Code agents directory path within test environment
+    pub fn claude_agents_dir(&self) -> std::path::PathBuf {
+        self.temp_dir.path().join(".claude").join("agents")
+    }
+
+    /// Get Claude Code subagent file path within test environment
+    pub fn claude_subagent_path(&self) -> std::path::PathBuf {
+        self.claude_agents_dir().join("foundry-mcp-agent.md")
+    }
+
+    /// Get Cursor rules directory path within test environment
+    pub fn cursor_rules_dir(&self) -> std::path::PathBuf {
+        self.temp_dir.path().join(".cursor").join("rules")
+    }
+
+    /// Get Cursor rules file path within test environment
+    pub fn cursor_rules_path(&self) -> std::path::PathBuf {
+        self.cursor_rules_dir().join("foundry.mdc")
+    }
+
     /// Create an invalid binary path for error testing
     pub fn invalid_binary_path(&self) -> String {
         "/definitely/does/not/exist/foundry".to_string()
@@ -280,6 +300,52 @@ impl TestEnvironment {
         let config_dir = self.cursor_config_dir();
         std::fs::create_dir_all(&config_dir)?;
         std::fs::write(self.cursor_config_path(), content)?;
+        Ok(())
+    }
+
+    /// Verify that Cursor rules template was created with expected content
+    pub fn verify_cursor_rules_template(&self) -> Result<()> {
+        let rules_path = self.cursor_rules_path();
+        if !rules_path.exists() {
+            anyhow::bail!("Cursor rules file should exist after installation");
+        }
+
+        let rules_content = std::fs::read_to_string(&rules_path)?;
+
+        // Verify essential content sections
+        if !rules_content.contains("# Foundry MCP Usage Guide") {
+            anyhow::bail!("Rules should contain usage guide header");
+        }
+        if !rules_content.contains("foundry mcp") {
+            anyhow::bail!("Rules should reference Foundry MCP tools");
+        }
+        if !rules_content.contains("Content Agnostic") {
+            anyhow::bail!("Rules should contain core principles");
+        }
+
+        Ok(())
+    }
+
+    /// Verify that Claude subagent template was created with expected content
+    pub fn verify_claude_subagent_template(&self) -> Result<()> {
+        let subagent_path = self.claude_subagent_path();
+        if !subagent_path.exists() {
+            anyhow::bail!("Claude subagent file should exist after installation");
+        }
+
+        let subagent_content = std::fs::read_to_string(&subagent_path)?;
+
+        // Verify essential content sections
+        if !subagent_content.contains("---") {
+            anyhow::bail!("Subagent should contain YAML frontmatter");
+        }
+        if !subagent_content.contains("foundry-mcp-agent") {
+            anyhow::bail!("Subagent should contain agent name");
+        }
+        if !subagent_content.contains("mcp_foundry_") {
+            anyhow::bail!("Subagent should reference MCP tools");
+        }
+
         Ok(())
     }
 
