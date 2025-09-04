@@ -815,11 +815,11 @@ impl BatchContextMatcher {
 
         // Apply all patches and collect results
         for patch in patches {
-            let mut temp_matcher = ContextMatcher::new(self.content.clone());
-            let result = temp_matcher.apply_patch(patch)?;
+            let mut matcher = ContextMatcher::new(self.content.clone());
+            let result = matcher.apply_patch(patch)?;
 
             if result.success {
-                self.content = temp_matcher.get_content().to_string();
+                self.content = matcher.get_content().to_string();
                 self.lines = self.content.lines().map(|s| s.to_string()).collect();
                 total_lines_modified += result.lines_modified;
             } else {
@@ -1031,10 +1031,10 @@ impl ContextMatcherWithHistory {
             for (i, entry) in self.history.iter().enumerate() {
                 if i != op_index && entry.operation_type == "apply_patch" {
                     if let Some(ref patch) = entry.patch_applied {
-                        let mut temp_matcher = ContextMatcher::new(self.content.clone());
-                        let result = temp_matcher.apply_patch(patch)?;
+                        let mut matcher = ContextMatcher::new(self.content.clone());
+                        let result = matcher.apply_patch(patch)?;
                         if result.success {
-                            self.content = temp_matcher.get_content().to_string();
+                            self.content = matcher.get_content().to_string();
                             self.lines = self.content.lines().map(|s| s.to_string()).collect();
                         }
                     }
@@ -1163,7 +1163,6 @@ impl EnhancedMarkdownMatcher {
 
     pub fn apply_patch(&mut self, patch: &ContextPatch) -> Result<ContextPatchResult> {
         // For now, delegate to basic implementation
-        // TODO: Add enhanced markdown structure awareness
         let mut basic_matcher = ContextMatcher::new(self.content.clone());
         let result = basic_matcher.apply_patch(patch)?;
 
