@@ -137,32 +137,44 @@ pub fn list_specs(project_name: &str) -> Result<Vec<SpecMetadata>> {
 
 /// List specs with filtering capabilities
 pub fn list_specs_filtered(project_name: &str, filter: SpecFilter) -> Result<Vec<SpecMetadata>> {
-    let mut specs = list_specs(project_name)?;
+    let specs = list_specs(project_name)?;
 
-    // Apply feature name filter
-    if let Some(name_filter) = &filter.feature_name_contains {
-        specs.retain(|spec| {
-            spec.feature_name
-                .to_lowercase()
-                .contains(&name_filter.to_lowercase())
-        });
-    }
+    let mut filtered_specs: Vec<SpecMetadata> = specs
+        .into_iter()
+        .filter(|spec| {
+            // Apply feature name filter
+            if let Some(name_filter) = &filter.feature_name_contains
+                && !spec
+                    .feature_name
+                    .to_lowercase()
+                    .contains(&name_filter.to_lowercase())
+            {
+                return false;
+            }
 
-    // Apply date range filters
-    if let Some(after) = &filter.created_after {
-        specs.retain(|spec| spec.created_at >= *after);
-    }
+            // Apply date range filters
+            if let Some(after) = &filter.created_after
+                && spec.created_at < *after
+            {
+                return false;
+            }
 
-    if let Some(before) = &filter.created_before {
-        specs.retain(|spec| spec.created_at <= *before);
-    }
+            if let Some(before) = &filter.created_before
+                && spec.created_at > *before
+            {
+                return false;
+            }
+
+            true
+        })
+        .collect();
 
     // Apply limit
     if let Some(limit) = filter.limit {
-        specs.truncate(limit);
+        filtered_specs.truncate(limit);
     }
 
-    Ok(specs)
+    Ok(filtered_specs)
 }
 
 /// Get the most recent spec for a project

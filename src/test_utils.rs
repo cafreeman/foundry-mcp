@@ -490,7 +490,7 @@ impl TestEnvironment {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .expect("Failed to create tokio runtime for test");
+            .expect("Failed to create tokio runtime for test - this should never happen");
         rt.block_on(f())
     }
 
@@ -530,7 +530,7 @@ impl TestEnvironment {
         let rt = tokio::runtime::Builder::new_current_thread()
             .enable_all()
             .build()
-            .expect("Failed to create tokio runtime for test");
+            .expect("Failed to create tokio runtime for test - this should never happen");
         rt.block_on(f())
     }
 

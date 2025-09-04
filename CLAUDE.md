@@ -166,16 +166,18 @@ fn test_name() {
     });
 }
 
-// ❌ Avoid this old pattern
+// ❌ Avoid this pattern - bypasses TestEnvironment isolation
 #[tokio::test]
 async fn test_name() {
-    // No isolation, potential interference
+    // No isolation, potential interference between tests
+    // Use TestEnvironment::with_env_async() instead
 }
 ```
 
 **Key Points:**
+
 - Unit tests in `#[cfg(test)] mod tests`
-- Integration tests in `tests/` directory  
+- Integration tests in `tests/` directory
 - Use `TestEnvironment` from `src/test_utils.rs` for isolation
 - Real filesystem operations, not mocking
 - Automatic cleanup and cross-platform support
@@ -185,7 +187,7 @@ async fn test_name() {
 ### Current Status
 
 - **Production ready**: Core CLI functionality implemented and tested
-- **11 main commands**: 
+- **11 main commands**:
   - Project: create-project, analyze-project, load-project, list-projects
   - Spec: create-spec, load-spec, update-spec, delete-spec
   - Utility: validate-content, get-foundry-help
@@ -219,6 +221,7 @@ cargo run -- uninstall cursor
 ```
 
 **Key Features:**
+
 - Always overwrites existing configurations (no --force flag needed)
 - PATH-based reliability for Cursor integration
 - Comprehensive status checking with troubleshooting guidance

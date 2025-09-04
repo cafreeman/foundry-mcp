@@ -36,8 +36,8 @@ impl ContextMatcher {
     /// Create a new context matcher with the given content
     pub fn new(content: String) -> Self {
         let lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
-        Self { 
-            content, 
+        Self {
+            content,
             lines,
             #[cfg(test)]
             forced_algorithm: None,
@@ -52,7 +52,7 @@ impl ContextMatcher {
     }
 
     /// Test-only method to create matcher with forced algorithm
-    #[cfg(test)] 
+    #[cfg(test)]
     pub fn new_with_algorithm(content: String, algorithm: SimilarityAlgorithm) -> Self {
         Self::new(content).force_algorithm(algorithm)
     }
@@ -92,11 +92,10 @@ impl ContextMatcher {
                 patch_type: format!("{:?}", patch.operation),
                 error_message: Some(format!(
                     "Context not found: Could not locate the specified before/after context{}",
-                    if let Some(ref section) = patch.section_context {
-                        format!(" in section '{}'", section)
-                    } else {
-                        String::new()
-                    }
+                    patch
+                        .section_context
+                        .as_ref()
+                        .map_or_else(String::new, |section| format!(" in section '{}'", section))
                 )),
                 suggestions,
                 operation_id: None,
@@ -149,12 +148,11 @@ impl ContextMatcher {
 
         for algorithm in algorithms {
             // First try section-aware matching if section_context is provided
-            if let Some(ref section) = patch.section_context {
-                if let Some(result) =
+            if let Some(ref section) = patch.section_context
+                && let Some(result) =
                     self.find_match_in_section_with_algorithm(patch, section, algorithm)?
-                {
-                    return Ok(Some(result));
-                }
+            {
+                return Ok(Some(result));
             }
 
             // Fall back to full document matching with this algorithm
@@ -175,12 +173,11 @@ impl ContextMatcher {
         algorithm: SimilarityAlgorithm,
     ) -> Result<Option<(usize, f32)>> {
         // First try section-aware matching if section_context is provided
-        if let Some(ref section) = patch.section_context {
-            if let Some(result) =
+        if let Some(ref section) = patch.section_context
+            && let Some(result) =
                 self.find_match_in_section_with_algorithm(patch, section, algorithm)?
-            {
-                return Ok(Some(result));
-            }
+        {
+            return Ok(Some(result));
         }
 
         // Fall back to full document matching with this algorithm
@@ -206,7 +203,7 @@ impl ContextMatcher {
             return Ok(None); // Section not found
         }
 
-        let start = section_start.unwrap();
+        let start = section_start.expect("Section start should be Some after None check");
         let end = section_end.unwrap_or(self.lines.len());
 
         // Try exact matching first within the section
@@ -294,7 +291,7 @@ impl ContextMatcher {
         } else {
             end
         };
-        
+
         for i in start..search_end {
             if self.matches_context_at_position_with_algorithm(patch, i, true, algorithm)? {
                 return Ok(Some(i));
@@ -323,12 +320,14 @@ impl ContextMatcher {
         for i in start..search_end {
             if let Some(confidence) =
                 self.fuzzy_match_at_position_with_algorithm(patch, i, algorithm)?
+                && confidence >= patch.match_config.similarity_threshold
+                && (best_match.is_none()
+                    || confidence
+                        > best_match
+                            .expect("best_match should be Some after is_none check")
+                            .1)
             {
-                if confidence >= patch.match_config.similarity_threshold {
-                    if best_match.is_none() || confidence > best_match.unwrap().1 {
-                        best_match = Some((i, confidence));
-                    }
-                }
+                best_match = Some((i, confidence));
             }
         }
 
@@ -625,7 +624,7 @@ impl ContextMatcher {
                         return Err(anyhow::anyhow!("Cannot replace: position out of bounds"));
                     }
                 };
-                
+
                 if replace_position < self.lines.len() {
                     self.lines[replace_position] = patch.content.clone();
                     Ok(1)
@@ -646,17 +645,20 @@ impl ContextMatcher {
                         return Err(anyhow::anyhow!("Invalid delete position calculation"));
                     }
                 } else if !patch.after_context.is_empty() {
-                    // If no before_context, delete the first line of after_context  
+                    // If no before_context, delete the first line of after_context
                     position
                 } else {
                     position
                 };
-                
+
                 if delete_position < self.lines.len() {
                     self.lines.remove(delete_position);
                     Ok(1)
                 } else {
-                    anyhow::bail!("Cannot delete line at position {}: out of bounds", delete_position);
+                    anyhow::bail!(
+                        "Cannot delete line at position {}: out of bounds",
+                        delete_position
+                    );
                 }
             }
         }
@@ -699,6 +701,12 @@ pub struct ContextCache {
     pub last_modified: SystemTime,
     /// Content hash for cache validation
     pub content_hash: u64,
+}
+
+impl Default for ContextCache {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ContextCache {
@@ -859,6 +867,12 @@ impl BatchContextMatcher {
 
 /// Conflict detector for identifying overlapping patches
 pub struct ConflictDetector;
+
+impl Default for ConflictDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl ConflictDetector {
     pub fn new() -> Self {
@@ -1029,14 +1043,15 @@ impl ContextMatcherWithHistory {
 
             // Replay all operations except the one we're rolling back
             for (i, entry) in self.history.iter().enumerate() {
-                if i != op_index && entry.operation_type == "apply_patch" {
-                    if let Some(ref patch) = entry.patch_applied {
-                        let mut matcher = ContextMatcher::new(self.content.clone());
-                        let result = matcher.apply_patch(patch)?;
-                        if result.success {
-                            self.content = matcher.get_content().to_string();
-                            self.lines = self.content.lines().map(|s| s.to_string()).collect();
-                        }
+                if i != op_index
+                    && entry.operation_type == "apply_patch"
+                    && let Some(ref patch) = entry.patch_applied
+                {
+                    let mut matcher = ContextMatcher::new(self.content.clone());
+                    let result = matcher.apply_patch(patch)?;
+                    if result.success {
+                        self.content = matcher.get_content().to_string();
+                        self.lines = self.content.lines().map(|s| s.to_string()).collect();
                     }
                 }
             }
@@ -1301,36 +1316,30 @@ mod tests {
     }
 
     fn create_large_test_content() -> String {
-        let mut content = String::new();
-        content.push_str("# Large Specification Document\n\n");
+        let sections: String = (1..=20)
+            .map(|section_num| {
+                let requirements: String = (1..=25)
+                    .map(|req_num| format!("- Requirement {} for section {}\n", req_num, section_num))
+                    .collect();
 
-        // Create multiple sections with repetitive patterns
-        for section_num in 1..=20 {
-            content.push_str(&format!("## Section {}\n\n", section_num));
-            content.push_str("### Overview\n\n");
-            content.push_str(
-                "This section contains important information about the feature implementation.\n\n",
-            );
-            content.push_str("### Requirements\n\n");
+                format!(
+                    "## Section {}\n\n\
+                     ### Overview\n\n\
+                     This section contains important information about the feature implementation.\n\n\
+                     ### Requirements\n\n\
+                     {}\n\
+                     ### Implementation Notes\n\n\
+                     Implementation details and considerations for this section.\n\n\
+                     ### Testing\n\n\
+                     - Unit tests required\n\
+                     - Integration tests required\n\
+                     - Performance tests required\n\n",
+                    section_num, requirements
+                )
+            })
+            .collect();
 
-            // Add many similar requirements
-            for req_num in 1..=25 {
-                content.push_str(&format!(
-                    "- Requirement {} for section {}\n",
-                    req_num, section_num
-                ));
-            }
-            content.push_str("\n");
-
-            content.push_str("### Implementation Notes\n\n");
-            content.push_str("Implementation details and considerations for this section.\n\n");
-            content.push_str("### Testing\n\n");
-            content.push_str("- Unit tests required\n");
-            content.push_str("- Integration tests required\n");
-            content.push_str("- Performance tests required\n\n");
-        }
-
-        content
+        format!("# Large Specification Document\n\n{}", sections)
     }
 
     #[test]
@@ -1391,7 +1400,7 @@ mod tests {
     fn test_context_cache_performance_improvement() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let large_content = create_large_test_content();
 
             // Test without caching (current implementation)
@@ -1451,7 +1460,7 @@ mod tests {
     fn test_batch_context_patching() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let content = "## Phase 1\n- [ ] Task 1\n- [ ] Task 2\n- [ ] Task 3\n\n## Requirements\n- Requirement A\n- Requirement B\n## Implementation\nDetails here".to_string();
 
             // Phase 5 feature: Apply multiple patches atomically
@@ -1524,7 +1533,7 @@ mod tests {
     fn test_conflict_detection() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let _content =
                 "## Requirements\n- Requirement 1\n- Requirement 2\n- Requirement 3\n".to_string();
 
@@ -1576,7 +1585,7 @@ mod tests {
     fn test_context_suggestion_engine() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let content = "## Requirements\n- User authentication with email\n- Password validation with bcrypt\n- Session management\n".to_string();
 
             // Phase 5 feature: Smart suggestions when context fails
@@ -1615,12 +1624,12 @@ mod tests {
     fn test_advanced_rollback_system() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let original_content =
                 "## Phase 1\n- [ ] Task 1\n- [ ] Task 2\n## Phase 2\n- [ ] Task 3\n".to_string();
 
             // Phase 5 feature: Advanced rollback with operation history
-            let mut history_matcher = ContextMatcherWithHistory::new(original_content.clone());
+            let mut history_matcher = ContextMatcherWithHistory::new(original_content);
 
             // Apply first patch
             let patch1 = ContextPatch {
@@ -1678,7 +1687,7 @@ mod tests {
     fn test_performance_monitoring() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let large_content = create_large_test_content();
 
             // Phase 5 feature: Performance monitoring and metrics
@@ -1736,7 +1745,7 @@ mod tests {
     fn test_complex_markdown_structure_support() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let complex_content = r#"# Feature Spec
 
 ## Requirements
@@ -1815,7 +1824,7 @@ See [Authentication Guide](./auth.md) for details.
     fn test_context_suggestion_engine_smart_recommendations() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             let content = "## Authentication\n- User login with email\n- Password validation\n- Session timeout handling\n\n## Authorization\n- Role-based access control\n- Permission validation\n- User login with social media\n".to_string();
 
             // Phase 5 feature: Smart context suggestions when matching fails
@@ -1870,11 +1879,11 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_simple_algorithm_exact_match() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "## Requirements\n- User registration\n- Password hashing\n- Session management".to_string();
                 let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Simple);
-                
+
                 let patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -1886,7 +1895,7 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
-                
+
                 // Simple algorithm should succeed with confidence 1.0 for exact matches
                 assert!(result.success);
                 assert_eq!(result.match_confidence, Some(1.0));
@@ -1898,11 +1907,14 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_simple_algorithm_fails_word_reordering() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
-                let content = "## Requirements\n- User authentication system\n- Password validation".to_string();
-                let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Simple);
-                
+
+            env.with_env_async(|| async {
+                let content =
+                    "## Requirements\n- User authentication system\n- Password validation"
+                        .to_string();
+                let mut matcher =
+                    ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Simple);
+
                 let patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -1914,7 +1926,7 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
-                
+
                 // Simple algorithm should fail with word reordering
                 assert!(!result.success);
                 assert!(result.error_message.is_some());
@@ -1925,11 +1937,11 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_tokensort_algorithm_word_reordering() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "## Requirements\n- User authentication system\n- Password validation process\n- Session timeout management".to_string();
                 let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::TokenSort);
-                
+
                 let patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -1945,7 +1957,7 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
-                
+
                 // TokenSort algorithm should succeed with word reordering
                 assert!(result.success);
                 assert!(result.match_confidence.unwrap() > 0.7);
@@ -1958,11 +1970,11 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_partialratio_algorithm_substring_matching() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "## Requirements\n- User authentication system with JWT tokens\n- Password validation and security\n- Session timeout management".to_string();
                 let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::PartialRatio);
-                
+
                 let patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -1978,7 +1990,7 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
-                
+
                 // PartialRatio algorithm should succeed with substring matching
                 assert!(result.success, "PartialRatio test failed: {:?}", result.error_message);
                 assert!(result.match_confidence.unwrap() > 0.6);
@@ -1991,11 +2003,11 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_levenshtein_algorithm_typo_matching() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "## Requirements\n- User authentication with validation\n- Password security measures\n- Session timeout handling".to_string();
                 let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Levenshtein);
-                
+
                 let patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -2011,7 +2023,7 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
-                
+
                 // Levenshtein algorithm should succeed with typos
                 assert!(result.success);
                 assert!(result.match_confidence.unwrap() > 0.7);
@@ -2024,10 +2036,10 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_algorithm_performance_characteristics() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let large_content = create_large_test_content();
-                
+
                 let exact_patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Insert,
@@ -2039,13 +2051,19 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 // Test Simple algorithm (should be fastest)
-                let mut simple_matcher = ContextMatcher::new_with_algorithm(large_content.clone(), SimilarityAlgorithm::Simple);
+                let mut simple_matcher = ContextMatcher::new_with_algorithm(
+                    large_content.clone(),
+                    SimilarityAlgorithm::Simple,
+                );
                 let start_simple = Instant::now();
                 let simple_result = simple_matcher.apply_patch(&exact_patch).unwrap();
                 let simple_duration = start_simple.elapsed();
 
                 // Test Levenshtein algorithm (should be slowest)
-                let mut levenshtein_matcher = ContextMatcher::new_with_algorithm(large_content.clone(), SimilarityAlgorithm::Levenshtein);
+                let mut levenshtein_matcher = ContextMatcher::new_with_algorithm(
+                    large_content,
+                    SimilarityAlgorithm::Levenshtein,
+                );
                 let start_levenshtein = Instant::now();
                 let levenshtein_result = levenshtein_matcher.apply_patch(&exact_patch).unwrap();
                 let levenshtein_duration = start_levenshtein.elapsed();
@@ -2053,11 +2071,11 @@ See [Authentication Guide](./auth.md) for details.
                 // Both should succeed with same content
                 assert!(simple_result.success);
                 assert!(levenshtein_result.success);
-                
+
                 // Simple should be faster or at least not significantly slower
                 // Allow some variance for test environment variations
                 assert!(simple_duration <= levenshtein_duration * 3);
-                
+
                 // Simple should give confidence 1.0 for exact match
                 assert_eq!(simple_result.match_confidence, Some(1.0));
                 assert_eq!(levenshtein_result.match_confidence, Some(1.0)); // Exact match too
@@ -2068,13 +2086,16 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_forced_algorithm_failure() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
-                let content = "## Requirements\n- User authentication system\n- Password validation".to_string();
-                
+
+            env.with_env_async(|| async {
+                let content =
+                    "## Requirements\n- User authentication system\n- Password validation"
+                        .to_string();
+
                 // Force Simple algorithm with impossible content (word reordering)
-                let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Simple);
-                
+                let mut matcher =
+                    ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Simple);
+
                 let impossible_patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -2086,11 +2107,17 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&impossible_patch).unwrap();
-                
+
                 // Should fail when forced algorithm cannot match
                 assert!(!result.success);
                 assert!(result.error_message.is_some());
-                assert!(result.error_message.as_ref().unwrap().contains("Context not found"));
+                assert!(
+                    result
+                        .error_message
+                        .as_ref()
+                        .unwrap()
+                        .contains("Context not found")
+                );
             });
         }
     }
@@ -2106,11 +2133,11 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_empty_file_handling() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "".to_string(); // Completely empty
                 let mut matcher = ContextMatcher::new(content);
-                
+
                 let patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Insert,
@@ -2122,7 +2149,7 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
-                
+
                 // Should fail gracefully with helpful error
                 assert!(!result.success);
                 assert!(result.error_message.is_some());
@@ -2134,11 +2161,11 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_single_line_file_handling() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "# Single Line File".to_string();
                 let mut matcher = ContextMatcher::new(content);
-                
+
                 let patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Insert,
@@ -2150,9 +2177,13 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
-                
+
                 // Should succeed with single line context
-                assert!(result.success, "Single line test failed: {:?}", result.error_message);
+                assert!(
+                    result.success,
+                    "Single line test failed: {:?}",
+                    result.error_message
+                );
                 assert!(matcher.get_content().contains("## Added Section"));
             });
         }
@@ -2161,11 +2192,11 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_unicode_and_special_characters() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "## Requirements 🚀\n- User authentication 认证\n- Password validation 🔒\n- Session management セッション".to_string();
                 let mut matcher = ContextMatcher::new(content);
-                
+
                 let patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -2177,7 +2208,7 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
-                
+
                 // Should handle Unicode correctly
                 assert!(result.success, "Unicode test failed: {:?}", result.error_message);
                 assert!(matcher.get_content().contains("✅ UNICODE"));
@@ -2188,11 +2219,11 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_context_at_file_boundaries() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "# First Line\nMiddle content\n# Last Line".to_string();
                 let mut matcher = ContextMatcher::new(content);
-                
+
                 // Test insertion at very beginning
                 let start_patch = ContextPatch {
                     file_type: SpecFileType::Spec,
@@ -2205,7 +2236,11 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&start_patch).unwrap();
-                assert!(result.success, "Start boundary test failed: {:?}", result.error_message);
+                assert!(
+                    result.success,
+                    "Start boundary test failed: {:?}",
+                    result.error_message
+                );
 
                 // Test insertion at very end
                 let end_patch = ContextPatch {
@@ -2219,8 +2254,12 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result2 = matcher.apply_patch(&end_patch).unwrap();
-                assert!(result2.success, "End boundary test failed: {:?}", result2.error_message);
-                
+                assert!(
+                    result2.success,
+                    "End boundary test failed: {:?}",
+                    result2.error_message
+                );
+
                 let final_content = matcher.get_content();
                 assert!(final_content.starts_with("## Before First Line"));
                 assert!(final_content.ends_with("## After Last Line"));
@@ -2231,27 +2270,31 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_malformed_patch_validation() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "## Requirements\n- Some content".to_string();
                 let mut matcher = ContextMatcher::new(content);
-                
+
                 // Test patch with empty contexts
                 let empty_patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Insert,
                     section_context: None,
                     before_context: vec![], // Empty
-                    after_context: vec![], // Empty
+                    after_context: vec![],  // Empty
                     content: "Should fail".to_string(),
                     match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&empty_patch);
-                
+
                 // Should fail validation with proper error
                 assert!(result.is_err());
-                assert!(result.unwrap_err().to_string().contains("At least one of before_context or after_context must be provided"));
+                assert!(
+                    result.unwrap_err().to_string().contains(
+                        "At least one of before_context or after_context must be provided"
+                    )
+                );
 
                 // Test insert/replace operation with empty content
                 let empty_content_patch = ContextPatch {
@@ -2266,7 +2309,12 @@ See [Authentication Guide](./auth.md) for details.
 
                 let result2 = matcher.apply_patch(&empty_content_patch);
                 assert!(result2.is_err());
-                assert!(result2.unwrap_err().to_string().contains("Content cannot be empty for insert/replace operations"));
+                assert!(
+                    result2
+                        .unwrap_err()
+                        .to_string()
+                        .contains("Content cannot be empty for insert/replace operations")
+                );
             });
         }
 
@@ -2274,19 +2322,19 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_large_file_handling() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 // Create a very large file (10K+ lines)
                 let mut large_content = String::new();
                 large_content.push_str("# Extremely Large Document\n\n");
-                
+
                 // Add 10,000 similar lines
                 for i in 1..=10000 {
                     large_content.push_str(&format!("- Line number {} with content\n", i));
                 }
-                
+
                 let mut matcher = ContextMatcher::new(large_content);
-                
+
                 let patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -2300,9 +2348,13 @@ See [Authentication Guide](./auth.md) for details.
                 let start_time = Instant::now();
                 let result = matcher.apply_patch(&patch).unwrap();
                 let duration = start_time.elapsed();
-                
+
                 // Should succeed within reasonable time
-                assert!(result.success, "Large file test failed: {:?}", result.error_message);
+                assert!(
+                    result.success,
+                    "Large file test failed: {:?}",
+                    result.error_message
+                );
                 assert!(duration.as_millis() < 500); // Should complete within 500ms
                 assert!(matcher.get_content().contains("✅ LARGE_FILE"));
             });
@@ -2312,11 +2364,11 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_ambiguous_context_handling() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = "## Section A\n- Common requirement\n- Different req A\n## Section B\n- Common requirement\n- Different req B".to_string();
                 let mut matcher = ContextMatcher::new(content);
-                
+
                 // Test ambiguous context without section disambiguation
                 let ambiguous_patch = ContextPatch {
                     file_type: SpecFileType::Spec,
@@ -2329,12 +2381,12 @@ See [Authentication Guide](./auth.md) for details.
                 };
 
                 let result = matcher.apply_patch(&ambiguous_patch).unwrap();
-                
+
                 // Should succeed by using after_context to disambiguate
                 assert!(result.success, "Ambiguous context test failed: {:?}", result.error_message);
-                
+
                 let content_after = matcher.get_content();
-                
+
                 // Should have updated only the first occurrence (in Section A)
                 assert!(content_after.contains("## Section A\n- Common requirement ✅ DISAMBIGUATED"));
                 // Section B should be unchanged
@@ -2346,8 +2398,8 @@ See [Authentication Guide](./auth.md) for details.
         #[test]
         fn test_special_markdown_structures() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 let content = r#"# Main Title
 
 ## Code Block Test
@@ -2368,10 +2420,11 @@ const test = {
 1. First level
    - Second level
      * Third level
-       + Fourth level"#.to_string();
+       + Fourth level"#
+                    .to_string();
 
                 let mut matcher = ContextMatcher::new(content);
-                
+
                 // Test context matching within code block
                 let code_patch = ContextPatch {
                     file_type: SpecFileType::Spec,
@@ -2384,7 +2437,11 @@ const test = {
                 };
 
                 let result = matcher.apply_patch(&code_patch).unwrap();
-                assert!(result.success, "Code block test failed: {:?}", result.error_message);
+                assert!(
+                    result.success,
+                    "Code block test failed: {:?}",
+                    result.error_message
+                );
                 assert!(matcher.get_content().contains("updated_value"));
 
                 // Test context matching in table
@@ -2399,7 +2456,11 @@ const test = {
                 };
 
                 let result2 = matcher.apply_patch(&table_patch).unwrap();
-                assert!(result2.success, "Table test failed: {:?}", result2.error_message);
+                assert!(
+                    result2.success,
+                    "Table test failed: {:?}",
+                    result2.error_message
+                );
                 assert!(matcher.get_content().contains("Complete"));
             });
         }
@@ -2408,11 +2469,12 @@ const test = {
         #[test]
         fn test_content_change_detection() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
-                let original_content = "## Requirements\n- Feature A\n- Feature B\n- Feature C".to_string();
+
+            env.with_env_async(|| async {
+                let original_content =
+                    "## Requirements\n- Feature A\n- Feature B\n- Feature C".to_string();
                 let mut matcher = ContextMatcher::new(original_content);
-                
+
                 // First, apply a patch successfully
                 let patch1 = ContextPatch {
                     file_type: SpecFileType::Spec,
@@ -2443,12 +2505,15 @@ const test = {
                 };
 
                 let result2 = matcher.apply_patch(&patch2).unwrap();
-                
+
                 // Should fail because content has changed
                 assert!(!result2.success, "Second patch should fail but succeeded");
                 assert!(result2.error_message.is_some());
                 // The specific suggestion text may vary, just ensure suggestions are provided
-                assert!(!result2.suggestions.is_empty(), "Should provide suggestions for failed match");
+                assert!(
+                    !result2.suggestions.is_empty(),
+                    "Should provide suggestions for failed match"
+                );
             });
         }
 
@@ -2456,12 +2521,14 @@ const test = {
         #[test]
         fn test_extreme_similarity_thresholds() {
             let env = TestEnvironment::new().unwrap();
-            
-            let _ = env.with_env_async(|| async {
+
+            env.with_env_async(|| async {
                 // Test with very low similarity threshold (should match almost anything)
-                let content1 = "## Requirements\n- User authentication system\n- Password validation".to_string();
+                let content1 =
+                    "## Requirements\n- User authentication system\n- Password validation"
+                        .to_string();
                 let mut matcher1 = ContextMatcher::new(content1);
-                
+
                 let low_threshold_patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -2481,9 +2548,11 @@ const test = {
                 // The important thing is it doesn't crash and provides reasonable feedback
 
                 // Test with high threshold using fresh content (exact match should work)
-                let content2 = "## Requirements\n- User authentication system\n- Password validation".to_string();
+                let content2 =
+                    "## Requirements\n- User authentication system\n- Password validation"
+                        .to_string();
                 let mut matcher2 = ContextMatcher::new(content2);
-                
+
                 let high_threshold_patch = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
@@ -2492,7 +2561,7 @@ const test = {
                     after_context: vec!["- Password validation".to_string()],
                     content: "- User authentication system ✅ HIGH_THRESHOLD".to_string(),
                     match_config: MatchingConfig {
-                        ignore_whitespace: false, // Strict matching
+                        ignore_whitespace: false,   // Strict matching
                         similarity_threshold: 0.99, // Nearly perfect match required
                         case_insensitive_fallback: false,
                     },
@@ -2500,7 +2569,11 @@ const test = {
 
                 let result2 = matcher2.apply_patch(&high_threshold_patch).unwrap();
                 // Should succeed since this is an exact match
-                assert!(result2.success, "High threshold test failed: {:?}", result2.error_message);
+                assert!(
+                    result2.success,
+                    "High threshold test failed: {:?}",
+                    result2.error_message
+                );
             });
         }
     }
