@@ -351,7 +351,7 @@ mod tests {
                 install_result
                     .actions_taken
                     .iter()
-                    .any(|action| action.contains("Added Foundry MCP server"))
+                    .any(|action| action.contains("Updated existing Foundry MCP server"))
             );
         });
     }
@@ -377,7 +377,7 @@ mod tests {
                 install_result
                     .actions_taken
                     .iter()
-                    .any(|action| action.contains("Added Foundry MCP server"))
+                    .any(|action| action.contains("Updated existing Foundry MCP server"))
             );
 
             // Verify config was updated to use 'foundry' command from PATH
