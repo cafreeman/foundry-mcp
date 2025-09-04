@@ -17,6 +17,7 @@ use tokio::process::Command;
 async fn execute_claude_command(args: &[&str]) -> Result<std::process::Output> {
     // Determine the shell to use
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
+    let current_path = std::env::var("PATH").unwrap_or_default();
 
     // Build the command string
     let mut cmd_parts = vec!["claude"];
@@ -24,17 +25,12 @@ async fn execute_claude_command(args: &[&str]) -> Result<std::process::Output> {
     let cmd_string = cmd_parts.join(" ");
 
     // Execute through shell to handle aliases and PATH properly
-    // Use -i flag for interactive shell to load aliases
+    // Use non-interactive shell to avoid loading user config files in tests
     let mut command = Command::new(&shell);
-
-    // For bash/zsh, use interactive shell to load aliases
-    if shell.contains("bash") || shell.contains("zsh") {
-        command.args(["-i", "-c", &cmd_string]);
-    } else {
-        command.args(["-c", &cmd_string]);
-    }
+    command.args(["-c", &cmd_string]);
 
     command
+        .env("PATH", current_path)
         .output()
         .await
         .context("Failed to execute claude command through shell")

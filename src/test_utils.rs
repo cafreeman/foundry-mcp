@@ -490,6 +490,46 @@ impl TestEnvironment {
         rt.block_on(f())
     }
 
+    /// Execute async test logic with PATH environment variable isolation
+    /// This is needed for tests that require mock binaries to be in PATH
+    pub fn with_env_and_path_async<F, Fut, T>(&self, f: F) -> T
+    where
+        F: FnOnce() -> Fut,
+        Fut: Future<Output = T>,
+    {
+        // Set additional environment variables for test isolation
+        let cursor_config_dir = self.cursor_config_dir().to_string_lossy().to_string();
+        let claude_config_dir = self
+            .temp_dir
+            .path()
+            .join(".claude")
+            .to_string_lossy()
+            .to_string();
+
+        // Create isolated PATH that includes our temp bin directory
+        let temp_bin_dir = self
+            .temp_dir
+            .path()
+            .join("bin")
+            .to_string_lossy()
+            .to_string();
+        // Use a minimal PATH that includes our temp bin directory
+        // This avoids reading the real PATH environment variable
+        let isolated_path = format!("{}:/usr/local/bin:/usr/bin:/bin", temp_bin_dir);
+
+        // Set environment variables for the test
+        let _cursor_guard = env_var_guard("CURSOR_CONFIG_DIR", &cursor_config_dir);
+        let _claude_guard = env_var_guard("CLAUDE_CONFIG_DIR", &claude_config_dir);
+        let _path_guard = env_var_guard("PATH", &isolated_path);
+
+        // Always create a new single-threaded runtime for simplicity and isolation
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to create tokio runtime for test");
+        rt.block_on(f())
+    }
+
     /// Create a mock binary file for testing
     /// Returns the path to the created binary
     pub fn create_mock_binary(&self, name: &str) -> Result<PathBuf> {
@@ -535,9 +575,9 @@ case "$1" in
                 exit 0
                 ;;
             "remove")
-                # Mock successful MCP server removal
-                echo "MCP server 'foundry' removed successfully"
-                exit 0
+                # Mock MCP server removal - fail if server doesn't exist
+                echo "No MCP server found with name: 'foundry'" >&2
+                exit 1
                 ;;
             *)
                 echo "Unknown mcp command: $2"
