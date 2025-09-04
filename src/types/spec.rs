@@ -118,6 +118,109 @@ pub struct ContextPatchResult {
     pub error_message: Option<String>,
     /// Suggestions for fixing failed patches
     pub suggestions: Vec<String>,
+    /// Unique operation ID for history tracking (Phase 5)
+    pub operation_id: Option<String>,
+    /// Smart suggestions for failed matches (Phase 5)
+    pub smart_suggestions: Option<Vec<SmartSuggestion>>,
+}
+
+/// Result of a batch context patch operation (Phase 5)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchContextPatchResult {
+    /// Whether all patches were successfully applied
+    pub success: bool,
+    /// Number of patches successfully applied
+    pub patches_applied: usize,
+    /// Total number of lines modified across all patches
+    pub total_lines_modified: usize,
+    /// Individual patch results
+    pub patch_results: Vec<ContextPatchResult>,
+    /// Error message if batch failed
+    pub error_message: Option<String>,
+    /// Conflict information if conflicts were detected
+    pub conflicts_detected: Option<Vec<PatchConflict>>,
+}
+
+/// Smart suggestion for improving failed context matches (Phase 5)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SmartSuggestion {
+    /// Type of suggestion (section_disambiguation, more_specific_context, corrected_patch, etc.)
+    pub suggestion_type: String,
+    /// Human-readable description of the suggestion
+    pub description: String,
+    /// Suggested fix or corrected content
+    pub suggested_fix: String,
+    /// Confidence score for this suggestion (0.0 to 1.0)
+    pub confidence: f32,
+}
+
+/// Conflict detected between context patches (Phase 5)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PatchConflict {
+    /// Type of conflict detected
+    pub conflict_type: ConflictType,
+    /// Indices of conflicting patches
+    pub patch_indices: Vec<usize>,
+    /// Description of the conflict
+    pub description: String,
+    /// Suggested resolutions
+    pub resolution_suggestions: Vec<String>,
+}
+
+/// Types of conflicts that can occur between patches (Phase 5)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub enum ConflictType {
+    /// Two patches target the same content location
+    OverlappingContext,
+    /// Patches have dependencies that create ordering conflicts
+    DependencyConflict,
+    /// Patches contradict each other (insert + delete at same location)
+    ContradictoryOperations,
+}
+
+/// Performance metrics for context matching operations (Phase 5)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PerformanceMetrics {
+    /// Time spent searching for context matches
+    pub context_search_duration: std::time::Duration,
+    /// Total operation duration
+    pub total_duration: std::time::Duration,
+    /// Number of cache hits
+    pub cache_hits: usize,
+    /// Number of cache misses
+    pub cache_misses: usize,
+    /// Total operations performed
+    pub total_operations: usize,
+    /// Number of successful operations
+    pub successful_operations: usize,
+}
+
+impl PerformanceMetrics {
+    /// Calculate success rate (0.0 to 1.0)
+    pub fn success_rate(&self) -> f32 {
+        if self.total_operations == 0 {
+            0.0
+        } else {
+            self.successful_operations as f32 / self.total_operations as f32
+        }
+    }
+}
+
+/// Operation history entry for advanced rollback (Phase 5)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OperationHistoryEntry {
+    /// Unique operation ID
+    pub operation_id: String,
+    /// Type of operation (apply_patch, rollback, etc.)
+    pub operation_type: String,
+    /// Timestamp when operation was performed
+    pub timestamp: std::time::SystemTime,
+    /// Content snapshot before operation
+    pub content_before: String,
+    /// Content snapshot after operation
+    pub content_after: String,
+    /// Patch that was applied (if applicable)
+    pub patch_applied: Option<ContextPatch>,
 }
 
 /// Content validation status
