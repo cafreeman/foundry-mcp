@@ -101,7 +101,8 @@ pub struct ContextPatch {
     pub after_context: Vec<String>,
     /// Content to insert, replace, or delete
     pub content: String,
-    /// Configuration for matching behavior
+    /// Configuration for matching behavior (optional, uses defaults if not provided)
+    #[serde(default)]
     pub match_config: MatchingConfig,
 }
 
