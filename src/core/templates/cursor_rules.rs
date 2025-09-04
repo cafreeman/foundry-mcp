@@ -102,22 +102,24 @@ Each spec contains:
   - When: Continuing work on existing features, checking task status
   - Returns: Complete spec content with project context
 
-- **`mcp_foundry_update_spec`**: Updating multiple spec files in a single operation with explicit content replacement control
+- **`mcp_foundry_update_spec`**: Updating spec files with three operation types for different use cases
 
   - **File Types**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
-  - **Operations**: `replace` (overwrite) or `append` (add to existing) - REQUIRED
+  - **Operations**: `replace`, `append`, or `context_patch` - REQUIRED
   - **Usage**:
 
     ```
-    # Update single file
+    # Traditional operations - full content
     mcp_foundry_update_spec <project> <spec> --spec "<content>" --operation <replace|append>
 
-    # Update multiple files in one command
-    mcp_foundry_update_spec <project> <spec> \
-      --spec "<spec content>" \
-      --tasks "<task content>" \
-      --notes "<notes content>" \
-      --operation <replace|append>
+    # Context-based patching - targeted updates
+    mcp_foundry_update_spec <project> <spec> --operation context_patch --context-patch '{
+      "file_type": "tasks",
+      "operation": "replace",
+      "before_context": ["- [ ] Implement user auth"],
+      "after_context": ["- [ ] Add password hashing"],
+      "content": "- [x] Implement user auth"
+    }'
     ```
 
   - **Operation Types**:
@@ -125,15 +127,21 @@ Each spec contains:
       - **Use when**: Major changes, complete rewrites, replacing outdated content
       - **Risk**: Existing content is permanently lost
     - **`--operation append`**: Adds new content to the END of existing content only
-      - **Use when**: Adding new tasks, progress updates, accumulating notes
+      - **Use when**: Adding new content to end of files, building up specifications iteratively
       - **IMPORTANT**: Append only adds to the bottom - it cannot edit existing content or insert in the middle
       - **Risk**: Low - existing content is preserved, but cannot modify existing sections
+    - **`--operation context_patch`**: Makes precise, targeted updates using surrounding text context
+      - **Use when**: Small targeted changes (mark task complete, add single item, fix specific content)
+      - **Benefits**: 70-90% token reduction, precise targeting, no line number precision needed
+      - **Requirements**: 3-5 lines of surrounding context for reliable matching
+      - **JSON Format**: Requires JSON with file_type, operation (insert/replace/delete), before_context, after_context, content
   - **Best Practices**:
-    - Use `append` for iterative development: Add new tasks, mark completed items, add new notes
+    - **ALWAYS load current content first**: Use `mcp_foundry_load_spec` before context patching
+    - Use `context_patch` for small targeted changes: Mark tasks complete, add single requirements, fix typos
+    - Use `append` for adding content to end: New tasks at bottom, progress updates, accumulating notes
     - Use `replace` for major changes: Complete rewrites, editing existing content, requirement changes
     - **Never use `append` to modify existing content** - it only adds to the end
-    - At least one content parameter (`--spec`, `--tasks`, or `--notes`) must be provided
-    - Operation is always required and applies to all files being updated
+    - Context patching requires unique surrounding text for reliable matching
 
 #### Discovery & Validation
 
@@ -148,8 +156,9 @@ Each spec contains:
   - Use this proactively to avoid validation errors
 
 - **`mcp_foundry_get_foundry_help`**: Getting workflow guidance and examples
-  - Topics: `workflows`, `content-examples`, `project-structure`, `parameter-guidance`
-  - Use when: Understanding best practices, troubleshooting
+  - Topics: `workflows`, `content-examples`, `project-structure`, `parameter-guidance`, `context-patching`
+  - Use when: Understanding best practices, troubleshooting, learning context patching
+  - **Essential**: Use `context-patching` topic for targeted update guidance and examples
 
 ## Content Requirements & Boundaries
 
@@ -270,17 +279,35 @@ mcp_foundry_create_spec project-name new-feature
 # Create initial spec
 mcp_foundry_create_spec my-project user-auth
 
+# OPTION 1: Context patching for targeted updates (PREFERRED for small changes)
+# First, load current content to see context
+mcp_foundry_load_spec my-project 20240101_user_auth
+
+# Mark task complete using context patching (70-90% token reduction)
+mcp_foundry_update_spec my-project 20240101_user_auth --operation context_patch --context-patch '{
+  "file_type": "tasks",
+  "operation": "replace",
+  "before_context": ["## Phase 1"],
+  "after_context": ["- [ ] Add password hashing"],
+  "content": "- [x] Implement user authentication"
+}'
+
+# Insert new requirement using context patching
+mcp_foundry_update_spec my-project 20240101_user_auth --operation context_patch --context-patch '{
+  "file_type": "spec",
+  "operation": "insert",
+  "section_context": "## Requirements",
+  "before_context": ["- Password hashing with bcrypt"],
+  "after_context": ["- Session management"],
+  "content": "- Two-factor authentication support"
+}'
+
+# OPTION 2: Traditional append for adding to end of files
 # Add new tasks to the bottom of task list (append only adds to end)
 mcp_foundry_update_spec my-project 20240101_user_auth --tasks "- [ ] New task added to bottom" --operation append
 
 # Add implementation notes to the bottom (append only adds to end)
 mcp_foundry_update_spec my-project 20240101_user_auth --notes "## New Implementation Notes\nAdditional notes added to bottom of file." --operation append
-
-# Update both tasks and notes by adding to the bottom of each
-mcp_foundry_update_spec my-project 20240101_user_auth \
-  --tasks "- [ ] Another new task at bottom" \
-  --notes "More notes appended to end" \
-  --operation append
 ```
 
 ### 3. Follow Next Steps Guidance
@@ -381,16 +408,21 @@ mcp_foundry_load_project my-project
 # Create new feature spec
 mcp_foundry_create_spec my-project user-auth
 
-# Add new tasks to bottom of task list (append only adds to end)
+# PREFERRED: Context patching for targeted updates (load content first)
+mcp_foundry_load_spec my-project 20240101_user_auth
+mcp_foundry_update_spec my-project 20240101_user_auth --operation context_patch --context-patch '{
+  "file_type": "tasks",
+  "operation": "replace",
+  "before_context": ["- [ ] Implement authentication"],
+  "after_context": ["- [ ] Add password hashing"],
+  "content": "- [x] Implement authentication"
+}'
+
+# Traditional: Add new tasks to bottom of task list (append only adds to end)
 mcp_foundry_update_spec my-project 20240101_user_auth --tasks "- [ ] New task at bottom" --operation append
 
-# Add content to bottom of multiple files at once
-mcp_foundry_update_spec my-project 20240101_user_auth \
-  --tasks "- [ ] Another task at bottom" \
-  --notes "New notes appended to end" \
-  --operation append
-
-# Get help
+# Get help (including context patching guidance)
+mcp_foundry_get_foundry_help context-patching
 mcp_foundry_get_foundry_help workflows
 ```
 
