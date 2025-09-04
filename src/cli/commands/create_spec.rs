@@ -106,10 +106,14 @@ fn build_spec_config(args: CreateSpecArgs) -> SpecConfig {
 /// Generate next steps for the response
 fn generate_next_steps(project_name: &str, spec_name: &str) -> Vec<String> {
     vec![
-        format!("Specification '{}' created successfully", spec_name),
-        "Specification is ready for implementation work".to_string(),
         format!(
-            "Available next steps: foundry load_spec {} {} (to see full spec content), foundry load_project {} (to see project context), or begin implementation",
+            "Specification '{}' created successfully from your provided content",
+            spec_name
+        ),
+        "Your specification content has been structured and is ready for implementation work"
+            .to_string(),
+        format!(
+            "You can load the full spec: foundry load_spec {} {} (to review your content), foundry load_project {} (to see project context), or begin implementation",
             project_name, spec_name, project_name
         ),
     ]
@@ -120,9 +124,9 @@ fn generate_workflow_hints(
     validation_results: &[(&'static str, validation::ValidationResult)],
 ) -> Vec<String> {
     let mut hints = vec![
-        "Specification created with task-list.md for implementation tracking".to_string(),
-        "foundry load_spec: Use to review full specification content and notes".to_string(),
-        "foundry load_project: Use to see project context before implementation".to_string(),
+        "Your specification content has been structured with task-list.md for implementation tracking".to_string(),
+        "You can use foundry load_spec to review your full specification content and notes".to_string(),
+        "You can use foundry load_project to see project context before implementation".to_string(),
     ];
 
     // Add validation-specific hints
@@ -133,13 +137,14 @@ fn generate_workflow_hints(
 
     if !invalid_content.is_empty() {
         hints.push(format!(
-            "Consider reviewing content quality for: {}",
+            "You might consider reviewing content quality for: {}",
             invalid_content.join(", ")
         ));
     }
 
     hints.push(
-        "foundry get_foundry_help decision-points: Use to understand tool options".to_string(),
+        "You can use foundry get_foundry_help decision-points to understand tool options"
+            .to_string(),
     );
 
     hints

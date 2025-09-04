@@ -197,22 +197,26 @@ pub async fn execute(args: AnalyzeProjectArgs) -> Result<FoundryResponse<Analyze
     // Generate next steps and workflow hints
     let next_steps = vec![
         format!(
-            "Project '{}' analyzed and structure created",
+            "Project '{}' analyzed and structure created from your codebase analysis",
             args.project_name
         ),
-        "Project is ready for development work".to_string(),
+        "Your analyzed content has been structured and is ready for development work".to_string(),
         format!(
-            "Available next steps: foundry create_spec {} (if you have a specific feature), foundry load_project {} (to see full context), or continue codebase analysis",
+            "You can create specifications: foundry create_spec {} (if you have a specific feature), foundry load_project {} (to see full context), or continue codebase analysis",
             args.project_name, args.project_name
         ),
     ];
 
     let mut workflow_hints = vec![
         "Project structure created based on your codebase analysis".to_string(),
-        "foundry create_spec: Use when you identify a specific feature to work on".to_string(),
-        "foundry load_project: Use to see full project context and any existing specs".to_string(),
-        "Continue using codebase_search, grep_search, read_file for deeper analysis".to_string(),
-        "foundry get_foundry_help decision-points: Use to understand tool selection".to_string(),
+        "You can use foundry create_spec when you identify a specific feature to work on"
+            .to_string(),
+        "You can use foundry load_project to see full project context and any existing specs"
+            .to_string(),
+        "You can continue using codebase_search, grep_search, read_file for deeper analysis"
+            .to_string(),
+        "You can use foundry get_foundry_help decision-points to understand tool selection"
+            .to_string(),
     ];
 
     // Add suggestions from content validation

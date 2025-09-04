@@ -152,21 +152,21 @@ pub struct AnalyzeProjectArgs {
 // Generate MCP tool implementation for AnalyzeProjectArgs
 impl_mcp_tool! {
     name = "analyze_project",
-    description = "Create project structure by analyzing existing codebase. LLM analyzes codebase and provides vision, tech-stack, and summary content.",
+    description = "Create project structure by analyzing existing codebase. You analyze codebase and provide vision, tech-stack, and summary content as arguments.",
     struct AnalyzeProjectArgs {
         project_name: String {
             description = "Descriptive project name using kebab-case (e.g., 'my-analyzed-project')"
         },
         vision: String {
-            description = "LLM-analyzed product vision (200+ chars) based on codebase examination. Use Search/Grep/Read tools first. Structure with ## headers, bullet points, and specific examples from code. Cover problem solved, target users, and value proposition derived from actual functionality. Goes into vision.md",
+            description = "Your analyzed product vision (200+ chars) based on codebase examination. Use Search/Grep/Read tools first. Structure with ## headers, bullet points, and specific examples from code. Cover problem solved, target users, and value proposition derived from actual functionality. Goes into vision.md",
             min_length = 200
         },
         tech_stack: String {
-            description = "LLM-detected technology stack (150+ chars) based on codebase analysis. Examine package files, configs, and code patterns. Structure with ## headers for categories, list technologies with versions, include rationale from observed patterns. Reference specific files discovered. Goes into tech-stack.md",
+            description = "Your detected technology stack (150+ chars) based on codebase analysis. Examine package files, configs, and code patterns. Structure with ## headers for categories, list technologies with versions, include rationale from observed patterns. Reference specific files discovered. Goes into tech-stack.md",
             min_length = 150
         },
         summary: String {
-            description = "LLM-created concise summary (100+ chars) of analyzed project combining vision and tech-stack insights for quick context loading. Goes into summary.md",
+            description = "Your created concise summary (100+ chars) of analyzed project combining vision and tech-stack insights for quick context loading. Goes into summary.md",
             min_length = 100
         }
     }
@@ -252,7 +252,7 @@ pub struct CreateSpecArgs {
 // Generate MCP tool implementation for CreateSpecArgs
 impl_mcp_tool! {
     name = "create_spec",
-    description = "Create timestamped specification for a feature. Creates YYYYMMDD_HHMMSS_FEATURE_NAME directory with spec.md, task-list.md, and notes.md",
+    description = "Create timestamped specification for a feature. Creates YYYYMMDD_HHMMSS_FEATURE_NAME directory with spec.md, task-list.md, and notes.md. You provide complete specification content as arguments.",
     struct CreateSpecArgs {
         project_name: String {
             description = "Name of the existing project to create spec for"
