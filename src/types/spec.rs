@@ -63,6 +63,27 @@ pub enum ContextOperation {
     Delete,
 }
 
+/// Similarity algorithm options for fuzzy matching
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SimilarityAlgorithm {
+    /// Simple character-by-character comparison (original implementation)
+    Simple,
+    /// Levenshtein edit distance (good for typos and small changes)
+    Levenshtein,
+    /// Jaro-Winkler similarity (excellent for typos, especially at string beginnings)
+    JaroWinkler,
+    /// Token sort ratio (handles word reordering well)
+    TokenSort,
+    /// Partial ratio (good for substring matching)
+    PartialRatio,
+}
+
+impl Default for SimilarityAlgorithm {
+    fn default() -> Self {
+        Self::Simple
+    }
+}
+
 /// Configuration for context matching behavior
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchingConfig {
@@ -72,6 +93,10 @@ pub struct MatchingConfig {
     pub similarity_threshold: f32,
     /// Whether to use case-insensitive matching as fallback
     pub case_insensitive_fallback: bool,
+    /// Algorithm to use for similarity calculation
+    pub algorithm: SimilarityAlgorithm,
+    /// Whether to use adaptive thresholding based on content type
+    pub adaptive_threshold: bool,
 }
 
 impl Default for MatchingConfig {
@@ -80,6 +105,8 @@ impl Default for MatchingConfig {
             ignore_whitespace: true,
             similarity_threshold: 0.8,
             case_insensitive_fallback: true,
+            algorithm: SimilarityAlgorithm::default(),
+            adaptive_threshold: false,
         }
     }
 }
