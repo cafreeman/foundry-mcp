@@ -2,12 +2,10 @@
 
 use crate::types::spec::{
     BatchContextPatchResult, ConflictType, ContextOperation, ContextPatch, ContextPatchResult,
-    MatchingConfig, OperationHistoryEntry, PatchConflict, PerformanceMetrics, SimilarityAlgorithm,
-    SmartSuggestion,
+    MatchingConfig, OperationHistoryEntry, PatchConflict, PerformanceMetrics, SmartSuggestion,
 };
 use anyhow::Result;
 use rapidfuzz::distance::levenshtein;
-use rapidfuzz::fuzz;
 use std::collections::HashMap;
 use std::time::{Duration, Instant, SystemTime};
 use uuid::Uuid;
@@ -357,7 +355,7 @@ impl ContextMatcher {
         }
     }
 
-    /// Calculate similarity between two lines (0.0 to 1.0) using enhanced algorithms
+    /// Calculate similarity between two lines (0.0 to 1.0) using smart algorithm selection
     fn calculate_line_similarity(&self, line1: &str, line2: &str, config: &MatchingConfig) -> f32 {
         let norm1 = self.normalize_text(line1, config);
         let norm2 = self.normalize_text(line2, config);
@@ -366,14 +364,48 @@ impl ContextMatcher {
             return 1.0;
         }
 
-        // Use enhanced similarity algorithms based on configuration
-        match config.algorithm {
-            SimilarityAlgorithm::Simple => self.calculate_simple_similarity(&norm1, &norm2),
-            SimilarityAlgorithm::Levenshtein => self.calculate_levenshtein_similarity(&norm1, &norm2),
-            SimilarityAlgorithm::JaroWinkler => self.calculate_jaro_winkler_similarity(&norm1, &norm2),
-            SimilarityAlgorithm::TokenSort => self.calculate_token_sort_similarity(&norm1, &norm2),
-            SimilarityAlgorithm::PartialRatio => self.calculate_partial_ratio_similarity(&norm1, &norm2),
+        // Try algorithms in order of speed and reliability
+        // This is completely internal - LLMs never see this complexity
+        self.calculate_similarity_with_cascade(&norm1, &norm2, config)
+    }
+
+    /// Internal algorithm cascading - tries multiple approaches for best results
+    fn calculate_similarity_with_cascade(
+        &self,
+        norm1: &str,
+        norm2: &str,
+        config: &MatchingConfig,
+    ) -> f32 {
+        // 1. Try exact/simple matching first (fastest)
+        let simple_score = self.calculate_simple_similarity(norm1, norm2);
+        if simple_score >= config.similarity_threshold {
+            return simple_score;
         }
+
+        // 2. Try TokenSort for word reordering scenarios
+        let token_score = self.calculate_token_sort_similarity(norm1, norm2);
+        if token_score >= config.similarity_threshold {
+            return token_score;
+        }
+
+        // 3. Try PartialRatio for substring scenarios
+        let partial_score = self.calculate_partial_ratio_similarity(norm1, norm2);
+        if partial_score >= config.similarity_threshold {
+            return partial_score;
+        }
+
+        // 4. Try Levenshtein as last resort (most permissive)
+        let levenshtein_score = self.calculate_levenshtein_similarity(norm1, norm2);
+        if levenshtein_score >= config.similarity_threshold.max(0.6) {
+            // Slightly more permissive
+            return levenshtein_score;
+        }
+
+        // 5. Return the best score we found, even if below threshold
+        simple_score
+            .max(token_score)
+            .max(partial_score)
+            .max(levenshtein_score)
     }
 
     /// Original simple character-by-character similarity calculation
@@ -403,27 +435,25 @@ impl ContextMatcher {
         1.0 - (distance as f32 / max_len as f32)
     }
 
-    /// Jaro-Winkler similarity (excellent for typos, especially at string beginnings)
-    fn calculate_jaro_winkler_similarity(&self, norm1: &str, norm2: &str) -> f32 {
-        // Use ratio with character iterators
-        (fuzz::ratio(norm1.chars(), norm2.chars()) / 100.0) as f32
-    }
-
     /// Token sort ratio (handles word reordering well) - fallback to simple for now
     fn calculate_token_sort_similarity(&self, norm1: &str, norm2: &str) -> f32 {
         // RapidFuzz doesn't have token_sort_ratio, use simple word-based comparison
         let words1: Vec<&str> = norm1.split_whitespace().collect();
         let words2: Vec<&str> = norm2.split_whitespace().collect();
-        
+
         if words1.is_empty() && words2.is_empty() {
             return 1.0;
         }
-        
+
         // Simple word overlap calculation
         let common_words = words1.iter().filter(|w| words2.contains(w)).count();
         let total_words = words1.len().max(words2.len());
-        
-        if total_words == 0 { 1.0 } else { common_words as f32 / total_words as f32 }
+
+        if total_words == 0 {
+            1.0
+        } else {
+            common_words as f32 / total_words as f32
+        }
     }
 
     /// Partial ratio (good for substring matching) - use simple substring logic
@@ -431,7 +461,7 @@ impl ContextMatcher {
         if norm1.is_empty() && norm2.is_empty() {
             return 1.0;
         }
-        
+
         // Check if one is a substring of the other
         if norm1.contains(norm2) || norm2.contains(norm1) {
             let shorter = norm1.len().min(norm2.len());
