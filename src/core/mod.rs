@@ -1,5 +1,6 @@
 //! Core business logic modules
 
+pub mod context_patch;
 pub mod filesystem;
 pub mod installation;
 pub mod project;

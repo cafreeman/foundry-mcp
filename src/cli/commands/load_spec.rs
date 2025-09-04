@@ -54,9 +54,7 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
                 .with_context(|| format!("Failed to load spec '{}'", spec_name))?;
 
             let spec_content = SpecContent {
-                spec: spec_data.spec_content,
-                notes: spec_data.notes,
-                task_list: spec_data.tasks,
+                content: spec_data.content,
             };
 
             let response_data = LoadSpecResponse {

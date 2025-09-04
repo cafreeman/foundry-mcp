@@ -1,11 +1,11 @@
 //! Implementation of the update_spec command
 
 use crate::cli::args::UpdateSpecArgs;
-use crate::core::{filesystem, project, spec};
+use crate::core::{context_patch::ContextMatcher, filesystem, project, spec};
 use crate::types::responses::{
     FileUpdateResult, FoundryResponse, UpdateSpecResponse, ValidationStatus,
 };
-use crate::types::spec::SpecFileType;
+use crate::types::spec::{ContextOperation, ContextPatch, SpecFileType};
 use anyhow::Result;
 
 pub async fn execute(args: UpdateSpecArgs) -> Result<FoundryResponse<UpdateSpecResponse>> {
@@ -25,17 +25,12 @@ pub async fn execute(args: UpdateSpecArgs) -> Result<FoundryResponse<UpdateSpecR
         ));
     }
 
-    // Build list of files to update
-    let files_to_update = build_update_list(&args)?;
-
-    // Process each file update
-    let mut results = Vec::new();
-    for file_update in files_to_update {
-        let result = update_single_file(&args, &file_update)?;
-        results.push(result);
-    }
-
-    let total_files_updated = results.len();
+    // Branch based on operation type
+    let (results, total_files_updated) = match args.operation.as_str() {
+        "context_patch" => execute_context_patch(&args).await?,
+        "replace" | "append" => execute_traditional_update(&args).await?,
+        _ => return Err(anyhow::anyhow!("Invalid operation: {}", args.operation)),
+    };
 
     let response_data = UpdateSpecResponse {
         project_name: args.project_name.clone(),
@@ -65,45 +60,19 @@ fn validate_args(args: &UpdateSpecArgs) -> Result<()> {
     // Validate operation is required and valid
     if args.operation.trim().is_empty() {
         return Err(anyhow::anyhow!(
-            "Operation is required. Must be either 'replace' or 'append'"
+            "Operation is required. Must be 'replace', 'append', or 'context_patch'"
         ));
     }
 
-    if !matches!(args.operation.to_lowercase().as_str(), "replace" | "append") {
-        return Err(anyhow::anyhow!(
-            "Invalid operation '{}'. Must be either 'replace' or 'append'",
-            args.operation
-        ));
-    }
-
-    // Validate at least one content parameter is provided
-    let has_spec = args.spec.as_ref().is_some_and(|s| !s.trim().is_empty());
-    let has_tasks = args.tasks.as_ref().is_some_and(|s| !s.trim().is_empty());
-    let has_notes = args.notes.as_ref().is_some_and(|s| !s.trim().is_empty());
-
-    if !has_spec && !has_tasks && !has_notes {
-        return Err(anyhow::anyhow!(
-            "At least one content parameter must be provided. Use --spec, --tasks, or --notes to specify content for the files you want to update."
-        ));
-    }
-
-    // Validate non-empty content for provided parameters
-    if let Some(ref spec_content) = args.spec
-        && spec_content.trim().is_empty()
-    {
-        return Err(anyhow::anyhow!("Spec content cannot be empty"));
-    }
-
-    if let Some(ref tasks_content) = args.tasks
-        && tasks_content.trim().is_empty()
-    {
-        return Err(anyhow::anyhow!("Tasks content cannot be empty"));
-    }
-
-    if let Some(ref notes_content) = args.notes
-        && notes_content.trim().is_empty()
-    {
-        return Err(anyhow::anyhow!("Notes content cannot be empty"));
+    match args.operation.to_lowercase().as_str() {
+        "replace" | "append" => validate_traditional_args(args)?,
+        "context_patch" => validate_context_patch_args(args)?,
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Invalid operation '{}'. Must be 'replace', 'append', or 'context_patch'",
+                args.operation
+            ));
+        }
     }
 
     Ok(())
@@ -166,19 +135,25 @@ fn update_single_file(args: &UpdateSpecArgs, file_update: &FileUpdate) -> Result
     match perform_file_update(args, file_update) {
         Ok(content_length) => Ok(FileUpdateResult {
             file_type: file_update.file_type_str.clone(),
-            operation: args.operation.clone(),
+            operation_performed: args.operation.clone(),
             file_path: file_path.to_string_lossy().to_string(),
             content_length,
             success: true,
             error_message: None,
+            lines_modified: None,
+            patch_type: None,
+            match_confidence: None,
         }),
         Err(error) => Ok(FileUpdateResult {
             file_type: file_update.file_type_str.clone(),
-            operation: args.operation.clone(),
+            operation_performed: args.operation.clone(),
             file_path: file_path.to_string_lossy().to_string(),
             content_length: 0,
             success: false,
             error_message: Some(error.to_string()),
+            lines_modified: None,
+            patch_type: None,
+            match_confidence: None,
         }),
     }
 }
@@ -305,4 +280,148 @@ fn generate_workflow_hints(args: &UpdateSpecArgs) -> Vec<String> {
     hints.push("Use --operation replace for major changes".to_string());
 
     hints
+}
+
+/// Execute context-based patch operation
+async fn execute_context_patch(args: &UpdateSpecArgs) -> Result<(Vec<FileUpdateResult>, usize)> {
+    // Parse the context patch JSON
+    let context_patch_json = args.context_patch.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("context_patch parameter is required for context_patch operation")
+    })?;
+
+    let patch: ContextPatch = serde_json::from_str(context_patch_json)
+        .map_err(|e| anyhow::anyhow!("Invalid context patch JSON: {}", e))?;
+
+    // Determine which file to update based on the patch
+    let file_path = match patch.file_type {
+        SpecFileType::Spec => spec::get_spec_file_path(&args.project_name, &args.spec_name)?,
+        SpecFileType::TaskList => {
+            spec::get_task_list_file_path(&args.project_name, &args.spec_name)?
+        }
+        SpecFileType::Notes => spec::get_notes_file_path(&args.project_name, &args.spec_name)?,
+    };
+
+    // Read current file content
+    let current_content = filesystem::read_file(&file_path)?;
+
+    // Apply the context patch
+    let mut matcher = ContextMatcher::new(current_content);
+    let patch_result = matcher.apply_patch(&patch)?;
+
+    let mut results = Vec::new();
+
+    if patch_result.success {
+        // Write the updated content back to the file
+        filesystem::write_file_atomic(&file_path, matcher.get_content())?;
+
+        results.push(FileUpdateResult {
+            file_type: format!("{:?}", patch.file_type),
+            file_path: file_path.to_string_lossy().to_string(),
+            content_length: matcher.get_content().len(),
+            operation_performed: args.operation.clone(),
+            success: true,
+            error_message: None,
+            lines_modified: Some(patch_result.lines_modified),
+            patch_type: Some(patch_result.patch_type),
+            match_confidence: patch_result.match_confidence,
+        });
+    } else {
+        // Patch failed - return error information
+        results.push(FileUpdateResult {
+            file_type: format!("{:?}", patch.file_type),
+            file_path: file_path.to_string_lossy().to_string(),
+            content_length: 0,
+            operation_performed: args.operation.clone(),
+            success: false,
+            error_message: patch_result
+                .error_message
+                .or_else(|| Some("Context patch failed".to_string())),
+            lines_modified: Some(0),
+            patch_type: Some(patch_result.patch_type),
+            match_confidence: None,
+        });
+    }
+
+    let total_files = results.len();
+    Ok((results, total_files))
+}
+
+/// Execute traditional update operation (replace/append)
+async fn execute_traditional_update(
+    args: &UpdateSpecArgs,
+) -> Result<(Vec<FileUpdateResult>, usize)> {
+    // Build list of files to update
+    let files_to_update = build_update_list(args)?;
+
+    // Process each file update
+    let mut results = Vec::new();
+    for file_update in files_to_update {
+        let result = update_single_file(args, &file_update)?;
+        results.push(result);
+    }
+
+    let total_files_updated = results.len();
+    Ok((results, total_files_updated))
+}
+
+/// Validate arguments for traditional operations (replace/append)
+fn validate_traditional_args(args: &UpdateSpecArgs) -> Result<()> {
+    // Validate at least one content parameter is provided
+    let has_spec = args.spec.as_ref().is_some_and(|s| !s.trim().is_empty());
+    let has_tasks = args.tasks.as_ref().is_some_and(|s| !s.trim().is_empty());
+    let has_notes = args.notes.as_ref().is_some_and(|s| !s.trim().is_empty());
+
+    if !has_spec && !has_tasks && !has_notes {
+        return Err(anyhow::anyhow!(
+            "At least one content parameter must be provided. Use --spec, --tasks, or --notes to specify content for the files you want to update."
+        ));
+    }
+
+    Ok(())
+}
+
+/// Validate arguments for context patch operations
+fn validate_context_patch_args(args: &UpdateSpecArgs) -> Result<()> {
+    // Ensure context_patch parameter is provided
+    let context_patch_json = args.context_patch.as_ref().ok_or_else(|| {
+        anyhow::anyhow!("context_patch parameter is required for context_patch operation")
+    })?;
+
+    if context_patch_json.trim().is_empty() {
+        return Err(anyhow::anyhow!("context_patch parameter cannot be empty"));
+    }
+
+    // Validate JSON structure
+    let patch: ContextPatch = serde_json::from_str(context_patch_json)
+        .map_err(|e| anyhow::anyhow!("Invalid context patch JSON: {}. Expected format: {{\"file_type\":\"spec|tasks|notes\",\"operation\":\"insert|replace|delete\",\"before_context\":[\"line1\"],\"after_context\":[\"line2\"],\"content\":\"new content\"}}", e))?;
+
+    // Validate context requirements
+    if patch.before_context.is_empty() && patch.after_context.is_empty() {
+        return Err(anyhow::anyhow!(
+            "At least one of 'before_context' or 'after_context' must be provided in context patch"
+        ));
+    }
+
+    // Validate content requirements based on operation
+    match patch.operation {
+        ContextOperation::Insert | ContextOperation::Replace => {
+            if patch.content.trim().is_empty() {
+                return Err(anyhow::anyhow!(
+                    "'content' field cannot be empty for insert/replace operations"
+                ));
+            }
+        }
+        ContextOperation::Delete => {
+            // Delete operations don't require content
+        }
+    }
+
+    // Ensure traditional content parameters are not provided with context_patch
+    if args.spec.is_some() || args.tasks.is_some() || args.notes.is_some() {
+        return Err(anyhow::anyhow!(
+            "Cannot use --spec, --tasks, or --notes parameters with --operation context_patch. Use context_patch JSON parameter instead."
+        ));
+    }
+
+    Ok(())
 }

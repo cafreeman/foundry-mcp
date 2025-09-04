@@ -536,6 +536,31 @@ pub struct UpdateSpecArgs {
     /// Applies to ALL files being updated in this command.
     #[arg(long, required = true)]
     pub operation: String,
+
+    /// Context-based patch data (JSON string, optional)
+    ///
+    /// **Context-Based Patching (--operation context_patch)**:
+    /// - Enables precise, targeted updates using surrounding text context
+    /// - Avoids need for line number precision or full file replacement
+    /// - Use JSON format with before_context, after_context, and content fields
+    /// - Supports fuzzy matching for minor formatting variations
+    /// - Example: {"file_type":"spec","operation":"insert","before_context":["- User auth"],"after_context":["- Session mgmt"],"content":"- Two-factor auth"}
+    ///
+    /// **When to use context_patch**:
+    /// - Small targeted changes (mark task complete, add single requirement)
+    /// - Precise insertions between existing content
+    /// - Updates where you know the surrounding context
+    ///
+    /// **JSON Schema Requirements**:
+    /// - file_type: "spec", "tasks", or "notes"
+    /// - operation: "insert", "replace", or "delete"
+    /// - before_context: Array of strings (3-5 lines recommended)
+    /// - after_context: Array of strings (3-5 lines recommended)
+    /// - content: String content to insert/replace
+    /// - section_context: Optional header for disambiguation (e.g., "## Requirements")
+    /// - match_config: Optional matching configuration
+    #[arg(long)]
+    pub context_patch: Option<String>,
 }
 
 // Manual MCP tool implementation for UpdateSpecArgs (has optional fields)
@@ -578,8 +603,13 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
 
         let mut operation_prop = serde_json::Map::new();
         operation_prop.insert("type".to_string(), serde_json::json!("string"));
-        operation_prop.insert("description".to_string(), serde_json::json!("REQUIRED: Content replacement strategy - 'replace' (completely overwrite) or 'append' (add to existing content). Applies to all files being updated. Use 'replace' for major changes, 'append' for iterative development."));
+        operation_prop.insert("description".to_string(), serde_json::json!("REQUIRED: Content replacement strategy - 'replace' (completely overwrite), 'append' (add to existing content), or 'context_patch' (targeted updates using surrounding text context). Applies to all files being updated. Use 'replace' for major changes, 'append' for iterative development, 'context_patch' for precise targeted updates."));
         properties.insert("operation".to_string(), operation_prop);
+
+        let mut context_patch_prop = serde_json::Map::new();
+        context_patch_prop.insert("type".to_string(), serde_json::json!("string"));
+        context_patch_prop.insert("description".to_string(), serde_json::json!("Context-based patch data (JSON string, optional). Used with --operation context_patch for precise, targeted updates using surrounding text context. Avoids need for line number precision or full file replacement. JSON schema: {\"file_type\":\"spec|tasks|notes\",\"operation\":\"insert|replace|delete\",\"before_context\":[\"line1\",\"line2\"],\"after_context\":[\"line1\",\"line2\"],\"content\":\"new content\",\"section_context\":\"## Header (optional)\",\"match_config\":{\"ignore_whitespace\":true,\"similarity_threshold\":0.8}}"));
+        properties.insert("context_patch".to_string(), context_patch_prop);
 
         rust_mcp_sdk::schema::Tool {
             name: "update_spec".to_string(),
@@ -612,6 +642,7 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
                 .as_str()
                 .ok_or_else(|| anyhow::anyhow!("Missing operation parameter"))?
                 .to_string(),
+            context_patch: params["context_patch"].as_str().map(|s| s.to_string()),
         })
     }
 }

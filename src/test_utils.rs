@@ -130,6 +130,7 @@ impl TestEnvironment {
                 tasks: None,
                 notes: None,
                 operation: operation.to_string(),
+                context_patch: None,
             },
             "task-list" | "tasks" => UpdateSpecArgs {
                 project_name: project_name.to_string(),
@@ -138,6 +139,7 @@ impl TestEnvironment {
                 tasks: Some(content),
                 notes: None,
                 operation: operation.to_string(),
+                context_patch: None,
             },
             "notes" => UpdateSpecArgs {
                 project_name: project_name.to_string(),
@@ -146,6 +148,7 @@ impl TestEnvironment {
                 tasks: None,
                 notes: Some(content),
                 operation: operation.to_string(),
+                context_patch: None,
             },
             _ => panic!("Invalid file_type: {}", file_type),
         }
@@ -168,6 +171,7 @@ impl TestEnvironment {
             tasks: tasks_content.map(|s| s.to_string()),
             notes: notes_content.map(|s| s.to_string()),
             operation: operation.to_string(),
+            context_patch: None,
         }
     }
 

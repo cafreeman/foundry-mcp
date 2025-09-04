@@ -1,5 +1,6 @@
 //! JSON response structures for CLI commands
 
+use super::spec::SpecContentData;
 use serde::{Deserialize, Serialize};
 
 /// Generic response wrapper for all CLI commands
@@ -100,9 +101,7 @@ pub struct SpecInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecContent {
-    pub spec: String,
-    pub notes: String,
-    pub task_list: String,
+    pub content: SpecContentData,
 }
 
 /// Response for analyze_project command
@@ -150,8 +149,8 @@ pub struct UpdateSpecResponse {
 pub struct FileUpdateResult {
     /// Type of file updated ("spec", "tasks", or "notes")
     pub file_type: String,
-    /// Operation performed ("replace" or "append")
-    pub operation: String,
+    /// Operation performed ("replace", "append", or "context_patch")
+    pub operation_performed: String,
     /// Full path to the updated file
     pub file_path: String,
     /// Length of final content in characters
@@ -161,6 +160,15 @@ pub struct FileUpdateResult {
     /// Error message if the operation failed (None if successful)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
+    /// Number of lines modified (for context patches)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lines_modified: Option<usize>,
+    /// Type of patch applied ("Insert", "Replace", "Delete" for context patches)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub patch_type: Option<String>,
+    /// Confidence score of context match (0.0 to 1.0)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub match_confidence: Option<f32>,
 }
 
 /// Response for delete_spec command

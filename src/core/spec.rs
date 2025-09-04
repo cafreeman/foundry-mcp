@@ -7,7 +7,8 @@ use std::path::PathBuf;
 
 use crate::core::filesystem;
 use crate::types::spec::{
-    Spec, SpecConfig, SpecFileType, SpecFilter, SpecMetadata, SpecValidationResult,
+    ContentValidationStatus, Spec, SpecConfig, SpecContentData, SpecFileType, SpecFilter,
+    SpecMetadata, SpecValidationResult,
 };
 use crate::utils::timestamp;
 
@@ -39,19 +40,17 @@ pub fn create_spec(config: SpecConfig) -> Result<Spec> {
     filesystem::create_dir_all(&spec_path)?;
 
     // Write spec files
-    filesystem::write_file_atomic(spec_path.join("spec.md"), &config.spec_content)?;
-    filesystem::write_file_atomic(spec_path.join("notes.md"), &config.notes)?;
+    filesystem::write_file_atomic(spec_path.join("spec.md"), &config.content.spec)?;
+    filesystem::write_file_atomic(spec_path.join("notes.md"), &config.content.notes)?;
 
-    filesystem::write_file_atomic(spec_path.join("task-list.md"), &config.tasks)?;
+    filesystem::write_file_atomic(spec_path.join("task-list.md"), &config.content.tasks)?;
 
     Ok(Spec {
         name: spec_name,
         created_at,
         path: spec_path,
         project_name: config.project_name,
-        spec_content: config.spec_content,
-        notes: config.notes,
-        tasks: config.tasks,
+        content: config.content,
     })
 }
 
@@ -288,9 +287,11 @@ pub fn validate_spec_files(project_name: &str, spec_name: &str) -> Result<SpecVa
         spec_file_exists: spec_file.exists(),
         notes_file_exists: notes_file.exists(),
         task_list_file_exists: task_list_file.exists(),
-        spec_content_valid: false,
-        notes_content_valid: false,
-        task_list_content_valid: false,
+        content_validation: ContentValidationStatus {
+            spec_valid: false,
+            notes_valid: false,
+            task_list_valid: false,
+        },
         validation_errors: Vec::new(),
     };
 
@@ -298,8 +299,8 @@ pub fn validate_spec_files(project_name: &str, spec_name: &str) -> Result<SpecVa
     if result.spec_file_exists {
         match filesystem::read_file(&spec_file) {
             Ok(content) => {
-                result.spec_content_valid = !content.trim().is_empty();
-                if !result.spec_content_valid {
+                result.content_validation.spec_valid = !content.trim().is_empty();
+                if !result.content_validation.spec_valid {
                     result
                         .validation_errors
                         .push("Spec file is empty".to_string());
@@ -320,7 +321,7 @@ pub fn validate_spec_files(project_name: &str, spec_name: &str) -> Result<SpecVa
     if result.notes_file_exists {
         match filesystem::read_file(&notes_file) {
             Ok(content) => {
-                result.notes_content_valid = !content.trim().is_empty();
+                result.content_validation.notes_valid = !content.trim().is_empty();
             }
             Err(e) => {
                 result
@@ -333,7 +334,7 @@ pub fn validate_spec_files(project_name: &str, spec_name: &str) -> Result<SpecVa
     if result.task_list_file_exists {
         match filesystem::read_file(&task_list_file) {
             Ok(content) => {
-                result.task_list_content_valid = !content.trim().is_empty();
+                result.content_validation.task_list_valid = !content.trim().is_empty();
             }
             Err(e) => {
                 result
@@ -396,10 +397,30 @@ pub fn load_spec(project_name: &str, spec_name: &str) -> Result<Spec> {
         created_at,
         path: spec_path,
         project_name: project_name.to_string(),
-        spec_content,
-        notes,
-        tasks: task_list,
+        content: SpecContentData {
+            spec: spec_content,
+            notes,
+            tasks: task_list,
+        },
     })
+}
+
+/// Get the file path for a spec.md file
+pub fn get_spec_file_path(project_name: &str, spec_name: &str) -> Result<PathBuf> {
+    let spec_path = get_spec_path(project_name, spec_name)?;
+    Ok(spec_path.join("spec.md"))
+}
+
+/// Get the file path for a task-list.md file
+pub fn get_task_list_file_path(project_name: &str, spec_name: &str) -> Result<PathBuf> {
+    let spec_path = get_spec_path(project_name, spec_name)?;
+    Ok(spec_path.join("task-list.md"))
+}
+
+/// Get the file path for a notes.md file
+pub fn get_notes_file_path(project_name: &str, spec_name: &str) -> Result<PathBuf> {
+    let spec_path = get_spec_path(project_name, spec_name)?;
+    Ok(spec_path.join("notes.md"))
 }
 
 #[cfg(test)]
@@ -455,16 +476,20 @@ mod tests {
                 SpecConfig {
                     project_name: project_name.clone(),
                     feature_name: "user_auth".to_string(),
-                    spec_content: "User authentication specification".to_string(),
-                    notes: "Authentication notes".to_string(),
-                    tasks: "- Implement login\n- Implement logout".to_string(),
+                    content: SpecContentData {
+                        spec: "User authentication specification".to_string(),
+                        notes: "Authentication notes".to_string(),
+                        tasks: "- Implement login\n- Implement logout".to_string(),
+                    },
                 },
                 SpecConfig {
                     project_name: project_name.clone(),
                     feature_name: "user_profile".to_string(),
-                    spec_content: "User profile management".to_string(),
-                    notes: "Profile notes".to_string(),
-                    tasks: "- Profile CRUD\n- Avatar upload".to_string(),
+                    content: SpecContentData {
+                        spec: "User profile management".to_string(),
+                        notes: "Profile notes".to_string(),
+                        tasks: "- Profile CRUD\n- Avatar upload".to_string(),
+                    },
                 },
             ];
 
@@ -506,9 +531,11 @@ mod tests {
             let config = SpecConfig {
                 project_name: project_name.clone(),
                 feature_name: "test_feature".to_string(),
-                spec_content: "Test specification".to_string(),
-                notes: "Test notes".to_string(),
-                tasks: "- Test task".to_string(),
+                content: SpecContentData {
+                    spec: "Test specification".to_string(),
+                    notes: "Test notes".to_string(),
+                    tasks: "- Test task".to_string(),
+                },
             };
 
             let created_spec = create_spec(config).unwrap();
@@ -529,9 +556,11 @@ mod tests {
             let config = SpecConfig {
                 project_name: project_name.clone(),
                 feature_name: "updatable_spec".to_string(),
-                spec_content: "Original specification".to_string(),
-                notes: "Original notes".to_string(),
-                tasks: "- Original task".to_string(),
+                content: SpecContentData {
+                    spec: "Original specification".to_string(),
+                    notes: "Original notes".to_string(),
+                    tasks: "- Original task".to_string(),
+                },
             };
 
             let created_spec = create_spec(config).unwrap();
@@ -548,8 +577,8 @@ mod tests {
 
             // Verify update
             let loaded_spec = load_spec(&project_name, &created_spec.name).unwrap();
-            assert_eq!(loaded_spec.tasks, new_tasks);
-            assert_eq!(loaded_spec.spec_content, "Original specification");
+            assert_eq!(loaded_spec.content.tasks, new_tasks);
+            assert_eq!(loaded_spec.content.spec, "Original specification");
         });
     }
 
@@ -563,9 +592,11 @@ mod tests {
             let config = SpecConfig {
                 project_name: project_name.clone(),
                 feature_name: "validation_test".to_string(),
-                spec_content: "Valid specification content".to_string(),
-                notes: "Valid notes".to_string(),
-                tasks: "- Valid task".to_string(),
+                content: SpecContentData {
+                    spec: "Valid specification content".to_string(),
+                    notes: "Valid notes".to_string(),
+                    tasks: "- Valid task".to_string(),
+                },
             };
 
             let created_spec = create_spec(config).unwrap();
@@ -577,9 +608,9 @@ mod tests {
             assert!(validation_result.spec_file_exists);
             assert!(validation_result.notes_file_exists);
             assert!(validation_result.task_list_file_exists);
-            assert!(validation_result.spec_content_valid);
-            assert!(validation_result.notes_content_valid);
-            assert!(validation_result.task_list_content_valid);
+            assert!(validation_result.content_validation.spec_valid);
+            assert!(validation_result.content_validation.notes_valid);
+            assert!(validation_result.content_validation.task_list_valid);
             assert!(validation_result.validation_errors.is_empty());
             assert_eq!(validation_result.summary(), "Spec is valid");
         });
@@ -598,9 +629,11 @@ mod tests {
             let config1 = SpecConfig {
                 project_name: project_name.clone(),
                 feature_name: "first_spec".to_string(),
-                spec_content: "First specification".to_string(),
-                notes: "First notes".to_string(),
-                tasks: "- First task".to_string(),
+                content: SpecContentData {
+                    spec: "First specification".to_string(),
+                    notes: "First notes".to_string(),
+                    tasks: "- First task".to_string(),
+                },
             };
 
             let _spec1 = create_spec(config1).unwrap();
@@ -612,9 +645,11 @@ mod tests {
             let config2 = SpecConfig {
                 project_name: project_name.clone(),
                 feature_name: "second_spec".to_string(),
-                spec_content: "Second specification".to_string(),
-                notes: "Second notes".to_string(),
-                tasks: "- Second task".to_string(),
+                content: SpecContentData {
+                    spec: "Second specification".to_string(),
+                    notes: "Second notes".to_string(),
+                    tasks: "- Second task".to_string(),
+                },
             };
 
             let spec2 = create_spec(config2).unwrap();
@@ -648,9 +683,11 @@ mod tests {
         let config = SpecConfig {
             project_name: project_name.to_string(),
             feature_name: "path_test".to_string(),
-            spec_content: "Path test spec".to_string(),
-            notes: "Path test notes".to_string(),
-            tasks: "- Path test task".to_string(),
+            content: SpecContentData {
+                spec: "Path test spec".to_string(),
+                notes: "Path test notes".to_string(),
+                tasks: "- Path test task".to_string(),
+            },
         };
 
         let created_spec = create_spec(config).unwrap();

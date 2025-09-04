@@ -229,15 +229,15 @@ async fn test_load_spec_specific_spec() -> Result<()> {
     // Verify spec content structure
     let spec_content = response.data.spec_content.unwrap();
     assert_eq!(
-        spec_content.spec,
+        spec_content.content.spec,
         "This specification defines a comprehensive feature implementation that includes detailed requirements, functional specifications, and behavioral expectations. The feature should integrate seamlessly with existing system architecture while providing robust error handling and user-friendly interfaces. Implementation should follow established patterns and include proper testing coverage."
     );
     assert_eq!(
-        spec_content.notes,
+        spec_content.content.notes,
         "Implementation notes include important considerations for security, performance, and maintainability. Special attention should be paid to error handling and edge cases. Consider using established libraries where appropriate and ensure compatibility with existing system components."
     );
     assert_eq!(
-        spec_content.task_list,
+        spec_content.content.tasks,
         "Create feature scaffolding and basic structure, Implement core functionality with proper error handling, Add comprehensive test coverage for all scenarios, Update documentation and user guides, Perform integration testing with existing features, Conduct code review and optimization"
     );
 
@@ -429,7 +429,7 @@ async fn test_update_spec_replace() -> Result<()> {
 
     let file_update = &response.data.files_updated[0];
     assert_eq!(file_update.file_type, "spec");
-    assert_eq!(file_update.operation, "replace");
+    assert_eq!(file_update.operation_performed, "replace");
     assert!(file_update.content_length > 0);
     assert!(file_update.success);
 
@@ -485,7 +485,7 @@ async fn test_update_spec_append() -> Result<()> {
     assert_eq!(response.data.files_updated.len(), 1);
 
     let file_update = &response.data.files_updated[0];
-    assert_eq!(file_update.operation, "append");
+    assert_eq!(file_update.operation_performed, "append");
     assert_eq!(file_update.file_type, "notes");
     assert!(file_update.success);
 
@@ -580,6 +580,7 @@ async fn test_update_spec_error_handling() -> Result<()> {
         tasks: None,
         notes: None,
         operation: "invalid".to_string(),
+        context_patch: None,
     };
     let result = update_spec::execute(update_args).await;
     assert!(result.is_err());
@@ -713,7 +714,10 @@ async fn test_spec_lifecycle_workflow() -> Result<()> {
     let append_args =
         env.update_spec_args_single("lifecycle-project", &spec_name, "notes", "append");
     let append_response = update_spec::execute(append_args).await?;
-    assert_eq!(append_response.data.files_updated[0].operation, "append");
+    assert_eq!(
+        append_response.data.files_updated[0].operation_performed,
+        "append"
+    );
 
     // Phase 3: Update task list
     let mut task_args =
@@ -730,11 +734,17 @@ async fn test_spec_lifecycle_workflow() -> Result<()> {
     let load_response = load_spec::execute(load_args).await?;
 
     let spec_content = load_response.data.spec_content.unwrap();
-    assert!(spec_content.spec.contains("Updated content for testing"));
-    assert!(spec_content.notes.contains("Implementation notes")); // Original + appended
     assert!(
         spec_content
-            .task_list
+            .content
+            .spec
+            .contains("Updated content for testing")
+    );
+    assert!(spec_content.content.notes.contains("Implementation notes")); // Original + appended
+    assert!(
+        spec_content
+            .content
+            .tasks
             .contains("- [x] Initial setup complete")
     );
 

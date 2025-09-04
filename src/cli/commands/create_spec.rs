@@ -3,7 +3,7 @@
 use crate::cli::args::CreateSpecArgs;
 use crate::core::{project, spec, validation};
 use crate::types::responses::{CreateSpecResponse, FoundryResponse, ValidationStatus};
-use crate::types::spec::SpecConfig;
+use crate::types::spec::{SpecConfig, SpecContentData};
 use crate::utils::paths;
 use anyhow::{Context, Result};
 
@@ -97,9 +97,11 @@ fn build_spec_config(args: CreateSpecArgs) -> SpecConfig {
     SpecConfig {
         project_name: args.project_name,
         feature_name: args.feature_name,
-        spec_content: args.spec,
-        notes: args.notes,
-        tasks: args.tasks,
+        content: SpecContentData {
+            spec: args.spec,
+            notes: args.notes,
+            tasks: args.tasks,
+        },
     }
 }
 
