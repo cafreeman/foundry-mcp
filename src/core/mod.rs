@@ -4,6 +4,7 @@ pub mod filesystem;
 pub mod installation;
 pub mod project;
 pub mod spec;
+pub mod templates;
 pub mod validation;
 
 // Selective reexports from filesystem module
@@ -24,4 +25,5 @@ pub use installation::{
 // Selective reexports from other modules
 pub use project::*;
 pub use spec::*;
+pub use templates::*;
 pub use validation::*;
