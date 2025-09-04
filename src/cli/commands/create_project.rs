@@ -107,9 +107,16 @@ fn build_response(
     ];
 
     let workflow_hints = if !suggestions.is_empty() {
-        suggestions.clone()
+        let mut enhanced_suggestions = vec![
+            "📋 DOCUMENT PURPOSE: Your content serves as COMPLETE CONTEXT for future implementation".to_string(),
+            "🎯 CONTEXT TEST: Could someone with no prior knowledge implement this using only your documents?".to_string(),
+        ];
+        enhanced_suggestions.extend(suggestions.clone());
+        enhanced_suggestions
     } else {
         vec![
+            "📋 DOCUMENT PURPOSE: Your content serves as COMPLETE CONTEXT for future implementation".to_string(),
+            "🎯 CONTEXT TEST: Could someone with no prior knowledge implement this using only your documents?".to_string(),
             "Consider what you want to work on next".to_string(),
             "foundry create_spec: Use when you have a specific feature to implement".to_string(),
             "foundry load_project: Use to see full project context and available specs".to_string(),

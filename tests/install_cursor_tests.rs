@@ -3,6 +3,8 @@
 //! These tests verify the full installation workflow for Cursor environment,
 //! including config file creation, MCP server registration, and template setup.
 
+#![allow(clippy::let_unit_value, unused_must_use)]
+
 use anyhow::Result;
 // Note: Using test helper functions instead of direct command imports
 use foundry_mcp::types::responses::InstallationStatus;
@@ -85,7 +87,7 @@ fn test_install_cursor_end_to_end() -> Result<()> {
 fn test_install_cursor_config_verification() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Install cursor and get parsed response for testing
         let response = env.install_and_parse("cursor").await?;
         assert_eq!(response.installation_status, InstallationStatus::Success);
@@ -143,7 +145,7 @@ fn test_install_cursor_config_verification() -> Result<()> {
 fn test_install_cursor_always_overwrites() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Create existing config with different content
         let other_binary = std::env::current_exe()
             .unwrap_or_else(|_| std::path::PathBuf::from("/usr/local/bin/foundry"))
@@ -213,7 +215,7 @@ fn test_install_cursor_always_overwrites() -> Result<()> {
 fn test_install_cursor_path_command() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Test cursor installation without explicit binary path
         let response = env.install_and_parse("cursor").await?;
 
@@ -242,7 +244,7 @@ fn test_install_cursor_path_command() -> Result<()> {
 fn test_install_cursor_path_based() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Test cursor installation using PATH-based command (no binary path needed)
         let response = env.install_and_parse("cursor").await?;
         assert_eq!(
@@ -266,7 +268,7 @@ fn test_install_cursor_path_based() -> Result<()> {
 fn test_install_cursor_runtime_validation() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Cursor installation should succeed as it uses PATH-based command
         // Execution validation happens at runtime when MCP server is started
         let install_args = env.install_args("cursor");
@@ -288,7 +290,7 @@ fn test_install_cursor_runtime_validation() -> Result<()> {
 fn test_install_cursor_malformed_config() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Create malformed JSON config
         let malformed_config = r#"{
   "mcpServers": {
@@ -323,7 +325,7 @@ fn test_install_cursor_malformed_config() -> Result<()> {
 fn test_install_cursor_empty_config() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Create empty config file
         env.create_existing_cursor_config("")?;
 
@@ -356,7 +358,7 @@ fn test_install_cursor_empty_config() -> Result<()> {
 fn test_install_human_readable_output() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Test human-readable install output
         let output = env.install_text_output("cursor").await?;
 
@@ -408,7 +410,7 @@ fn test_install_human_readable_output() -> Result<()> {
 fn test_install_json_output() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Test JSON install output using the helper that forces JSON mode
         let response = env.install_and_parse("cursor").await?;
 

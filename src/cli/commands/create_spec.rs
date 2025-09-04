@@ -124,6 +124,8 @@ fn generate_workflow_hints(
     validation_results: &[(&'static str, validation::ValidationResult)],
 ) -> Vec<String> {
     let mut hints = vec![
+        "📋 DOCUMENT PURPOSE: Your spec content serves as COMPLETE CONTEXT for future implementation".to_string(),
+        "🎯 CONTEXT TEST: Could someone with no prior knowledge implement this feature using only your spec documents?".to_string(),
         "Your specification content has been structured with task-list.md for implementation tracking".to_string(),
         "You can use foundry load_spec to review your full specification content and notes".to_string(),
         "You can use foundry load_project to see project context before implementation".to_string(),

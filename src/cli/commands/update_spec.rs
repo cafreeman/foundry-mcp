@@ -268,10 +268,11 @@ fn generate_next_steps(args: &UpdateSpecArgs) -> Vec<String> {
 
 /// Generate workflow hints for the response
 fn generate_workflow_hints(args: &UpdateSpecArgs) -> Vec<String> {
-    let mut hints = vec![format!(
-        "Operation: {} content across multiple files",
-        args.operation
-    )];
+    let mut hints = vec![
+        "📋 DOCUMENT PURPOSE: Your updates serve as COMPLETE CONTEXT for future implementation".to_string(),
+        "🎯 CONTEXT TEST: Could someone with no prior knowledge implement using your updated documents?".to_string(),
+        format!("Operation: {} content across multiple files", args.operation),
+    ];
 
     // Add hints about which files were updated
     let mut file_hints = Vec::new();

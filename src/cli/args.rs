@@ -79,15 +79,15 @@ impl_mcp_tool! {
             description = "Descriptive project name using kebab-case (e.g., 'my-awesome-app')"
         },
         vision: String {
-            description = "High-level product vision (2-4 paragraphs, 200+ chars) covering: problem being solved, target users, unique value proposition, and key roadmap priorities. Use markdown with ## headers, bullet points, and clear structure. Include specific examples. Goes into vision.md",
+            description = "**CONTEXT FOR FUTURE IMPLEMENTATION**: High-level product vision (2-4 paragraphs, 200+ chars) that will serve as the COMPLETE implementation context for future LLMs who have NO prior knowledge of this project. Must include comprehensive problem definition, target users, unique value proposition, and key roadmap priorities. This document will be loaded as the PRIMARY reference for all future development work. Apply 'Cold Start Test': Could a skilled developer understand the project purpose using only this document? Use markdown with ## headers, bullet points, and clear structure. Include specific examples and architectural context. Goes into vision.md",
             min_length = 200
         },
         tech_stack: String {
-            description = "Comprehensive technology decisions (150+ chars) including languages, frameworks, databases, deployment platforms, and rationale. Use markdown with ## headers for categories, bullet points for technologies, and brief explanations. Include constraints, preferences, or team standards. Goes into tech-stack.md",
+            description = "**CONTEXT FOR FUTURE IMPLEMENTATION**: Comprehensive technology decisions (150+ chars) that will serve as the COMPLETE technical architecture guide for future LLMs with NO prior project knowledge. Must include languages, frameworks, databases, deployment platforms, and detailed rationale for each choice. This document will be the PRIMARY reference for all technical implementation decisions. Include integration patterns, dependencies, constraints, team standards, and architectural context. Future implementers must understand the complete technical landscape from this document alone. Use markdown with ## headers for categories, bullet points for technologies, and comprehensive explanations. Goes into tech-stack.md",
             min_length = 150
         },
         summary: String {
-            description = "Concise summary (100+ chars) of vision and tech-stack for quick context loading. Should capture essential project essence in 2-3 sentences using clear, professional language. Combine main value proposition with primary technology. Goes into summary.md",
+            description = "**CONTEXT FOR FUTURE IMPLEMENTATION**: Concise summary (100+ chars) of vision and tech-stack for quick context loading by future LLMs. This will be the FIRST document loaded to provide immediate project understanding for implementers with NO prior knowledge. Should capture essential project essence, main value proposition, and primary technology in 2-3 sentences using clear, professional language. Must enable rapid context acquisition for future development sessions. Goes into summary.md",
             min_length = 100
         }
     }
@@ -261,15 +261,15 @@ impl_mcp_tool! {
             description = "Descriptive feature name using snake_case (e.g., 'user_authentication')"
         },
         spec: String {
-            description = "Detailed feature specification (200+ chars) with comprehensive markdown structure. Use # for feature name, ## for major sections (Overview, Requirements, Implementation, Testing). Include code blocks, bullet points, and tables. Cover functional requirements, acceptance criteria, technical approach, and constraints. Goes into spec.md",
+            description = "**CONTEXT FOR FUTURE IMPLEMENTATION**: Detailed feature specification (200+ chars) that will serve as the COMPLETE implementation guide for future LLMs who have NO prior knowledge of this feature. Must include comprehensive requirements, architectural context, implementation approach with component interactions, dependencies, edge cases, and everything needed for successful implementation. This document will be the PRIMARY reference for feature development. Apply 'Cold Start Test': Could a skilled developer implement this feature using only this document? Use # for feature name, ## for major sections (Overview, Requirements, Implementation, Testing). Include code blocks, bullet points, tables, and detailed technical context. Goes into spec.md",
             min_length = 200
         },
         notes: String {
-            description = "Additional context and design decisions (50+ chars) for feature implementation. Use ## headers for categories, bullet points for considerations. Include design rationale, tradeoffs, dependencies, constraints, and future opportunities. Keep technical but conversational. Goes into notes.md",
+            description = "**CONTEXT FOR FUTURE IMPLEMENTATION**: Additional context and design decisions (50+ chars) that will provide COMPLETE implementation context for future LLMs with NO prior feature knowledge. Must include comprehensive design rationale, architectural tradeoffs, dependency analysis, implementation constraints, and future opportunities. This document will be loaded alongside the spec to provide full context for implementation decisions. Include business context, technical constraints, and decision history that future implementers need to understand. Use ## headers for categories, bullet points for considerations. Keep technical but conversational. Goes into notes.md",
             min_length = 50
         },
         tasks: String {
-            description = "Markdown checklist (100+ chars) of implementation steps organized by phases. Use ## headers for phases, - [ ] for uncompleted tasks, - [x] for completed. Break feature into actionable, testable tasks including setup, development, testing, and deployment. Keep tasks specific and measurable. Goes into task-list.md",
+            description = "**CONTEXT FOR FUTURE IMPLEMENTATION**: Markdown checklist (100+ chars) of implementation steps that will guide future LLMs through COMPLETE feature implementation with NO prior knowledge. Must include comprehensive, actionable phases covering setup, development, testing, and deployment. This task list will be the PRIMARY implementation roadmap for future development sessions. Break feature into specific, measurable tasks that provide complete implementation guidance. Use ## headers for phases, - [ ] for uncompleted tasks, - [x] for completed. Include dependencies, prerequisites, and validation steps. Goes into task-list.md",
             min_length = 100
         }
     }

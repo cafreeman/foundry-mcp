@@ -48,7 +48,23 @@ fn validate_vision_content(content: &str) -> ValidationResult {
 
     let lower_content = content.to_lowercase();
 
-    let suggestions = conditional_suggestions(&[
+    // Context completeness scoring for future implementation
+    let context_keywords = [
+        "architecture",
+        "integration",
+        "dependencies",
+        "business",
+        "rationale",
+        "context",
+        "implementation",
+        "approach",
+    ];
+    let context_score = context_keywords
+        .iter()
+        .filter(|&k| lower_content.contains(k))
+        .count();
+
+    let mut suggestions = conditional_suggestions(&[
         (
             paragraphs_count < 2,
             "Consider adding more paragraphs to provide comprehensive vision coverage",
@@ -62,6 +78,11 @@ fn validate_vision_content(content: &str) -> ValidationResult {
             "Consider specifying target users or audience",
         ),
     ]);
+
+    // Add context completeness suggestions
+    if context_score < 3 {
+        suggestions.push("Consider adding more context for future implementers (architectural decisions, business rationale, implementation approach)".to_string());
+    }
 
     ValidationResult {
         is_valid: errors.is_empty(),
@@ -133,10 +154,33 @@ fn validate_spec_content(content: &str) -> ValidationResult {
         .iter()
         .any(|&keyword| lower_content.contains(keyword));
 
-    let suggestions = conditional_suggestion(
+    // Context completeness scoring for future implementation
+    let context_keywords = [
+        "architecture",
+        "integration",
+        "dependencies",
+        "business",
+        "rationale",
+        "implementation",
+        "approach",
+        "constraints",
+        "edge",
+        "validation",
+    ];
+    let context_score = context_keywords
+        .iter()
+        .filter(|&k| lower_content.contains(k))
+        .count();
+
+    let mut suggestions = conditional_suggestion(
         !has_structure,
         "Consider adding requirements, functionality, or behavioral specifications",
     );
+
+    // Add context completeness suggestions
+    if context_score < 4 {
+        suggestions.push("Consider adding more implementation context (architecture, dependencies, business rationale, constraints, edge cases)".to_string());
+    }
 
     ValidationResult {
         is_valid: errors.is_empty(),
@@ -152,7 +196,32 @@ fn validate_notes_content(content: &str) -> ValidationResult {
         "Notes content must be at least 50 characters",
     );
 
-    let suggestions = Vec::new();
+    let lower_content = content.to_lowercase();
+
+    // Context completeness scoring for future implementation
+    let context_keywords = [
+        "rationale",
+        "decision",
+        "tradeoff",
+        "constraint",
+        "dependency",
+        "business",
+        "architecture",
+        "integration",
+        "why",
+        "because",
+    ];
+    let context_score = context_keywords
+        .iter()
+        .filter(|&k| lower_content.contains(k))
+        .count();
+
+    let mut suggestions = Vec::new();
+
+    // Add context completeness suggestions
+    if context_score < 3 {
+        suggestions.push("Consider adding more context for future implementers (decision rationale, tradeoffs, constraints, dependencies)".to_string());
+    }
 
     ValidationResult {
         is_valid: errors.is_empty(),

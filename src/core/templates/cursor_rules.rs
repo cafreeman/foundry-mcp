@@ -31,6 +31,22 @@ Foundry MCP is a project management tool designed specifically for AI coding ass
 - **User-Controlled**: Users control content, CLI manages structure
 - **Workflow-Aware**: Tools provide next-steps guidance for efficient development
 
+## CRITICAL: Understanding Document Purpose
+
+**These documents serve as COMPLETE CONTEXT for future LLMs and developers**:
+
+- Each document must contain ALL information needed for someone with no prior project knowledge
+- Future LLMs will load these as PRIMARY reference for implementation work
+- Apply "Cold Start Test": Could a skilled developer implement using only this document?
+- Documents must be self-contained with comprehensive architectural and business context
+- Include implementation prerequisites, dependencies, decision rationale, and edge cases
+
+**Document Creation Mindset**:
+- Write for someone who has never seen this project before
+- Include WHY decisions were made, not just WHAT was decided
+- Provide complete technical and business context for implementation
+- Assume the reader needs to understand the full system to implement successfully
+
 ## Core Concepts
 
 ### Project Structure

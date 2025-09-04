@@ -3,6 +3,8 @@
 //! These tests verify the full uninstallation workflow for Cursor environment,
 //! including MCP server removal from config and template cleanup.
 
+#![allow(clippy::let_unit_value, unused_must_use)]
+
 use anyhow::Result;
 // Note: Using test helper functions instead of direct command imports
 use foundry_mcp::types::responses::InstallationStatus;
@@ -15,7 +17,7 @@ use foundry_mcp::test_utils::TestEnvironment;
 fn test_uninstall_cursor_end_to_end() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // First install cursor
         let install_response = env.install_and_parse("cursor").await?;
         assert_eq!(
@@ -56,7 +58,7 @@ fn test_uninstall_cursor_end_to_end() -> Result<()> {
 fn test_uninstall_cursor_remove_config() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Install cursor (creates only foundry server)
         let install_response = env.install_and_parse("cursor").await?;
         assert_eq!(
@@ -97,7 +99,7 @@ fn test_uninstall_cursor_remove_config() -> Result<()> {
 fn test_uninstall_cursor_not_installed() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Try to uninstall when nothing is installed
         let uninstall_args = env.uninstall_args("cursor", false);
         let result = env.uninstall_with_args(uninstall_args).await;
@@ -120,7 +122,7 @@ fn test_uninstall_cursor_not_installed() -> Result<()> {
 fn test_uninstall_cursor_not_installed_fails() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // Try to uninstall when nothing is installed (should fail)
         let uninstall_args = env.uninstall_args("cursor", false);
         let result = env.uninstall_with_args(uninstall_args).await;
@@ -147,7 +149,7 @@ fn test_uninstall_cursor_not_installed_fails() -> Result<()> {
 fn test_uninstall_human_readable_output() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // First install to have something to uninstall
         env.install_and_parse("cursor").await?;
 
@@ -198,7 +200,7 @@ fn test_uninstall_human_readable_output() -> Result<()> {
 fn test_uninstall_json_output() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    let _ = env.with_env_async(|| async {
+    env.with_env_async(|| async {
         // First install to have something to uninstall
         env.install_and_parse("cursor").await?;
 
