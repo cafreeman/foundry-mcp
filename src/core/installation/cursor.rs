@@ -26,14 +26,21 @@ pub async fn install_for_cursor() -> Result<InstallationResult> {
     let mut config =
         read_config_file(&config_path).context("Failed to read existing MCP configuration")?;
 
-    // Always overwrite existing configuration
+    // Check if server is already configured
+    let was_already_configured = has_server_config(&config, "foundry");
 
     // Create server configuration using PATH-based 'foundry' command
     let server_config = create_cursor_server_config();
 
-    // Add server to configuration
+    // Add server to configuration (this will overwrite if already exists)
     config = add_server_to_config(config, "foundry", server_config);
-    actions_taken.push("Added Foundry MCP server to Cursor configuration".to_string());
+
+    if was_already_configured {
+        actions_taken
+            .push("Updated existing Foundry MCP server in Cursor configuration".to_string());
+    } else {
+        actions_taken.push("Added Foundry MCP server to Cursor configuration".to_string());
+    }
 
     // Write configuration back to file
     write_config_file(&config_path, &config).context("Failed to write MCP configuration")?;

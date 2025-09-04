@@ -41,14 +41,19 @@ async fn execute_claude_command(args: &[&str]) -> Result<std::process::Output> {
     let cmd_string = cmd_parts.join(" ");
 
     // Try interactive shell to load user configuration and aliases
-    if let Ok(output) = Command::new(&shell)
+    match Command::new(&shell)
         .args(["-i", "-c", &cmd_string])
         .env("PATH", &current_path)
         .output()
         .await
-        && output.status.success()
     {
-        return Ok(output);
+        Ok(output) => {
+            // Return the output regardless of exit status - let calling functions handle specific error cases
+            return Ok(output);
+        }
+        Err(e) => {
+            eprintln!("Shell execution error: {}", e);
+        }
     }
 
     // If all approaches fail, return a descriptive error
@@ -71,8 +76,11 @@ pub async fn install_for_claude_code() -> Result<InstallationResult> {
     // Register MCP server with Claude Code using CLI
     // Note: We use "foundry" directly since it will be available on PATH
     match register_with_claude_code().await {
-        Ok(_) => {
+        Ok(RegistrationResult::NewlyRegistered) => {
             actions_taken.push("Registered MCP server with Claude Code CLI".to_string());
+        }
+        Ok(RegistrationResult::AlreadyExists) => {
+            actions_taken.push("MCP server already registered with Claude Code CLI".to_string());
         }
         Err(e) => {
             return Err(anyhow::anyhow!(
@@ -175,8 +183,17 @@ pub async fn is_claude_code_available() -> bool {
     }
 }
 
+/// Result of MCP server registration
+#[derive(Debug, PartialEq)]
+pub enum RegistrationResult {
+    /// Server was newly registered
+    NewlyRegistered,
+    /// Server was already registered
+    AlreadyExists,
+}
+
 /// Register MCP server with Claude Code CLI
-pub async fn register_with_claude_code() -> Result<()> {
+pub async fn register_with_claude_code() -> Result<RegistrationResult> {
     let output = execute_claude_command(&["mcp", "add", "foundry", "--", "foundry", "serve"])
         .await
         .context("Failed to execute claude mcp add command")?;
@@ -188,7 +205,7 @@ pub async fn register_with_claude_code() -> Result<()> {
         // Check if the error is because the server already exists
         if stderr.contains("already exists") || stdout.contains("already exists") {
             // This is actually a success case - the server is already registered
-            return Ok(());
+            return Ok(RegistrationResult::AlreadyExists);
         }
 
         return Err(anyhow::anyhow!(
@@ -197,7 +214,7 @@ pub async fn register_with_claude_code() -> Result<()> {
         ));
     }
 
-    Ok(())
+    Ok(RegistrationResult::NewlyRegistered)
 }
 
 /// Unregister MCP server from Claude Code CLI
