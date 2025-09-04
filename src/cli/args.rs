@@ -349,7 +349,7 @@ pub struct LoadProjectArgs {
 // Generate MCP tool implementation for LoadProjectArgs
 impl_mcp_tool! {
     name = "load_project",
-    description = "Load complete project context (vision, tech-stack, summary) for LLM sessions. Essential for resuming work on existing projects.",
+    description = "Load complete project context (vision, tech-stack, summary) for LLM sessions. Essential for resuming work on existing projects. You can use this to get full project context before creating specifications or continuing development work.",
     struct LoadProjectArgs {
         project_name: String {
             description = "Name of the existing project to load (must exist in ~/.foundry/)"
@@ -394,7 +394,7 @@ impl crate::mcp::traits::McpToolDefinition for GetFoundryHelpArgs {
 
         rust_mcp_sdk::schema::Tool {
             name: "get_foundry_help".to_string(),
-            description: Some("Get comprehensive workflow guidance, content examples, and usage patterns. Essential for understanding foundry workflows and content standards.".to_string()),
+            description: Some("Get comprehensive workflow guidance, content examples, and usage patterns. You can use this to understand foundry workflows and content standards. Essential for effective tool selection and workflow optimization.".to_string()),
             title: None,
             input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
                 vec![], // No required fields
@@ -435,7 +435,7 @@ pub struct ValidateContentArgs {
 // Generate MCP tool implementation for ValidateContentArgs
 impl_mcp_tool! {
     name = "validate_content",
-    description = "Validate content against schema requirements with improvement suggestions. Helps ensure content meets foundry standards before creation.",
+    description = "Validate content against schema requirements with improvement suggestions. You can use this to ensure your content meets foundry standards before creating projects or specifications. Provides detailed feedback for content improvement.",
     struct ValidateContentArgs {
         content: String {
             description = "Content to validate against the specified type's requirements"
@@ -583,7 +583,7 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
 
         rust_mcp_sdk::schema::Tool {
             name: "update_spec".to_string(),
-            description: Some("Update multiple spec files in a single operation with explicit control over content replacement strategy. Update spec.md, task-list.md, and/or notes.md with replace or append operations.".to_string()),
+            description: Some("Update multiple spec files in a single operation with explicit control over content replacement strategy. You can update spec.md, task-list.md, and/or notes.md with replace or append operations. Essential for iterative development and progress tracking.".to_string()),
             title: None,
             input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
                 vec!["project_name".to_string(), "spec_name".to_string(), "operation".to_string()], // Required fields

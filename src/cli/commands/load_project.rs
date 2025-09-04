@@ -105,25 +105,25 @@ fn load_project_context(
 fn generate_next_steps(project_name: &str, specs_available: &[String]) -> Vec<String> {
     if specs_available.is_empty() {
         vec![
-            "Project loaded successfully but contains no specifications".to_string(),
+            "Project context loaded successfully - ready for specification creation".to_string(),
             format!(
-                "Create your first specification: foundry create-spec {} <feature_name>",
+                "You can create your first specification: foundry create-spec {} <feature_name>",
                 project_name
             ),
-            "Use the loaded project context to guide development".to_string(),
+            "Your loaded project context provides comprehensive background for development decisions".to_string(),
         ]
     } else {
         vec![
             format!(
-                "Project loaded with {} specification(s)",
+                "Project context loaded with {} specification(s) available",
                 specs_available.len()
             ),
             format!(
-                "Load a specific spec: foundry load-spec {} <spec_name>",
+                "You can load a specific spec: foundry load-spec {} <spec_name>",
                 project_name
             ),
             format!(
-                "Create a new spec: foundry create-spec {} <feature_name>",
+                "You can create a new spec: foundry create-spec {} <feature_name>",
                 project_name
             ),
         ]
@@ -133,17 +133,34 @@ fn generate_next_steps(project_name: &str, specs_available: &[String]) -> Vec<St
 /// Generate workflow hints based on available specs
 fn generate_workflow_hints(specs_available: &[String]) -> Vec<String> {
     let mut hints = vec![
-        "Use project summary for quick context in conversations".to_string(),
-        "Full vision provides comprehensive background and goals".to_string(),
-        "Tech stack details guide implementation decisions".to_string(),
+        "You can use the project summary for quick context in conversations".to_string(),
+        "The full vision provides comprehensive background and goals for your work".to_string(),
+        "Tech stack details guide your implementation decisions and technology choices".to_string(),
+        "You can skip list-projects calls when you know the project name - load_project is more efficient".to_string(),
     ];
 
     if specs_available.is_empty() {
-        hints.push("Consider creating specifications to track specific features".to_string());
+        hints.push(
+            "You can create specifications to track specific features as you identify them"
+                .to_string(),
+        );
+        hints.push(
+            "You can prompt the user about creating specifications to track specific features"
+                .to_string(),
+        );
     } else {
         hints.push(format!("Available specs: {}", specs_available.join(", ")));
-        hints.push("Load individual specs to see detailed implementation plans".to_string());
+        hints.push(
+            "You can load individual specs to see detailed implementation plans and progress"
+                .to_string(),
+        );
+        hints.push("You can update existing specs with progress as work continues".to_string());
     }
+
+    hints.push(
+        "You can use foundry get_foundry_help decision-points to understand tool selection"
+            .to_string(),
+    );
 
     hints
 }
@@ -177,10 +194,10 @@ mod tests {
         let steps = generate_next_steps(project_name, &specs_available);
 
         assert_eq!(steps.len(), 3);
-        assert!(steps[0].contains("contains no specifications"));
+        assert!(steps[0].contains("ready for specification creation"));
         assert!(steps[1].contains("foundry create-spec"));
         assert!(steps[1].contains(project_name));
-        assert!(steps[2].contains("guide development"));
+        assert!(steps[2].contains("comprehensive background"));
     }
 
     #[test]
@@ -205,15 +222,11 @@ mod tests {
         let specs_available = Vec::<String>::new();
         let hints = generate_workflow_hints(&specs_available);
 
-        assert!(hints.len() >= 4);
+        assert!(hints.len() >= 6);
         assert!(hints.iter().any(|h| h.contains("project summary")));
-        assert!(hints.iter().any(|h| h.contains("Full vision")));
+        assert!(hints.iter().any(|h| h.contains("vision provides")));
         assert!(hints.iter().any(|h| h.contains("Tech stack")));
-        assert!(
-            hints
-                .iter()
-                .any(|h| h.contains("Consider creating specifications"))
-        );
+        assert!(hints.iter().any(|h| h.contains("create specifications")));
         // Should not contain spec-specific hints
         assert!(!hints.iter().any(|h| h.contains("Available specs")));
         assert!(!hints.iter().any(|h| h.contains("Load individual specs")));
@@ -227,20 +240,16 @@ mod tests {
         ];
         let hints = generate_workflow_hints(&specs_available);
 
-        assert!(hints.len() >= 5);
+        assert!(hints.len() >= 6);
         assert!(hints.iter().any(|h| h.contains("project summary")));
-        assert!(hints.iter().any(|h| h.contains("Full vision")));
+        assert!(hints.iter().any(|h| h.contains("vision provides")));
         assert!(hints.iter().any(|h| h.contains("Tech stack")));
         assert!(hints.iter().any(|h| h.contains("Available specs")));
         assert!(hints.iter().any(|h| h.contains("feature1")));
         assert!(hints.iter().any(|h| h.contains("feature2")));
-        assert!(hints.iter().any(|h| h.contains("Load individual specs")));
+        assert!(hints.iter().any(|h| h.contains("load individual specs")));
         // Should not contain no-specs hints
-        assert!(
-            !hints
-                .iter()
-                .any(|h| h.contains("Consider creating specifications"))
-        );
+        assert!(!hints.iter().any(|h| h.contains("create specifications")));
     }
 
     #[test]
