@@ -30,6 +30,7 @@ exclude = [
 name = "foundry"
 path = "src/main.rs"
 
+
 [dependencies]
 anyhow = "1.0.99"
 async-trait = "0.1.89"

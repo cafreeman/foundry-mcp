@@ -10,17 +10,51 @@ use std::collections::HashMap;
 use std::time::{Duration, Instant, SystemTime};
 use uuid::Uuid;
 
+/// Internal similarity algorithm options (not exposed to LLMs)
+#[derive(Debug, Clone, Copy)]
+#[cfg_attr(test, derive(PartialEq))]
+pub enum SimilarityAlgorithm {
+    /// Simple character-by-character comparison (fastest)
+    Simple,
+    /// Levenshtein edit distance (good for minor variations)
+    Levenshtein,
+    /// Token sort ratio (handles word reordering well)
+    TokenSort,
+    /// Partial ratio (good for substring matching)
+    PartialRatio,
+}
+
 /// Context matching engine for applying patches to markdown content
 pub struct ContextMatcher {
     content: String,
     lines: Vec<String>,
+    #[cfg(test)]
+    forced_algorithm: Option<SimilarityAlgorithm>,
 }
 
 impl ContextMatcher {
     /// Create a new context matcher with the given content
     pub fn new(content: String) -> Self {
         let lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
-        Self { content, lines }
+        Self { 
+            content, 
+            lines,
+            #[cfg(test)]
+            forced_algorithm: None,
+        }
+    }
+
+    /// Test-only method to force a specific algorithm for isolation testing
+    #[cfg(test)]
+    pub fn force_algorithm(mut self, algorithm: SimilarityAlgorithm) -> Self {
+        self.forced_algorithm = Some(algorithm);
+        self
+    }
+
+    /// Test-only method to create matcher with forced algorithm
+    #[cfg(test)] 
+    pub fn new_with_algorithm(content: String, algorithm: SimilarityAlgorithm) -> Self {
+        Self::new(content).force_algorithm(algorithm)
     }
 
     /// Apply a context patch to the content
@@ -99,22 +133,71 @@ impl ContextMatcher {
     /// Find the position where the context matches
     /// Returns (line_position, confidence_score) if found
     fn find_context_match(&self, patch: &ContextPatch) -> Result<Option<(usize, f32)>> {
-        // First try section-aware matching if section_context is provided
-        if let Some(ref section) = patch.section_context {
-            if let Some(result) = self.find_match_in_section(patch, section)? {
+        // In test mode, use forced algorithm if specified
+        #[cfg(test)]
+        if let Some(forced_algorithm) = self.forced_algorithm {
+            return self.find_context_match_with_single_algorithm(patch, forced_algorithm);
+        }
+
+        // Try algorithms in order of speed and reliability for the ENTIRE context match
+        let algorithms = [
+            SimilarityAlgorithm::Simple,       // Fastest, exact matches
+            SimilarityAlgorithm::TokenSort,    // Word reordering
+            SimilarityAlgorithm::PartialRatio, // Substring matching
+            SimilarityAlgorithm::Levenshtein,  // Most permissive, last resort
+        ];
+
+        for algorithm in algorithms {
+            // First try section-aware matching if section_context is provided
+            if let Some(ref section) = patch.section_context {
+                if let Some(result) =
+                    self.find_match_in_section_with_algorithm(patch, section, algorithm)?
+                {
+                    return Ok(Some(result));
+                }
+            }
+
+            // Fall back to full document matching with this algorithm
+            if let Some(result) = self.find_match_in_document_with_algorithm(patch, algorithm)? {
                 return Ok(Some(result));
             }
         }
 
-        // Fall back to full document matching
-        self.find_match_in_document(patch)
+        // All algorithms failed
+        Ok(None)
     }
 
-    /// Find context match within a specific section
-    fn find_match_in_section(
+    /// Test-only helper method to find context match with a single forced algorithm
+    #[cfg(test)]
+    fn find_context_match_with_single_algorithm(
+        &self,
+        patch: &ContextPatch,
+        algorithm: SimilarityAlgorithm,
+    ) -> Result<Option<(usize, f32)>> {
+        // First try section-aware matching if section_context is provided
+        if let Some(ref section) = patch.section_context {
+            if let Some(result) =
+                self.find_match_in_section_with_algorithm(patch, section, algorithm)?
+            {
+                return Ok(Some(result));
+            }
+        }
+
+        // Fall back to full document matching with this algorithm
+        if let Some(result) = self.find_match_in_document_with_algorithm(patch, algorithm)? {
+            return Ok(Some(result));
+        }
+
+        // Algorithm failed
+        Ok(None)
+    }
+
+    /// Find context match within a specific section with specified algorithm
+    fn find_match_in_section_with_algorithm(
         &self,
         patch: &ContextPatch,
         section: &str,
+        algorithm: SimilarityAlgorithm,
     ) -> Result<Option<(usize, f32)>> {
         // Find the section boundaries
         let (section_start, section_end) = self.find_section_boundaries(section)?;
@@ -123,11 +206,18 @@ impl ContextMatcher {
             return Ok(None); // Section not found
         }
 
-        let start_line = section_start.unwrap();
-        let end_line = section_end.unwrap_or(self.lines.len());
+        let start = section_start.unwrap();
+        let end = section_end.unwrap_or(self.lines.len());
 
-        // Search within the section boundaries
-        self.find_match_in_range(patch, start_line, end_line)
+        // Try exact matching first within the section
+        if let Some(position) =
+            self.find_exact_match_with_algorithm(patch, start, end, algorithm)?
+        {
+            return Ok(Some((position, 1.0))); // Perfect confidence
+        }
+
+        // Try fuzzy matching within the section
+        self.find_fuzzy_match_with_algorithm(patch, start, end, algorithm)
     }
 
     /// Find section boundaries (start line, end line)
@@ -162,59 +252,78 @@ impl ContextMatcher {
         Ok((section_start, section_end))
     }
 
-    /// Find context match within the full document
-    fn find_match_in_document(&self, patch: &ContextPatch) -> Result<Option<(usize, f32)>> {
-        self.find_match_in_range(patch, 0, self.lines.len())
+    /// Find context match in document with specified algorithm
+    fn find_match_in_document_with_algorithm(
+        &self,
+        patch: &ContextPatch,
+        algorithm: SimilarityAlgorithm,
+    ) -> Result<Option<(usize, f32)>> {
+        self.find_match_in_range_with_algorithm(patch, 0, self.lines.len(), algorithm)
     }
 
-    /// Find context match within a specific line range
-    fn find_match_in_range(
+    /// Find context match within a specific line range with specified algorithm
+    fn find_match_in_range_with_algorithm(
         &self,
         patch: &ContextPatch,
         start: usize,
         end: usize,
+        algorithm: SimilarityAlgorithm,
     ) -> Result<Option<(usize, f32)>> {
-        let mut best_match: Option<(usize, f32)> = None;
-
-        // Try exact matching first
-        if let Some(position) = self.find_exact_match(patch, start, end)? {
+        // Try exact matching first (always fastest)
+        if let Some(position) =
+            self.find_exact_match_with_algorithm(patch, start, end, algorithm)?
+        {
             return Ok(Some((position, 1.0))); // Perfect confidence
         }
 
-        // Fall back to fuzzy matching
-        if let Some((position, confidence)) = self.find_fuzzy_match(patch, start, end)? {
-            best_match = Some((position, confidence));
-        }
-
-        Ok(best_match)
+        // Fall back to fuzzy matching with the specified algorithm
+        self.find_fuzzy_match_with_algorithm(patch, start, end, algorithm)
     }
 
-    /// Find exact context match
-    fn find_exact_match(
+    /// Find exact context match with specified algorithm
+    fn find_exact_match_with_algorithm(
         &self,
         patch: &ContextPatch,
         start: usize,
         end: usize,
+        algorithm: SimilarityAlgorithm,
     ) -> Result<Option<usize>> {
-        for i in start..end {
-            if self.matches_context_at_position(patch, i, true)? {
+        // For insertions, we need to check one position beyond the end (at lines.len())
+        let search_end = if patch.operation == ContextOperation::Insert {
+            (end + 1).min(self.lines.len() + 1)
+        } else {
+            end
+        };
+        
+        for i in start..search_end {
+            if self.matches_context_at_position_with_algorithm(patch, i, true, algorithm)? {
                 return Ok(Some(i));
             }
         }
         Ok(None)
     }
 
-    /// Find fuzzy context match
-    fn find_fuzzy_match(
+    /// Find fuzzy context match with specified algorithm
+    fn find_fuzzy_match_with_algorithm(
         &self,
         patch: &ContextPatch,
         start: usize,
         end: usize,
+        algorithm: SimilarityAlgorithm,
     ) -> Result<Option<(usize, f32)>> {
         let mut best_match: Option<(usize, f32)> = None;
 
-        for i in start..end {
-            if let Some(confidence) = self.fuzzy_match_at_position(patch, i)? {
+        // For insertions, we need to check one position beyond the end (at lines.len())
+        let search_end = if patch.operation == ContextOperation::Insert {
+            (end + 1).min(self.lines.len() + 1)
+        } else {
+            end
+        };
+
+        for i in start..search_end {
+            if let Some(confidence) =
+                self.fuzzy_match_at_position_with_algorithm(patch, i, algorithm)?
+            {
                 if confidence >= patch.match_config.similarity_threshold {
                     if best_match.is_none() || confidence > best_match.unwrap().1 {
                         best_match = Some((i, confidence));
@@ -226,14 +335,21 @@ impl ContextMatcher {
         Ok(best_match)
     }
 
-    /// Check if context matches exactly at a given position
+    /// Check if context matches at a given position with specified algorithm
     /// Position represents the insertion point (where new content would go)
-    fn matches_context_at_position(
+    fn matches_context_at_position_with_algorithm(
         &self,
         patch: &ContextPatch,
         position: usize,
         exact: bool,
+        algorithm: SimilarityAlgorithm,
     ) -> Result<bool> {
+        // Handle edge case: if both contexts are empty, only match at boundaries
+        if patch.before_context.is_empty() && patch.after_context.is_empty() {
+            // Allow insertion at start (position 0) or end (position == lines.len())
+            return Ok(position == 0 || position == self.lines.len());
+        }
+
         // Check before_context (should match lines immediately before the position)
         if !patch.before_context.is_empty() {
             let before_end = position; // Lines before the insertion point
@@ -249,11 +365,12 @@ impl ContextMatcher {
                     return Ok(false);
                 }
 
-                if !self.lines_match(
+                if !self.lines_match_with_algorithm(
                     context_line,
                     &self.lines[line_idx],
                     &patch.match_config,
                     exact,
+                    algorithm,
                 ) {
                     return Ok(false);
                 }
@@ -263,18 +380,20 @@ impl ContextMatcher {
         // Check after_context (should match lines immediately after the position)
         if !patch.after_context.is_empty() {
             let after_start = position; // Lines after the insertion point
+            let after_end = after_start + patch.after_context.len();
+
+            if after_end > self.lines.len() {
+                return Ok(false); // Not enough lines after
+            }
 
             for (i, context_line) in patch.after_context.iter().enumerate() {
                 let line_idx = after_start + i;
-                if line_idx >= self.lines.len() {
-                    return Ok(false);
-                }
-
-                if !self.lines_match(
+                if !self.lines_match_with_algorithm(
                     context_line,
                     &self.lines[line_idx],
                     &patch.match_config,
                     exact,
+                    algorithm,
                 ) {
                     return Ok(false);
                 }
@@ -284,11 +403,12 @@ impl ContextMatcher {
         Ok(true)
     }
 
-    /// Calculate fuzzy match confidence at a given position
-    fn fuzzy_match_at_position(
+    /// Calculate fuzzy match confidence at a given position with specified algorithm
+    fn fuzzy_match_at_position_with_algorithm(
         &self,
         patch: &ContextPatch,
         position: usize,
+        algorithm: SimilarityAlgorithm,
     ) -> Result<Option<f32>> {
         let mut total_similarity = 0.0;
         let mut total_comparisons = 0;
@@ -308,10 +428,11 @@ impl ContextMatcher {
                     continue;
                 }
 
-                let similarity = self.calculate_line_similarity(
+                let similarity = self.calculate_line_similarity_with_algorithm(
                     context_line,
                     &self.lines[line_idx],
                     &patch.match_config,
+                    algorithm,
                 );
                 total_similarity += similarity;
                 total_comparisons += 1;
@@ -328,10 +449,11 @@ impl ContextMatcher {
                     continue;
                 }
 
-                let similarity = self.calculate_line_similarity(
+                let similarity = self.calculate_line_similarity_with_algorithm(
                     context_line,
                     &self.lines[line_idx],
                     &patch.match_config,
+                    algorithm,
                 );
                 total_similarity += similarity;
                 total_comparisons += 1;
@@ -345,18 +467,32 @@ impl ContextMatcher {
         }
     }
 
-    /// Check if two lines match according to the matching configuration
-    fn lines_match(&self, line1: &str, line2: &str, config: &MatchingConfig, exact: bool) -> bool {
+    /// Check if two lines match according to the matching configuration with specified algorithm
+    fn lines_match_with_algorithm(
+        &self,
+        line1: &str,
+        line2: &str,
+        config: &MatchingConfig,
+        exact: bool,
+        algorithm: SimilarityAlgorithm,
+    ) -> bool {
         if exact {
             self.normalize_text(line1, config) == self.normalize_text(line2, config)
         } else {
-            let similarity = self.calculate_line_similarity(line1, line2, config);
+            let similarity =
+                self.calculate_line_similarity_with_algorithm(line1, line2, config, algorithm);
             similarity >= config.similarity_threshold
         }
     }
 
-    /// Calculate similarity between two lines (0.0 to 1.0) using smart algorithm selection
-    fn calculate_line_similarity(&self, line1: &str, line2: &str, config: &MatchingConfig) -> f32 {
+    /// Calculate similarity between two lines (0.0 to 1.0) using specified algorithm
+    fn calculate_line_similarity_with_algorithm(
+        &self,
+        line1: &str,
+        line2: &str,
+        config: &MatchingConfig,
+        algorithm: SimilarityAlgorithm,
+    ) -> f32 {
         let norm1 = self.normalize_text(line1, config);
         let norm2 = self.normalize_text(line2, config);
 
@@ -364,48 +500,17 @@ impl ContextMatcher {
             return 1.0;
         }
 
-        // Try algorithms in order of speed and reliability
-        // This is completely internal - LLMs never see this complexity
-        self.calculate_similarity_with_cascade(&norm1, &norm2, config)
-    }
-
-    /// Internal algorithm cascading - tries multiple approaches for best results
-    fn calculate_similarity_with_cascade(
-        &self,
-        norm1: &str,
-        norm2: &str,
-        config: &MatchingConfig,
-    ) -> f32 {
-        // 1. Try exact/simple matching first (fastest)
-        let simple_score = self.calculate_simple_similarity(norm1, norm2);
-        if simple_score >= config.similarity_threshold {
-            return simple_score;
+        // Use the specified algorithm (cascading happens at context level, not line level)
+        match algorithm {
+            SimilarityAlgorithm::Simple => self.calculate_simple_similarity(&norm1, &norm2),
+            SimilarityAlgorithm::Levenshtein => {
+                self.calculate_levenshtein_similarity(&norm1, &norm2)
+            }
+            SimilarityAlgorithm::TokenSort => self.calculate_token_sort_similarity(&norm1, &norm2),
+            SimilarityAlgorithm::PartialRatio => {
+                self.calculate_partial_ratio_similarity(&norm1, &norm2)
+            }
         }
-
-        // 2. Try TokenSort for word reordering scenarios
-        let token_score = self.calculate_token_sort_similarity(norm1, norm2);
-        if token_score >= config.similarity_threshold {
-            return token_score;
-        }
-
-        // 3. Try PartialRatio for substring scenarios
-        let partial_score = self.calculate_partial_ratio_similarity(norm1, norm2);
-        if partial_score >= config.similarity_threshold {
-            return partial_score;
-        }
-
-        // 4. Try Levenshtein as last resort (most permissive)
-        let levenshtein_score = self.calculate_levenshtein_similarity(norm1, norm2);
-        if levenshtein_score >= config.similarity_threshold.max(0.6) {
-            // Slightly more permissive
-            return levenshtein_score;
-        }
-
-        // 5. Return the best score we found, even if below threshold
-        simple_score
-            .max(token_score)
-            .max(partial_score)
-            .max(levenshtein_score)
     }
 
     /// Original simple character-by-character similarity calculation
@@ -500,22 +605,58 @@ impl ContextMatcher {
                 Ok(1)
             }
             ContextOperation::Replace => {
-                if position < self.lines.len() {
-                    self.lines[position] = patch.content.clone();
+                // For replace operations, we need to replace the line that matched before_context
+                // Position points to where insertion would happen, so we need to adjust
+                let replace_position = if !patch.before_context.is_empty() {
+                    // Replace the last line of the before_context
+                    if position >= patch.before_context.len() {
+                        position - 1 // Replace the line just before the insertion position
+                    } else {
+                        return Err(anyhow::anyhow!("Invalid replace position calculation"));
+                    }
+                } else if !patch.after_context.is_empty() {
+                    // If no before_context, replace the first line of after_context
+                    position
+                } else {
+                    // Edge case: no context at all
+                    if position < self.lines.len() {
+                        position
+                    } else {
+                        return Err(anyhow::anyhow!("Cannot replace: position out of bounds"));
+                    }
+                };
+                
+                if replace_position < self.lines.len() {
+                    self.lines[replace_position] = patch.content.clone();
                     Ok(1)
                 } else {
                     anyhow::bail!(
                         "Cannot replace line at position {}: out of bounds",
-                        position
+                        replace_position
                     );
                 }
             }
             ContextOperation::Delete => {
-                if position < self.lines.len() {
-                    self.lines.remove(position);
+                // For delete operations, similar logic to replace
+                let delete_position = if !patch.before_context.is_empty() {
+                    // Delete the last line of the before_context
+                    if position >= patch.before_context.len() {
+                        position - 1
+                    } else {
+                        return Err(anyhow::anyhow!("Invalid delete position calculation"));
+                    }
+                } else if !patch.after_context.is_empty() {
+                    // If no before_context, delete the first line of after_context  
+                    position
+                } else {
+                    position
+                };
+                
+                if delete_position < self.lines.len() {
+                    self.lines.remove(delete_position);
                     Ok(1)
                 } else {
-                    anyhow::bail!("Cannot delete line at position {}: out of bounds", position);
+                    anyhow::bail!("Cannot delete line at position {}: out of bounds", delete_position);
                 }
             }
         }
@@ -1717,5 +1858,651 @@ See [Authentication Guide](./auth.md) for details.
                 s.suggested_fix.contains("User login with email")
             ));
         });
+    }
+
+    // ========================================
+    // PHASE 6+ IMPROVED TESTING: ALGORITHM ISOLATION TESTS
+    // ========================================
+
+    mod algorithm_isolation_tests {
+        use super::*;
+
+        /// Test Simple algorithm with exact matches
+        #[test]
+        fn test_simple_algorithm_exact_match() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "## Requirements\n- User registration\n- Password hashing\n- Session management".to_string();
+                let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Simple);
+                
+                let patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- User registration".to_string()],
+                    after_context: vec!["- Password hashing".to_string()],
+                    content: "- User registration ✅ SIMPLE".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&patch).unwrap();
+                
+                // Simple algorithm should succeed with confidence 1.0 for exact matches
+                assert!(result.success);
+                assert_eq!(result.match_confidence, Some(1.0));
+                assert!(matcher.get_content().contains("✅ SIMPLE"));
+            });
+        }
+
+        /// Test Simple algorithm failure with word reordering
+        #[test]
+        fn test_simple_algorithm_fails_word_reordering() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "## Requirements\n- User authentication system\n- Password validation".to_string();
+                let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Simple);
+                
+                let patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- Authentication system for users".to_string()], // Word reordering
+                    after_context: vec!["- Password validation".to_string()],
+                    content: "- User authentication system ✅ SHOULD_FAIL".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&patch).unwrap();
+                
+                // Simple algorithm should fail with word reordering
+                assert!(!result.success);
+                assert!(result.error_message.is_some());
+            });
+        }
+
+        /// Test TokenSort algorithm with word reordering
+        #[test]
+        fn test_tokensort_algorithm_word_reordering() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "## Requirements\n- User authentication system\n- Password validation process\n- Session timeout management".to_string();
+                let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::TokenSort);
+                
+                let patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- System for user authentication".to_string()], // Word reordering
+                    after_context: vec!["- Password validation process".to_string()],
+                    content: "- User authentication system ✅ TOKENSORT".to_string(),
+                    match_config: MatchingConfig {
+                        ignore_whitespace: true,
+                        similarity_threshold: 0.7,
+                        case_insensitive_fallback: true,
+                    },
+                };
+
+                let result = matcher.apply_patch(&patch).unwrap();
+                
+                // TokenSort algorithm should succeed with word reordering
+                assert!(result.success);
+                assert!(result.match_confidence.unwrap() > 0.7);
+                assert!(result.match_confidence.unwrap() < 1.0); // Not perfect match
+                assert!(matcher.get_content().contains("✅ TOKENSORT"));
+            });
+        }
+
+        /// Test PartialRatio algorithm with substring matching
+        #[test]
+        fn test_partialratio_algorithm_substring_matching() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "## Requirements\n- User authentication system with JWT tokens\n- Password validation and security\n- Session timeout management".to_string();
+                let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::PartialRatio);
+                
+                let patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- User authentication system".to_string()], // Should match as substring
+                    after_context: vec!["- Password validation and security".to_string()],
+                    content: "- User authentication system with JWT tokens ✅ PARTIALRATIO".to_string(),
+                    match_config: MatchingConfig {
+                        ignore_whitespace: true,
+                        similarity_threshold: 0.6,
+                        case_insensitive_fallback: true,
+                    },
+                };
+
+                let result = matcher.apply_patch(&patch).unwrap();
+                
+                // PartialRatio algorithm should succeed with substring matching
+                assert!(result.success, "PartialRatio test failed: {:?}", result.error_message);
+                assert!(result.match_confidence.unwrap() > 0.6);
+                assert!(result.match_confidence.unwrap() < 1.0); // Not perfect match due to extra content
+                assert!(matcher.get_content().contains("✅ PARTIALRATIO"));
+            });
+        }
+
+        /// Test Levenshtein algorithm with character variations/typos
+        #[test]
+        fn test_levenshtein_algorithm_typo_matching() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "## Requirements\n- User authentication with validation\n- Password security measures\n- Session timeout handling".to_string();
+                let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Levenshtein);
+                
+                let patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- User authenticaton with validaton".to_string()], // Typos
+                    after_context: vec!["- Password security measures".to_string()],
+                    content: "- User authentication with validation ✅ LEVENSHTEIN".to_string(),
+                    match_config: MatchingConfig {
+                        ignore_whitespace: true,
+                        similarity_threshold: 0.7,
+                        case_insensitive_fallback: true,
+                    },
+                };
+
+                let result = matcher.apply_patch(&patch).unwrap();
+                
+                // Levenshtein algorithm should succeed with typos
+                assert!(result.success);
+                assert!(result.match_confidence.unwrap() > 0.7);
+                assert!(result.match_confidence.unwrap() < 1.0); // Not perfect match due to typos
+                assert!(matcher.get_content().contains("✅ LEVENSHTEIN"));
+            });
+        }
+
+        /// Test algorithm performance characteristics (Simple fastest)
+        #[test]
+        fn test_algorithm_performance_characteristics() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let large_content = create_large_test_content();
+                
+                let exact_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Insert,
+                    section_context: Some("## Section 10".to_string()),
+                    before_context: vec!["- Requirement 15 for section 10".to_string()],
+                    after_context: vec!["- Requirement 16 for section 10".to_string()],
+                    content: "- Performance test requirement".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                // Test Simple algorithm (should be fastest)
+                let mut simple_matcher = ContextMatcher::new_with_algorithm(large_content.clone(), SimilarityAlgorithm::Simple);
+                let start_simple = Instant::now();
+                let simple_result = simple_matcher.apply_patch(&exact_patch).unwrap();
+                let simple_duration = start_simple.elapsed();
+
+                // Test Levenshtein algorithm (should be slowest)
+                let mut levenshtein_matcher = ContextMatcher::new_with_algorithm(large_content.clone(), SimilarityAlgorithm::Levenshtein);
+                let start_levenshtein = Instant::now();
+                let levenshtein_result = levenshtein_matcher.apply_patch(&exact_patch).unwrap();
+                let levenshtein_duration = start_levenshtein.elapsed();
+
+                // Both should succeed with same content
+                assert!(simple_result.success);
+                assert!(levenshtein_result.success);
+                
+                // Simple should be faster or at least not significantly slower
+                // Allow some variance for test environment variations
+                assert!(simple_duration <= levenshtein_duration * 3);
+                
+                // Simple should give confidence 1.0 for exact match
+                assert_eq!(simple_result.match_confidence, Some(1.0));
+                assert_eq!(levenshtein_result.match_confidence, Some(1.0)); // Exact match too
+            });
+        }
+
+        /// Test algorithm failure cascading (when forced algorithm fails)
+        #[test]
+        fn test_forced_algorithm_failure() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "## Requirements\n- User authentication system\n- Password validation".to_string();
+                
+                // Force Simple algorithm with impossible content (word reordering)
+                let mut matcher = ContextMatcher::new_with_algorithm(content, SimilarityAlgorithm::Simple);
+                
+                let impossible_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- COMPLETELY NONEXISTENT CONTENT".to_string()],
+                    after_context: vec!["- ALSO NONEXISTENT".to_string()],
+                    content: "- Should fail".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&impossible_patch).unwrap();
+                
+                // Should fail when forced algorithm cannot match
+                assert!(!result.success);
+                assert!(result.error_message.is_some());
+                assert!(result.error_message.as_ref().unwrap().contains("Context not found"));
+            });
+        }
+    }
+
+    // ========================================
+    // PHASE 6+ IMPROVED TESTING: COMPREHENSIVE ERROR & EDGE CASE TESTS
+    // ========================================
+
+    mod error_and_edge_case_tests {
+        use super::*;
+
+        /// Test empty file handling
+        #[test]
+        fn test_empty_file_handling() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "".to_string(); // Completely empty
+                let mut matcher = ContextMatcher::new(content);
+                
+                let patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Insert,
+                    section_context: None,
+                    before_context: vec!["- Some context".to_string()],
+                    after_context: vec!["- More context".to_string()],
+                    content: "- Should fail on empty file".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&patch).unwrap();
+                
+                // Should fail gracefully with helpful error
+                assert!(!result.success);
+                assert!(result.error_message.is_some());
+                assert!(!result.suggestions.is_empty());
+            });
+        }
+
+        /// Test single line file handling
+        #[test]
+        fn test_single_line_file_handling() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "# Single Line File".to_string();
+                let mut matcher = ContextMatcher::new(content);
+                
+                let patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Insert,
+                    section_context: None,
+                    before_context: vec!["# Single Line File".to_string()],
+                    after_context: vec![], // No after context in single line file
+                    content: "## Added Section".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&patch).unwrap();
+                
+                // Should succeed with single line context
+                assert!(result.success, "Single line test failed: {:?}", result.error_message);
+                assert!(matcher.get_content().contains("## Added Section"));
+            });
+        }
+
+        /// Test Unicode and special character handling
+        #[test]
+        fn test_unicode_and_special_characters() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "## Requirements 🚀\n- User authentication 认证\n- Password validation 🔒\n- Session management セッション".to_string();
+                let mut matcher = ContextMatcher::new(content);
+                
+                let patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- User authentication 认证".to_string()],
+                    after_context: vec!["- Password validation 🔒".to_string()],
+                    content: "- User authentication 认证 ✅ UNICODE".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&patch).unwrap();
+                
+                // Should handle Unicode correctly
+                assert!(result.success, "Unicode test failed: {:?}", result.error_message);
+                assert!(matcher.get_content().contains("✅ UNICODE"));
+            });
+        }
+
+        /// Test boundary conditions (context at file start/end)
+        #[test]
+        fn test_context_at_file_boundaries() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "# First Line\nMiddle content\n# Last Line".to_string();
+                let mut matcher = ContextMatcher::new(content);
+                
+                // Test insertion at very beginning
+                let start_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Insert,
+                    section_context: None,
+                    before_context: vec![], // No before context at start
+                    after_context: vec!["# First Line".to_string()],
+                    content: "## Before First Line".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&start_patch).unwrap();
+                assert!(result.success, "Start boundary test failed: {:?}", result.error_message);
+
+                // Test insertion at very end
+                let end_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Insert,
+                    section_context: None,
+                    before_context: vec!["# Last Line".to_string()],
+                    after_context: vec![], // No after context at end
+                    content: "## After Last Line".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result2 = matcher.apply_patch(&end_patch).unwrap();
+                assert!(result2.success, "End boundary test failed: {:?}", result2.error_message);
+                
+                let final_content = matcher.get_content();
+                assert!(final_content.starts_with("## Before First Line"));
+                assert!(final_content.ends_with("## After Last Line"));
+            });
+        }
+
+        /// Test malformed patch validation
+        #[test]
+        fn test_malformed_patch_validation() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "## Requirements\n- Some content".to_string();
+                let mut matcher = ContextMatcher::new(content);
+                
+                // Test patch with empty contexts
+                let empty_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Insert,
+                    section_context: None,
+                    before_context: vec![], // Empty
+                    after_context: vec![], // Empty
+                    content: "Should fail".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&empty_patch);
+                
+                // Should fail validation with proper error
+                assert!(result.is_err());
+                assert!(result.unwrap_err().to_string().contains("At least one of before_context or after_context must be provided"));
+
+                // Test insert/replace operation with empty content
+                let empty_content_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Insert,
+                    section_context: None,
+                    before_context: vec!["## Requirements".to_string()],
+                    after_context: vec![],
+                    content: "".to_string(), // Empty content for insert
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result2 = matcher.apply_patch(&empty_content_patch);
+                assert!(result2.is_err());
+                assert!(result2.unwrap_err().to_string().contains("Content cannot be empty for insert/replace operations"));
+            });
+        }
+
+        /// Test extremely large file handling
+        #[test]
+        fn test_large_file_handling() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                // Create a very large file (10K+ lines)
+                let mut large_content = String::new();
+                large_content.push_str("# Extremely Large Document\n\n");
+                
+                // Add 10,000 similar lines
+                for i in 1..=10000 {
+                    large_content.push_str(&format!("- Line number {} with content\n", i));
+                }
+                
+                let mut matcher = ContextMatcher::new(large_content);
+                
+                let patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- Line number 5000 with content".to_string()],
+                    after_context: vec!["- Line number 5001 with content".to_string()],
+                    content: "- Line number 5000 with content ✅ LARGE_FILE".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let start_time = Instant::now();
+                let result = matcher.apply_patch(&patch).unwrap();
+                let duration = start_time.elapsed();
+                
+                // Should succeed within reasonable time
+                assert!(result.success, "Large file test failed: {:?}", result.error_message);
+                assert!(duration.as_millis() < 500); // Should complete within 500ms
+                assert!(matcher.get_content().contains("✅ LARGE_FILE"));
+            });
+        }
+
+        /// Test ambiguous context scenarios
+        #[test]
+        fn test_ambiguous_context_handling() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = "## Section A\n- Common requirement\n- Different req A\n## Section B\n- Common requirement\n- Different req B".to_string();
+                let mut matcher = ContextMatcher::new(content);
+                
+                // Test ambiguous context without section disambiguation
+                let ambiguous_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- Common requirement".to_string()], // Appears in both sections!
+                    after_context: vec!["- Different req A".to_string()], // This should disambiguate to Section A
+                    content: "- Common requirement ✅ DISAMBIGUATED".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&ambiguous_patch).unwrap();
+                
+                // Should succeed by using after_context to disambiguate
+                assert!(result.success, "Ambiguous context test failed: {:?}", result.error_message);
+                
+                let content_after = matcher.get_content();
+                
+                // Should have updated only the first occurrence (in Section A)
+                assert!(content_after.contains("## Section A\n- Common requirement ✅ DISAMBIGUATED"));
+                // Section B should be unchanged
+                assert!(content_after.contains("## Section B\n- Common requirement\n- Different req B"));
+            });
+        }
+
+        /// Test special markdown structure edge cases
+        #[test]
+        fn test_special_markdown_structures() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let content = r#"# Main Title
+
+## Code Block Test
+```javascript
+const test = {
+    key: "value",
+    array: [1, 2, 3]
+};
+```
+
+## Table Test
+| Column 1 | Column 2 | Status |
+|----------|----------|--------|
+| Item A   | Value A  | Done   |
+| Item B   | Value B  | Pending|
+
+## Nested List Test
+1. First level
+   - Second level
+     * Third level
+       + Fourth level"#.to_string();
+
+                let mut matcher = ContextMatcher::new(content);
+                
+                // Test context matching within code block
+                let code_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: Some("## Code Block Test".to_string()),
+                    before_context: vec!["    key: \"value\",".to_string()],
+                    after_context: vec!["    array: [1, 2, 3]".to_string()],
+                    content: "    key: \"updated_value\",".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result = matcher.apply_patch(&code_patch).unwrap();
+                assert!(result.success, "Code block test failed: {:?}", result.error_message);
+                assert!(matcher.get_content().contains("updated_value"));
+
+                // Test context matching in table
+                let table_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: Some("## Table Test".to_string()),
+                    before_context: vec!["| Item A   | Value A  | Done   |".to_string()],
+                    after_context: vec!["| Item B   | Value B  | Pending|".to_string()],
+                    content: "| Item A   | Value A  | Complete |".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result2 = matcher.apply_patch(&table_patch).unwrap();
+                assert!(result2.success, "Table test failed: {:?}", result2.error_message);
+                assert!(matcher.get_content().contains("Complete"));
+            });
+        }
+
+        /// Test concurrent modification simulation
+        #[test]
+        fn test_content_change_detection() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                let original_content = "## Requirements\n- Feature A\n- Feature B\n- Feature C".to_string();
+                let mut matcher = ContextMatcher::new(original_content);
+                
+                // First, apply a patch successfully
+                let patch1 = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- Feature A".to_string()],
+                    after_context: vec!["- Feature B".to_string()],
+                    content: "- Feature A ✅ DONE".to_string(),
+                    match_config: MatchingConfig::default(),
+                };
+
+                let result1 = matcher.apply_patch(&patch1).unwrap();
+                assert!(result1.success);
+
+                // Now try to apply a second patch that expects the old content
+                let patch2 = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- Feature A".to_string()], // This no longer exists!
+                    after_context: vec!["- Feature B".to_string()],
+                    content: "- Feature A ✅ SHOULD FAIL".to_string(),
+                    match_config: MatchingConfig {
+                        ignore_whitespace: true,
+                        similarity_threshold: 1.0, // Require exact match to detect changes
+                        case_insensitive_fallback: false,
+                    },
+                };
+
+                let result2 = matcher.apply_patch(&patch2).unwrap();
+                
+                // Should fail because content has changed
+                assert!(!result2.success, "Second patch should fail but succeeded");
+                assert!(result2.error_message.is_some());
+                // The specific suggestion text may vary, just ensure suggestions are provided
+                assert!(!result2.suggestions.is_empty(), "Should provide suggestions for failed match");
+            });
+        }
+
+        /// Test extremely low similarity thresholds
+        #[test]
+        fn test_extreme_similarity_thresholds() {
+            let env = TestEnvironment::new().unwrap();
+            
+            let _ = env.with_env_async(|| async {
+                // Test with very low similarity threshold (should match almost anything)
+                let content1 = "## Requirements\n- User authentication system\n- Password validation".to_string();
+                let mut matcher1 = ContextMatcher::new(content1);
+                
+                let low_threshold_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- Something completely different".to_string()],
+                    after_context: vec!["- Password validation".to_string()],
+                    content: "- User authentication system ✅ LOW_THRESHOLD".to_string(),
+                    match_config: MatchingConfig {
+                        ignore_whitespace: true,
+                        similarity_threshold: 0.1, // Very low threshold
+                        case_insensitive_fallback: true,
+                    },
+                };
+
+                let _low_result = matcher1.apply_patch(&low_threshold_patch).unwrap();
+                // May or may not succeed depending on algorithm - that's fine
+                // The important thing is it doesn't crash and provides reasonable feedback
+
+                // Test with high threshold using fresh content (exact match should work)
+                let content2 = "## Requirements\n- User authentication system\n- Password validation".to_string();
+                let mut matcher2 = ContextMatcher::new(content2);
+                
+                let high_threshold_patch = ContextPatch {
+                    file_type: SpecFileType::Spec,
+                    operation: ContextOperation::Replace,
+                    section_context: None,
+                    before_context: vec!["- User authentication system".to_string()], // Exact match
+                    after_context: vec!["- Password validation".to_string()],
+                    content: "- User authentication system ✅ HIGH_THRESHOLD".to_string(),
+                    match_config: MatchingConfig {
+                        ignore_whitespace: false, // Strict matching
+                        similarity_threshold: 0.99, // Nearly perfect match required
+                        case_insensitive_fallback: false,
+                    },
+                };
+
+                let result2 = matcher2.apply_patch(&high_threshold_patch).unwrap();
+                // Should succeed since this is an exact match
+                assert!(result2.success, "High threshold test failed: {:?}", result2.error_message);
+            });
+        }
     }
 }

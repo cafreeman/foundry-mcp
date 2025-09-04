@@ -56,7 +56,8 @@ pub enum SpecFileType {
 }
 
 /// Context-based patch operation types
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum ContextOperation {
     Insert,
     Replace,
