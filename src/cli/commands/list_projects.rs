@@ -35,13 +35,13 @@ pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProj
     let (next_steps, workflow_hints) = if response_data.projects.is_empty() {
         (
             vec![
-                "No projects found in foundry directory".to_string(),
-                "Create your first project with: foundry mcp create-project".to_string(),
+                "No projects found in foundry directory - ready for project creation".to_string(),
+                "You can create your first project with: foundry mcp create-project".to_string(),
             ],
             vec![
-                "Use 'foundry mcp get-foundry-help workflows' for getting started guidance"
+                "You can use 'foundry mcp get-foundry-help workflows' for getting started guidance"
                     .to_string(),
-                "Projects are stored in ~/.foundry/ directory".to_string(),
+                "Projects are stored in ~/.foundry/ directory for easy access".to_string(),
             ],
         )
     } else {
@@ -49,14 +49,14 @@ pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProj
         (
             vec![
                 format_count(project_count, "project", "projects"),
-                "Use 'foundry mcp create-spec <project_name> <feature_name>' to add specifications"
+                "You can use 'foundry mcp create-spec <project_name> <feature_name>' to add specifications"
                     .to_string(),
-                "Use 'foundry mcp load-spec <project_name>' to view existing specifications"
+                "You can use 'foundry mcp load-spec <project_name>' to view existing specifications"
                     .to_string(),
             ],
             vec![
-                "Each project can contain multiple timestamped specifications".to_string(),
-                "Use 'foundry mcp analyze-project' to add project analysis to existing codebases"
+                "Each project can contain multiple timestamped specifications for organized development".to_string(),
+                "You can use 'foundry mcp analyze-project' to add project analysis to existing codebases"
                     .to_string(),
             ],
         )

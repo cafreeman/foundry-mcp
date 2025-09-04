@@ -312,7 +312,7 @@ impl crate::mcp::traits::McpToolDefinition for LoadSpecArgs {
 
         rust_mcp_sdk::schema::Tool {
             name: "load_spec".to_string(),
-            description: Some("Load specific specification content with project context. If spec_name is omitted, lists available specs.".to_string()),
+            description: Some("Load specific specification content with project context. You can use this to review full specification details, task lists, and implementation notes. If spec_name is omitted, lists available specs.".to_string()),
             title: None,
             input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
                 vec!["project_name".to_string()], // Only project_name is required
@@ -643,7 +643,7 @@ pub struct DeleteSpecArgs {
 // Generate MCP tool implementation for DeleteSpecArgs
 impl_mcp_tool! {
     name = "delete_spec",
-    description = "Delete an existing specification and all its files (spec.md, task-list.md, notes.md). This action cannot be undone.",
+    description = "Delete an existing specification and all its files (spec.md, task-list.md, notes.md). You can use this to permanently remove specifications that are no longer needed. This action cannot be undone.",
     struct DeleteSpecArgs {
         project_name: String {
             description = "Name of the existing project containing the spec"
@@ -734,7 +734,7 @@ impl crate::mcp::traits::McpToolDefinition for ListProjectsArgs {
     fn tool_definition() -> rust_mcp_sdk::schema::Tool {
         rust_mcp_sdk::schema::Tool {
             name: "list_projects".to_string(),
-            description: Some("List all available projects with metadata including creation dates, spec counts, and validation status.".to_string()),
+            description: Some("List all available projects with metadata including creation dates, spec counts, and validation status. You can use this to discover available projects before loading or creating specifications.".to_string()),
             title: None,
             input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
                 vec![],

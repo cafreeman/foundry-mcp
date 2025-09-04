@@ -84,7 +84,7 @@ async fn test_load_project_empty() -> Result<()> {
         response
             .next_steps
             .iter()
-            .any(|step| step.contains("no specifications"))
+            .any(|step| step.contains("ready for specification creation"))
     );
     assert!(
         response

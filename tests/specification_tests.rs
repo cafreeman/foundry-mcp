@@ -246,13 +246,13 @@ async fn test_load_spec_specific_spec() -> Result<()> {
         response
             .workflow_hints
             .iter()
-            .any(|hint| hint.contains("Update task-list.md as work progresses"))
+            .any(|hint| hint.contains("You must update task-list.md as work progresses"))
     );
     assert!(
         response
             .workflow_hints
             .iter()
-            .any(|hint| hint.contains("Add notes for design decisions"))
+            .any(|hint| hint.contains("You can add notes for design decisions"))
     );
 
     // Check next steps

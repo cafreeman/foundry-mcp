@@ -103,12 +103,13 @@ fn load_project_summary(project_name: &str) -> Result<String> {
 fn generate_listing_next_steps(project_name: &str, available_specs: &[SpecInfo]) -> Vec<String> {
     if available_specs.is_empty() {
         vec![
-            "No specifications found for this project".to_string(),
+            "No specifications found for this project - ready for specification creation"
+                .to_string(),
             format!(
-                "Create your first specification: foundry create-spec {} <feature_name>",
+                "You can create your first specification: foundry create-spec {} <feature_name>",
                 project_name
             ),
-            "Use 'foundry load-project' to see full project context".to_string(),
+            "You can use 'foundry load-project' to see full project context".to_string(),
         ]
     } else {
         let mut steps = vec![
@@ -117,7 +118,7 @@ fn generate_listing_next_steps(project_name: &str, available_specs: &[SpecInfo])
                 available_specs.len()
             ),
             format!(
-                "Load specific spec: foundry load-spec {} <spec_name>",
+                "You can load a specific spec: foundry load-spec {} <spec_name>",
                 project_name
             ),
         ];
@@ -130,7 +131,7 @@ fn generate_listing_next_steps(project_name: &str, available_specs: &[SpecInfo])
         }
 
         steps.push(format!(
-            "Create new spec: foundry create-spec {} <feature_name>",
+            "You can create a new spec: foundry create-spec {} <feature_name>",
             project_name
         ));
 
@@ -142,30 +143,40 @@ fn generate_listing_next_steps(project_name: &str, available_specs: &[SpecInfo])
 fn generate_spec_next_steps(project_name: &str, spec_name: &str) -> Vec<String> {
     vec![
         format!("Spec '{}' loaded successfully", spec_name),
-        "Review the specification content and tasks for implementation guidance".to_string(),
-        "Use the project summary for additional context".to_string(),
+        "You can review the specification content and tasks for implementation guidance"
+            .to_string(),
+        "You can use the project summary for additional context".to_string(),
         format!(
-            "Create new spec: foundry create-spec {} <feature_name>",
+            "You can create a new spec: foundry create-spec {} <feature_name>",
             project_name
         ),
-        format!("List all specs: foundry load-spec {}", project_name),
+        format!("You can list all specs: foundry load-spec {}", project_name),
     ]
 }
 
 /// Generate workflow hints for spec listing
 fn generate_listing_workflow_hints(available_specs: &[SpecInfo]) -> Vec<String> {
     let mut hints = vec![
-        "Project summary provides context for all specifications".to_string(),
-        "Specifications are timestamped and organized by feature".to_string(),
+        "You can use the project summary for context about all specifications".to_string(),
+        "Specifications are timestamped and organized by feature for easy navigation".to_string(),
     ];
 
     if available_specs.is_empty() {
-        hints.push("Start by creating specifications to track development features".to_string());
-        hints.push("Each spec includes implementation notes and task lists".to_string());
+        hints.push(
+            "You can start by creating specifications to track development features".to_string(),
+        );
+        hints.push(
+            "Each spec includes implementation notes and task lists for comprehensive planning"
+                .to_string(),
+        );
     } else {
         hints.push(format!("Total specs: {}", available_specs.len()));
-        hints.push("Load individual specs to see detailed implementation plans".to_string());
-        hints.push("Specs include specification content, notes, and task lists".to_string());
+        hints
+            .push("You can load individual specs to see detailed implementation plans".to_string());
+        hints.push(
+            "Specs include specification content, notes, and task lists for complete context"
+                .to_string(),
+        );
     }
 
     hints
@@ -175,9 +186,9 @@ fn generate_listing_workflow_hints(available_specs: &[SpecInfo]) -> Vec<String> 
 fn generate_spec_workflow_hints(spec_name: &str) -> Vec<String> {
     vec![
         format!("Loaded spec: {}", spec_name),
-        "Update task-list.md as work progresses".to_string(),
-        "Add notes for design decisions".to_string(),
-        "Spec content provides detailed feature requirements".to_string(),
-        "Use project summary for broader context during implementation".to_string(),
+        "You must update task-list.md as work progresses".to_string(),
+        "You can add notes for design decisions and implementation details".to_string(),
+        "Spec content provides detailed feature requirements and acceptance criteria".to_string(),
+        "You can use the project summary for broader context during implementation".to_string(),
     ]
 }

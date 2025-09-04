@@ -135,14 +135,14 @@ fn generate_next_steps(args: &DeleteSpecArgs) -> Vec<String> {
         ),
         "All spec files have been permanently removed".to_string(),
         format!(
-            "View remaining specs: foundry load-project {}",
+            "You can view remaining specs: foundry load-project {}",
             args.project_name
         ),
         format!(
-            "Create new spec: foundry create-spec {} <feature_name>",
+            "You can create a new spec: foundry create-spec {} <feature_name>",
             args.project_name
         ),
-        "Deletion cannot be undone - consider backing up important specs before deletion"
+        "Deletion cannot be undone - you might consider backing up important specs before deletion"
             .to_string(),
     ]
 }
@@ -153,8 +153,9 @@ fn generate_workflow_hints(args: &DeleteSpecArgs) -> Vec<String> {
         format!("Deleted spec: {}", args.spec_name),
         "This action cannot be undone".to_string(),
         "All associated files (spec.md, task-list.md, notes.md) have been removed".to_string(),
-        "Use 'foundry list-projects' to see project status after deletion".to_string(),
-        "Consider archiving completed specs rather than deleting for future reference".to_string(),
-        "Create new specs to continue feature development".to_string(),
+        "You can use 'foundry list-projects' to see project status after deletion".to_string(),
+        "You might consider archiving completed specs rather than deleting for future reference"
+            .to_string(),
+        "You can create new specs to continue feature development".to_string(),
     ]
 }
