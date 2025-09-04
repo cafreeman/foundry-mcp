@@ -38,3 +38,95 @@ pub fn format_list_with_details(items: &[String], separator: &str, prefix: Optio
         }
     }
 }
+
+/// Format install command output for human-readable display
+pub fn format_install_output(
+    target: &str,
+    binary_path: &str,
+    config_path: &str,
+    success: bool,
+    actions_taken: &[String],
+) -> String {
+    let status_icon = if success { "✅" } else { "⚠️" };
+    let status_text = if success {
+        "Successfully installed"
+    } else {
+        "Partially installed"
+    };
+
+    let mut output = format!(
+        "{} {} Foundry MCP for {}\n",
+        status_icon, status_text, target
+    );
+
+    output.push_str(&format!("📁 Config: {}\n", config_path));
+    output.push_str(&format!("🔧 Binary: {}\n", binary_path));
+
+    if !actions_taken.is_empty() {
+        output.push_str("\n📋 Actions taken:\n");
+        for action in actions_taken {
+            output.push_str(&format!("  • {}\n", action));
+        }
+    }
+
+    if success {
+        output.push_str(
+            "\n🎉 Installation complete! You can now use Foundry MCP in your environment.\n",
+        );
+    } else {
+        output.push_str(
+            "\n⚠️  Installation completed with warnings. Check the actions above for details.\n",
+        );
+    }
+
+    output
+}
+
+/// Format uninstall command output for human-readable display
+pub fn format_uninstall_output(
+    target: &str,
+    config_path: &str,
+    success: bool,
+    actions_taken: &[String],
+    files_removed: &[String],
+) -> String {
+    let status_icon = if success { "✅" } else { "⚠️" };
+    let status_text = if success {
+        "Successfully uninstalled"
+    } else {
+        "Partially uninstalled"
+    };
+
+    let mut output = format!(
+        "{} {} Foundry MCP from {}\n",
+        status_icon, status_text, target
+    );
+
+    output.push_str(&format!("📁 Config: {}\n", config_path));
+
+    if !actions_taken.is_empty() {
+        output.push_str("\n📋 Actions taken:\n");
+        for action in actions_taken {
+            output.push_str(&format!("  • {}\n", action));
+        }
+    }
+
+    if !files_removed.is_empty() {
+        output.push_str("\n🗑️  Files removed:\n");
+        for file in files_removed {
+            output.push_str(&format!("  • {}\n", file));
+        }
+    }
+
+    if success {
+        output.push_str(
+            "\n🎉 Uninstallation complete! Foundry MCP has been removed from your environment.\n",
+        );
+    } else {
+        output.push_str(
+            "\n⚠️  Uninstallation completed with warnings. Check the actions above for details.\n",
+        );
+    }
+
+    output
+}

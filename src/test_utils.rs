@@ -4,6 +4,7 @@
 //! that can be used by the test crate.
 
 use crate::cli::args::*;
+use crate::types::responses::{InstallResponse, UninstallResponse};
 use anyhow::Result;
 use std::env;
 use std::future::Future;
@@ -184,6 +185,16 @@ impl TestEnvironment {
         InstallArgs {
             target: target.to_string(),
             binary_path: Some(self.mock_binary_path()),
+            json: false,
+        }
+    }
+
+    /// Create test arguments for install command with JSON output
+    pub fn install_args_json(&self, target: &str) -> InstallArgs {
+        InstallArgs {
+            target: target.to_string(),
+            binary_path: Some(self.mock_binary_path()),
+            json: true,
         }
     }
 
@@ -192,6 +203,7 @@ impl TestEnvironment {
         InstallArgs {
             target: target.to_string(),
             binary_path: Some(binary_path.to_string()),
+            json: false,
         }
     }
 
@@ -200,6 +212,16 @@ impl TestEnvironment {
         UninstallArgs {
             target: target.to_string(),
             remove_config,
+            json: false,
+        }
+    }
+
+    /// Create test arguments for uninstall command with JSON output
+    pub fn uninstall_args_json(&self, target: &str, remove_config: bool) -> UninstallArgs {
+        UninstallArgs {
+            target: target.to_string(),
+            remove_config,
+            json: true,
         }
     }
 
@@ -212,6 +234,70 @@ impl TestEnvironment {
         }
     }
 
+    /// Parse install response JSON for testing
+    pub fn parse_install_response(&self, json_response: &str) -> anyhow::Result<InstallResponse> {
+        Ok(serde_json::from_str(json_response)?)
+    }
+
+    /// Parse uninstall response JSON for testing
+    pub fn parse_uninstall_response(
+        &self,
+        json_response: &str,
+    ) -> anyhow::Result<UninstallResponse> {
+        Ok(serde_json::from_str(json_response)?)
+    }
+
+    /// Execute install command and return parsed response for testing
+    pub async fn install_and_parse(&self, target: &str) -> anyhow::Result<InstallResponse> {
+        use crate::cli::commands::install;
+        let args = self.install_args_json(target);
+        let response_json = install::execute(args).await?;
+        self.parse_install_response(&response_json)
+    }
+
+    /// Execute uninstall command and return parsed response for testing
+    pub async fn uninstall_and_parse(
+        &self,
+        target: &str,
+        remove_config: bool,
+    ) -> anyhow::Result<UninstallResponse> {
+        use crate::cli::commands::uninstall;
+        let args = self.uninstall_args_json(target, remove_config);
+        let response_json = uninstall::execute(args).await?;
+        self.parse_uninstall_response(&response_json)
+    }
+
+    /// Execute install command with standard args and return parsed response for testing
+    /// This is a compatibility helper for tests that use the old pattern
+    pub async fn install_with_args(&self, args: InstallArgs) -> anyhow::Result<InstallResponse> {
+        use crate::cli::commands::install;
+        // Convert to JSON mode for parsing
+        let json_args = InstallArgs {
+            target: args.target,
+            binary_path: args.binary_path,
+            json: true,
+        };
+        let response_json = install::execute(json_args).await?;
+        self.parse_install_response(&response_json)
+    }
+
+    /// Execute uninstall command with standard args and return parsed response for testing
+    /// This is a compatibility helper for tests that use the old pattern
+    pub async fn uninstall_with_args(
+        &self,
+        args: UninstallArgs,
+    ) -> anyhow::Result<UninstallResponse> {
+        use crate::cli::commands::uninstall;
+        // Convert to JSON mode for parsing
+        let json_args = UninstallArgs {
+            target: args.target,
+            remove_config: args.remove_config,
+            json: true,
+        };
+        let response_json = uninstall::execute(json_args).await?;
+        self.parse_uninstall_response(&response_json)
+    }
+
     /// Create test arguments for status command with JSON output for testing
     pub fn status_args_json(&self, target: Option<&str>, detailed: bool) -> StatusArgs {
         StatusArgs {
@@ -219,6 +305,24 @@ impl TestEnvironment {
             detailed,
             json: true,
         }
+    }
+
+    /// Execute install command and return human-readable text output for testing
+    pub async fn install_text_output(&self, target: &str) -> anyhow::Result<String> {
+        use crate::cli::commands::install;
+        let args = self.install_args(target); // Uses json: false
+        install::execute(args).await
+    }
+
+    /// Execute uninstall command and return human-readable text output for testing
+    pub async fn uninstall_text_output(
+        &self,
+        target: &str,
+        remove_config: bool,
+    ) -> anyhow::Result<String> {
+        use crate::cli::commands::uninstall;
+        let args = self.uninstall_args(target, remove_config); // Uses json: false
+        uninstall::execute(args).await
     }
 
     /// Execute status command and return parsed structured response for testing
@@ -316,7 +420,7 @@ impl TestEnvironment {
         if !rules_content.contains("# Foundry MCP Usage Guide") {
             anyhow::bail!("Rules should contain usage guide header");
         }
-        if !rules_content.contains("foundry mcp") {
+        if !rules_content.contains("mcp_foundry_") {
             anyhow::bail!("Rules should reference Foundry MCP tools");
         }
         if !rules_content.contains("Content Agnostic") {
@@ -344,6 +448,15 @@ impl TestEnvironment {
         }
         if !subagent_content.contains("mcp_foundry_") {
             anyhow::bail!("Subagent should reference MCP tools");
+        }
+        if !subagent_content.contains("Content Agnostic") {
+            anyhow::bail!("Subagent should contain core principles");
+        }
+        if !subagent_content.contains("IMPORTANT: Append only adds to the END") {
+            anyhow::bail!("Subagent should contain critical append guidance");
+        }
+        if !subagent_content.contains("Content Creation Standards") {
+            anyhow::bail!("Subagent should contain content formatting guidelines");
         }
 
         Ok(())

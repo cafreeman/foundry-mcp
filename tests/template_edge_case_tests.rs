@@ -61,10 +61,9 @@ fn test_template_overwrite_on_reinstallation() -> Result<()> {
 
     env.with_env_async(|| async {
         // First installation
-        let install_args = env.install_args("cursor");
-        let response1 = foundry_mcp::cli::commands::install::execute(install_args).await?;
+        let response1 = env.install_and_parse("cursor").await?;
         assert_eq!(
-            response1.data.installation_status,
+            response1.installation_status,
             foundry_mcp::types::responses::InstallationStatus::Success
         );
 
@@ -80,10 +79,9 @@ fn test_template_overwrite_on_reinstallation() -> Result<()> {
         assert_eq!(modified_content, "Custom modified content");
 
         // Reinstall - should overwrite the modified content
-        let install_args = env.install_args("cursor");
-        let response2 = foundry_mcp::cli::commands::install::execute(install_args).await?;
+        let response2 = env.install_and_parse("cursor").await?;
         assert_eq!(
-            response2.data.installation_status,
+            response2.installation_status,
             foundry_mcp::types::responses::InstallationStatus::Success
         );
 
@@ -118,10 +116,9 @@ fn test_template_installation_with_existing_custom_content() -> Result<()> {
         assert_eq!(existing_content, custom_content);
 
         // Install - should overwrite custom content
-        let install_args = env.install_args("cursor");
-        let response = foundry_mcp::cli::commands::install::execute(install_args).await?;
+        let response = env.install_and_parse("cursor").await?;
         assert_eq!(
-            response.data.installation_status,
+            response.installation_status,
             foundry_mcp::types::responses::InstallationStatus::Success
         );
 
@@ -147,10 +144,9 @@ fn test_template_installation_insufficient_space() -> Result<()> {
         // we'll verify the error handling paths work correctly
 
         // Normal installation should work
-        let install_args = env.install_args("cursor");
-        let response = foundry_mcp::cli::commands::install::execute(install_args).await?;
+        let response = env.install_and_parse("cursor").await?;
         assert_eq!(
-            response.data.installation_status,
+            response.installation_status,
             foundry_mcp::types::responses::InstallationStatus::Success
         );
 
@@ -207,10 +203,9 @@ fn test_template_uninstallation_missing_files() -> Result<()> {
 
     env.with_env_async(|| async {
         // Install first
-        let install_args = env.install_args("cursor");
-        let response = foundry_mcp::cli::commands::install::execute(install_args).await?;
+        let response = env.install_and_parse("cursor").await?;
         assert_eq!(
-            response.data.installation_status,
+            response.installation_status,
             foundry_mcp::types::responses::InstallationStatus::Success
         );
 
@@ -221,18 +216,16 @@ fn test_template_uninstallation_missing_files() -> Result<()> {
         }
 
         // Uninstall should handle missing template gracefully
-        let uninstall_args = env.uninstall_args("cursor", false);
-        let uninstall_response =
-            foundry_mcp::cli::commands::uninstall::execute(uninstall_args).await?;
+        let uninstall_response = env.uninstall_and_parse("cursor", false).await?;
         assert_eq!(
-            uninstall_response.data.uninstallation_status,
+            uninstall_response.uninstallation_status,
             foundry_mcp::types::responses::InstallationStatus::Success
         );
 
         // Should not fail even though template was already missing
         // The uninstall should complete successfully regardless of template state
         assert!(
-            !uninstall_response.data.actions_taken.is_empty(),
+            !uninstall_response.actions_taken.is_empty(),
             "Should have some actions taken during uninstall"
         );
 
@@ -252,10 +245,9 @@ fn test_template_installation_filesystem_errors() -> Result<()> {
         // This is a simpler test that verifies the installation process is robust
 
         // Normal installation should work
-        let install_args = env.install_args("cursor");
-        let response = foundry_mcp::cli::commands::install::execute(install_args).await?;
+        let response = env.install_and_parse("cursor").await?;
         assert_eq!(
-            response.data.installation_status,
+            response.installation_status,
             foundry_mcp::types::responses::InstallationStatus::Success
         );
 

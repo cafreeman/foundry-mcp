@@ -12,7 +12,7 @@ pub struct CursorRulesTemplate;
 
 impl ClientTemplate for CursorRulesTemplate {
     fn content() -> &'static str {
-        "---
+        r###"---
 name: 'Foundry MCP Usage Guide'
 description: 'Comprehensive guide for using Foundry MCP tools effectively in AI-assisted development'
 alwaysApply: true
@@ -56,21 +56,84 @@ Each spec contains:
 
 #### Project Management
 
-- **`create-project`**: For NEW initiatives requiring full project context
-- **`analyze-project`**: For EXISTING codebases you want to manage with Foundry
-- **`load-project`**: ALWAYS do this first when working on existing projects
+- **`mcp_foundry_create_project`**: For NEW initiatives requiring full project context
+
+  - When: Starting fresh projects, establishing project foundation
+  - You provide: Complete vision, detailed tech-stack, concise summary
+  - MCP creates: Project directory structure and validates content
+
+- **`mcp_foundry_analyze_project`**: For EXISTING codebases you want to manage with Foundry
+
+  - When: Adding Foundry management to projects with existing code
+  - Process: First explore codebase, then provide analyzed vision/tech-stack/summary
+  - Best for: Documentation, structured management of legacy projects
+
+- **`mcp_foundry_load_project`**: ALWAYS do this first when working on existing projects
+  - When: Starting work sessions, understanding project scope
+  - Returns: Project vision, tech-stack, summary, available specs
+  - Critical: Never create specs without loading project context first
 
 #### Specification Management
 
-- **`create-spec`**: Breaking down features into detailed implementation plans
-- **`load-spec`**: Reviewing specifications and checking progress
-- **`update-spec`**: Updating multiple spec files in a single operation
+- **`mcp_foundry_create_spec`**: Breaking down features into detailed implementation plans
+
+  - When: Starting new features or user stories
+  - You provide: Feature spec, task breakdown, implementation notes
+  - Creates: Timestamped directory (YYYYMMDD_HHMMSS_feature_name)
+
+- **`mcp_foundry_load_spec`**: Reviewing specifications and checking progress
+
+  - When: Continuing work on existing features, checking task status
+  - Returns: Complete spec content with project context
+
+- **`mcp_foundry_update_spec`**: Updating multiple spec files in a single operation with explicit content replacement control
+
+  - **File Types**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
+  - **Operations**: `replace` (overwrite) or `append` (add to existing) - REQUIRED
+  - **Usage**:
+
+    ```
+    # Update single file
+    mcp_foundry_update_spec <project> <spec> --spec "<content>" --operation <replace|append>
+
+    # Update multiple files in one command
+    mcp_foundry_update_spec <project> <spec> \
+      --spec "<spec content>" \
+      --tasks "<task content>" \
+      --notes "<notes content>" \
+      --operation <replace|append>
+    ```
+
+  - **Operation Types**:
+    - **`--operation replace`**: Completely replaces file content with new content
+      - **Use when**: Major changes, complete rewrites, replacing outdated content
+      - **Risk**: Existing content is permanently lost
+    - **`--operation append`**: Adds new content to the END of existing content only
+      - **Use when**: Adding new tasks, progress updates, accumulating notes
+      - **IMPORTANT**: Append only adds to the bottom - it cannot edit existing content or insert in the middle
+      - **Risk**: Low - existing content is preserved, but cannot modify existing sections
+  - **Best Practices**:
+    - Use `append` for iterative development: Add new tasks, mark completed items, add new notes
+    - Use `replace` for major changes: Complete rewrites, editing existing content, requirement changes
+    - **Never use `append` to modify existing content** - it only adds to the end
+    - At least one content parameter (`--spec`, `--tasks`, or `--notes`) must be provided
+    - Operation is always required and applies to all files being updated
 
 #### Discovery & Validation
 
-- **`list-projects`**: Discovering available projects
-- **`validate-content`**: Checking content before creating projects/specs
-- **`get-foundry-help`**: Getting workflow guidance and examples
+- **`mcp_foundry_list_projects`**: Discovering available projects
+
+  - When: Finding project names, checking what exists
+  - Returns: Project names, creation dates, spec counts
+
+- **`mcp_foundry_validate_content`**: Checking content before creating projects/specs
+
+  - When: Ensuring content meets length/format requirements
+  - Use this proactively to avoid validation errors
+
+- **`mcp_foundry_get_foundry_help`**: Getting workflow guidance and examples
+  - Topics: `workflows`, `content-examples`, `project-structure`, `parameter-guidance`
+  - Use when: Understanding best practices, troubleshooting
 
 ## Content Requirements & Boundaries
 
@@ -95,99 +158,225 @@ Each spec contains:
 - Project/spec naming conventions
 - Error handling and recovery suggestions
 
+### Content Formatting Guidelines
+
+#### Vision (vision.md)
+
+```markdown
+## Problem Statement
+
+[Describe the problem being solved]
+
+## Target Users
+
+[Who benefits from this solution]
+
+## Value Proposition
+
+[Unique advantages and competitive edge]
+
+## Key Features & Roadmap
+
+[Main capabilities and development priorities]
+```
+
+#### Tech Stack (tech-stack.md)
+
+```markdown
+## Backend
+
+- **Language**: [choice] - [rationale]
+- **Framework**: [choice] - [why this framework]
+
+## Database
+
+- **Type**: [choice] - [use case fit]
+
+## Deployment
+
+- **Platform**: [choice] - [scaling/scalability needs]
+```
+
+#### Specifications (spec.md)
+
+```markdown
+# Feature Name
+
+## Overview
+
+[Purpose and scope]
+
+## Requirements
+
+- [Functional requirements]
+- [Non-functional requirements]
+
+## Acceptance Criteria
+
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+## Implementation Approach
+
+[Technical strategy, architecture decisions]
+
+## Dependencies
+
+[What this feature depends on]
+```
+
+#### Task Lists (task-list.md)
+
+```markdown
+- [ ] Implement user authentication system
+- [ ] Add password hashing and validation
+- [ ] Create user registration endpoint
+- [ ] Add login/logout functionality
+- [ ] Implement session management
+```
+
 ## Best Practices & Workflow Patterns
 
 ### 1. Always Load Context First
 
-Load project context before working on any specifications.
+```
+# ✅ Good: Load project context before working
+mcp_foundry_load_project project-name
+mcp_foundry_create_spec project-name new-feature
+
+# ❌ Avoid: Creating specs without context
+mcp_foundry_create_spec project-name new-feature
+```
 
 ### 2. Use Iterative Development
 
-Use `append` operations for task progress updates and implementation notes.
+```
+# Create initial spec
+mcp_foundry_create_spec my-project user-auth
+
+# Add new tasks to the bottom of task list (append only adds to end)
+mcp_foundry_update_spec my-project 20240101_user_auth --tasks "- [ ] New task added to bottom" --operation append
+
+# Add implementation notes to the bottom (append only adds to end)
+mcp_foundry_update_spec my-project 20240101_user_auth --notes "## New Implementation Notes\nAdditional notes added to bottom of file." --operation append
+
+# Update both tasks and notes by adding to the bottom of each
+mcp_foundry_update_spec my-project 20240101_user_auth \
+  --tasks "- [ ] Another new task at bottom" \
+  --notes "More notes appended to end" \
+  --operation append
+```
 
 ### 3. Follow Next Steps Guidance
 
-Every Foundry command returns `next_steps` and `workflow_hints`.
+- Every Foundry command returns `next_steps` and `workflow_hints`
+- Follow these suggestions for efficient development
+- Use `mcp_foundry_get_foundry_help workflows` for additional guidance
 
 ### 4. Validate Content Proactively
 
-Use `validate-content` to check before creating projects or specs.
+```
+# Check content before creating
+mcp_foundry_validate_content vision --content "Your vision content here"
+mcp_foundry_validate_content spec --content "Your spec content here"
+```
 
 ### 5. Use Appropriate Spec Granularity
 
-- One spec per feature/story
-- Use task-list.md for implementation steps
-- Use notes.md for design decisions
-- Update regularly with append operations
+- **One spec per feature/story**: Don't create monolithic specs
+- **Use task-list.md**: Break features into actionable implementation steps
+- **Use notes.md**: Document design decisions and rationale
+- **Update regularly**: Use append operations to track progress
 
 ## Common Workflows
 
 ### New Project Setup
 
-1. Create Project with complete vision, tech-stack, and summary
-2. Create First Spec for initial feature
-3. Follow next_steps for iterative development
+1. **Create Project**: `mcp_foundry_create_project my-app --vision "..." --tech-stack "..." --summary "..."`
+2. **Create First Spec**: `mcp_foundry_create_spec my-app user-auth --spec "..." --tasks "..." --notes "..."`
+3. **Follow next_steps** for iterative development
 
 ### Feature Development Cycle
 
-1. Load Project context
-2. Create Spec for new feature
-3. Update Progress with append operations
-4. Add Notes documenting decisions
-5. Review Status and get workflow guidance
+1. **Load Project**: `mcp_foundry_load_project my-app` (get context)
+2. **Create Spec**: `mcp_foundry_create_spec my-app payment-integration`
+3. **Update Progress**: Use `mcp_foundry_update_spec` with `append` to add new tasks to bottom
+4. **Add Notes**: Document implementation decisions by appending to notes
+5. **Load Spec**: Review progress and get workflow guidance
 
 ### Existing Codebase Analysis
 
-1. Explore Codebase structure
-2. Analyze Project with analyzed content
-3. Create Specs for development plans
+1. **Explore Codebase**: Use Search, Grep, Read tools to understand structure
+2. **Analyze Project**: `mcp_foundry_analyze_project analyzed-app --vision "..." --tech-stack "..." --summary "..."`
+3. **Create Specs**: Add feature development plans within analyzed project
+
+### Context Loading for Conversations
+
+1. **Quick Context**: Load project summary for high-level understanding
+2. **Detailed Context**: Load specific specs for implementation work
+3. **Full Context**: Load entire project when starting comprehensive work
 
 ## Error Handling & Troubleshooting
 
 ### Content Validation Errors
 
-- Content too short: Provide more detailed content
-- Content validation failed: Use validate-content to check before creating
-- Solution: Expand content with specific details and examples
+- **"Content too short"**: Provide more detailed content (vision: 200+, tech-stack: 150+, summary: 100+)
+- **"Content validation failed"**: Use `validate-content` to check before creating
+- **Solution**: Expand content with more specific details and examples
 
 ### Project/Spec Not Found
 
-- Project not found: Use list-projects to see available options
-- Spec not found: Load project first to see available specs
-- Solution: Always load project context before working with specs
+- **"Project not found"**: Use `list-projects` to see available projects
+- **"Spec not found"**: Load project first to see available specs
+- **Solution**: Always load project context before working with specs
 
 ### File Operation Errors
 
-- Permission denied: Check file permissions
-- File locked: Close conflicting applications
-- Solution: Verify permissions and close conflicting apps
+- **Permission denied**: May need to run with appropriate permissions
+- **File locked**: Close files in other applications
+- **Solution**: Check file permissions and close conflicting applications
 
 ### MCP vs CLI Tool Confusion
 
-- MCP Tools: Available through AI assistant interface
-- CLI Tools: Use terminal/command line for installation management
-- Most tools work through both interfaces
-- Use CLI for installation, status checking, deletion operations
+- **MCP Tools**: Available through AI assistant interface (all core Foundry functionality)
+- **CLI Tools**: Use terminal/command line (delete-spec, install/uninstall/status commands)
+- **Most tools work through both interfaces**: create-project, update-spec, load-project, etc.
+- **When to use CLI**: For installation management, status checking, deletion operations
 
 ## Tips for Effective Usage
 
-1. Start with Context: Always load project before creating specs
-2. Use Append for Updates: Build up task lists and notes incrementally
-3. Follow Guidance: Pay attention to next_steps and workflow_hints
-4. Validate First: Use validate-content to avoid rejection
-5. Keep Specs Focused: One feature per spec, use task-list for breakdown
-6. Document Decisions: Use notes.md for rationale and context
-7. Update Regularly: Mark tasks complete, add implementation notes
-8. Get Help: Use get-foundry-help for workflow guidance
+1. **Start with Context**: Always load project before creating specs
+2. **Use Append for Updates**: Build up task lists and notes incrementally
+3. **Follow Guidance**: Pay attention to next_steps and workflow_hints
+4. **Validate First**: Use validate-content to avoid rejection
+5. **Keep Specs Focused**: One feature per spec, use task-list for breakdown
+6. **Document Decisions**: Use notes.md for rationale and context
+7. **Update Regularly**: Mark tasks complete, add implementation notes
+8. **Get Help**: Use get-foundry-help for workflow guidance
 
 ## Quick Reference
 
 ### Most Common Commands
 
-- Start working: `foundry mcp load-project my-project`
-- Create spec: `foundry mcp create-spec my-project user-auth`
-- Update progress: `foundry mcp update-spec my-project spec-name --tasks \"- [x] Completed\" --operation append`
-- Get help: `foundry mcp get-foundry-help workflows`
+```
+# Start working on existing project
+mcp_foundry_load_project my-project
+
+# Create new feature spec
+mcp_foundry_create_spec my-project user-auth
+
+# Add new tasks to bottom of task list (append only adds to end)
+mcp_foundry_update_spec my-project 20240101_user_auth --tasks "- [ ] New task at bottom" --operation append
+
+# Add content to bottom of multiple files at once
+mcp_foundry_update_spec my-project 20240101_user_auth \
+  --tasks "- [ ] Another task at bottom" \
+  --notes "New notes appended to end" \
+  --operation append
+
+# Get help
+mcp_foundry_get_foundry_help workflows
+```
 
 ### Content Length Requirements
 
@@ -198,7 +387,7 @@ Use `validate-content` to check before creating projects or specs.
 - **Task Lists**: Specific, actionable implementation steps
 - **Notes**: Design decisions, context, implementation details
 
-Remember: Foundry manages structure, you provide content. Focus on comprehensive, well-structured content that helps future development."
+Remember: Foundry manages structure, you provide content. Focus on comprehensive, well-structured content that helps future development."###
     }
 
     fn file_path(config_dir: &Path) -> Result<PathBuf> {

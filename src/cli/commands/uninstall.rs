@@ -2,11 +2,11 @@
 
 use crate::cli::args::UninstallArgs;
 use crate::core::installation;
-use crate::types::responses::{FoundryResponse, InstallationStatus, UninstallResponse};
-use crate::utils::response::{build_incomplete_response, build_success_response};
+use crate::types::responses::{InstallationStatus, UninstallResponse};
+use crate::utils::formatting::format_uninstall_output;
 use anyhow::{Context, Result};
 
-pub async fn execute(args: UninstallArgs) -> Result<FoundryResponse<UninstallResponse>> {
+pub async fn execute(args: UninstallArgs) -> Result<String> {
     // Validate uninstallation target
     validate_target(&args.target)?;
 
@@ -27,23 +27,32 @@ pub async fn execute(args: UninstallArgs) -> Result<FoundryResponse<UninstallRes
         }
     };
 
-    // Build response
+    // Build response data for both JSON and human-readable output
     let response_data = UninstallResponse {
         target: args.target.clone(),
-        config_path: result.config_path,
+        config_path: result.config_path.clone(),
         uninstallation_status: if result.success {
             InstallationStatus::Success
         } else {
             InstallationStatus::Partial
         },
-        actions_taken: result.actions_taken,
-        files_removed: result.files_removed,
+        actions_taken: result.actions_taken.clone(),
+        files_removed: result.files_removed.clone(),
     };
 
-    if result.success {
-        Ok(build_success_response(response_data, vec![], vec![]))
+    // Return formatted output based on --json flag
+    if args.json {
+        // Return JSON format - only include the data for clean CLI output
+        Ok(serde_json::to_string_pretty(&response_data)?)
     } else {
-        Ok(build_incomplete_response(response_data, vec![], vec![]))
+        // Return human-readable format
+        Ok(format_uninstall_output(
+            &args.target,
+            &result.config_path,
+            result.success,
+            &result.actions_taken,
+            &result.files_removed,
+        ))
     }
 }
 
@@ -94,6 +103,7 @@ mod tests {
         let args = UninstallArgs {
             target: "invalid-target".to_string(),
             remove_config: false,
+            json: false,
         };
 
         // Test the validation logic without calling execute()
@@ -112,6 +122,7 @@ mod tests {
         let args = UninstallArgs {
             target: "claude-code".to_string(),
             remove_config: true,
+            json: false,
         };
 
         assert_eq!(args.target, "claude-code");
@@ -123,6 +134,7 @@ mod tests {
         let args = UninstallArgs {
             target: "cursor".to_string(),
             remove_config: false,
+            json: false,
         };
 
         assert_eq!(args.target, "cursor");
@@ -151,6 +163,7 @@ mod tests {
         let args = UninstallArgs {
             target: "cursor".to_string(),
             remove_config: true,
+            json: false,
         };
 
         assert_eq!(args.target, "cursor");

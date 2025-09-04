@@ -4,8 +4,8 @@
 //! workflows for Cursor and Claude Code environments.
 
 use anyhow::Result;
-use foundry_mcp::cli::commands::{install, uninstall};
-use foundry_mcp::types::responses::{InstallationStatus, ValidationStatus};
+// Note: Using test helper functions instead of direct command imports
+use foundry_mcp::types::responses::InstallationStatus;
 
 // Import TestEnvironment from the main crate
 use foundry_mcp::test_utils::TestEnvironment;
@@ -20,19 +20,15 @@ fn test_install_cursor_end_to_end() -> Result<()> {
         let config_path = env.cursor_config_path();
         assert!(!config_path.exists(), "Config should not exist initially");
 
-        // Execute install command
-        let install_args = env.install_args("cursor");
-        let response = install::execute(install_args).await?;
+        // Execute install command and get parsed response for testing
+        let response = env.install_and_parse("cursor").await?;
 
         // Verify response structure
-        assert_eq!(response.data.target, "cursor");
-        assert_eq!(
-            response.data.installation_status,
-            InstallationStatus::Success
-        );
-        assert!(!response.data.binary_path.is_empty());
-        assert!(!response.data.config_path.is_empty());
-        assert!(!response.data.actions_taken.is_empty());
+        assert_eq!(response.target, "cursor");
+        assert_eq!(response.installation_status, InstallationStatus::Success);
+        assert!(!response.binary_path.is_empty());
+        assert!(!response.config_path.is_empty());
+        assert!(!response.actions_taken.is_empty());
 
         // Verify config file was created
         assert!(
@@ -72,15 +68,11 @@ fn test_install_cursor_end_to_end() -> Result<()> {
         // Verify response mentions rules creation
         assert!(
             response
-                .data
                 .actions_taken
                 .iter()
                 .any(|action| action.contains("rules")),
             "Actions should mention rules file creation"
         );
-
-        // Verify we get a successful response structure (no workflow guidance needed)
-        assert_eq!(response.validation_status, ValidationStatus::Complete);
 
         Ok::<(), anyhow::Error>(())
     })?;
@@ -94,13 +86,9 @@ fn test_install_cursor_config_verification() -> Result<()> {
     let env = TestEnvironment::new()?;
 
     let _ = env.with_env_async(|| async {
-        // Install cursor
-        let install_args = env.install_args("cursor");
-        let response = install::execute(install_args).await?;
-        assert_eq!(
-            response.data.installation_status,
-            InstallationStatus::Success
-        );
+        // Install cursor and get parsed response for testing
+        let response = env.install_and_parse("cursor").await?;
+        assert_eq!(response.installation_status, InstallationStatus::Success);
 
         // Read and validate config structure
         let config_path = env.cursor_config_path();
@@ -183,19 +171,15 @@ fn test_install_cursor_always_overwrites() -> Result<()> {
 
         // Install should succeed and overwrite existing configuration
         let install_args = env.install_args("cursor");
-        let result = install::execute(install_args).await;
+        let result = env.install_with_args(install_args).await;
         assert!(
             result.is_ok(),
             "Install should succeed and overwrite existing configuration"
         );
 
         // Install again (should succeed and overwrite existing configuration)
-        let install_args_force = env.install_args("cursor");
-        let response = install::execute(install_args_force).await?;
-        assert_eq!(
-            response.data.installation_status,
-            InstallationStatus::Success
-        );
+        let response = env.install_and_parse("cursor").await?;
+        assert_eq!(response.installation_status, InstallationStatus::Success);
 
         // Verify foundry config was updated but other-server preserved
         let config_content = std::fs::read_to_string(env.cursor_config_path())?;
@@ -231,10 +215,9 @@ fn test_uninstall_cursor_end_to_end() -> Result<()> {
 
     let _ = env.with_env_async(|| async {
         // First install cursor
-        let install_args = env.install_args("cursor");
-        let install_response = install::execute(install_args).await?;
+        let install_response = env.install_and_parse("cursor").await?;
         assert_eq!(
-            install_response.data.installation_status,
+            install_response.installation_status,
             InstallationStatus::Success
         );
 
@@ -243,12 +226,11 @@ fn test_uninstall_cursor_end_to_end() -> Result<()> {
         assert!(config_path.exists(), "Config should exist after install");
 
         // Uninstall cursor
-        let uninstall_args = env.uninstall_args("cursor", false);
-        let uninstall_response = uninstall::execute(uninstall_args).await?;
+        let uninstall_response = env.uninstall_and_parse("cursor", false).await?;
 
         // Verify uninstall response
-        assert_eq!(uninstall_response.data.target, "cursor");
-        assert!(!uninstall_response.data.actions_taken.is_empty());
+        assert_eq!(uninstall_response.target, "cursor");
+        assert!(!uninstall_response.actions_taken.is_empty());
 
         // Config file should still exist but foundry server should be removed
         assert!(config_path.exists(), "Config file should still exist");
@@ -274,10 +256,9 @@ fn test_uninstall_cursor_remove_config() -> Result<()> {
 
     let _ = env.with_env_async(|| async {
         // Install cursor (creates only foundry server)
-        let install_args = env.install_args("cursor");
-        let install_response = install::execute(install_args).await?;
+        let install_response = env.install_and_parse("cursor").await?;
         assert_eq!(
-            install_response.data.installation_status,
+            install_response.installation_status,
             InstallationStatus::Success
         );
 
@@ -286,8 +267,7 @@ fn test_uninstall_cursor_remove_config() -> Result<()> {
         assert!(config_path.exists());
 
         // Uninstall with config removal
-        let uninstall_args = env.uninstall_args("cursor", true);
-        let uninstall_response = uninstall::execute(uninstall_args).await?;
+        let uninstall_response = env.uninstall_and_parse("cursor", true).await?;
 
         // Verify config file was completely removed
         assert!(
@@ -298,7 +278,6 @@ fn test_uninstall_cursor_remove_config() -> Result<()> {
         // Verify response mentions file removal
         assert!(
             uninstall_response
-                .data
                 .actions_taken
                 .iter()
                 .any(|action| action.contains("Removed configuration file")),
@@ -318,14 +297,13 @@ fn test_install_cursor_path_command() -> Result<()> {
 
     let _ = env.with_env_async(|| async {
         // Test cursor installation without explicit binary path
-        let install_args = env.install_args("cursor");
-        let response = install::execute(install_args).await?;
+        let response = env.install_and_parse("cursor").await?;
 
         assert_eq!(
-            response.data.installation_status,
+            response.installation_status,
             foundry_mcp::types::responses::InstallationStatus::Success
         );
-        assert_eq!(response.data.binary_path, "foundry (from PATH)");
+        assert_eq!(response.binary_path, "foundry (from PATH)");
 
         // Verify config uses PATH-based 'foundry' command
         let config_content = std::fs::read_to_string(env.cursor_config_path())?;
@@ -348,19 +326,12 @@ fn test_install_cursor_path_based() -> Result<()> {
 
     let _ = env.with_env_async(|| async {
         // Test cursor installation using PATH-based command (no binary path needed)
-        let install_args = env.install_args("cursor");
-        let result = install::execute(install_args).await;
-
-        assert!(
-            result.is_ok(),
-            "Install should succeed using PATH-based foundry command"
-        );
-        let response = result.unwrap();
+        let response = env.install_and_parse("cursor").await?;
         assert_eq!(
-            response.data.installation_status,
+            response.installation_status,
             foundry_mcp::types::responses::InstallationStatus::Success
         );
-        assert_eq!(response.data.binary_path, "foundry (from PATH)");
+        assert_eq!(response.binary_path, "foundry (from PATH)");
 
         // Verify config uses 'foundry' command
         let config_content = std::fs::read_to_string(env.cursor_config_path())?;
@@ -381,7 +352,7 @@ fn test_install_cursor_runtime_validation() -> Result<()> {
         // Cursor installation should succeed as it uses PATH-based command
         // Execution validation happens at runtime when MCP server is started
         let install_args = env.install_args("cursor");
-        let result = install::execute(install_args).await;
+        let result = env.install_with_args(install_args).await;
 
         assert!(
             result.is_ok(),
@@ -414,7 +385,7 @@ fn test_install_cursor_malformed_config() -> Result<()> {
 
         // Install should handle malformed config gracefully
         let install_args = env.install_args("cursor");
-        let result = install::execute(install_args).await;
+        let result = env.install_with_args(install_args).await;
 
         assert!(result.is_err(), "Install should fail with malformed config");
         let error_msg = format!("{:#}", result.unwrap_err());
@@ -437,7 +408,7 @@ fn test_uninstall_cursor_not_installed() -> Result<()> {
     let _ = env.with_env_async(|| async {
         // Try to uninstall when nothing is installed
         let uninstall_args = env.uninstall_args("cursor", false);
-        let result = uninstall::execute(uninstall_args).await;
+        let result = env.uninstall_with_args(uninstall_args).await;
 
         assert!(result.is_err(), "Uninstall should fail when not installed");
         let error_msg = format!("{:#}", result.unwrap_err());
@@ -460,7 +431,7 @@ fn test_uninstall_cursor_not_installed_fails() -> Result<()> {
     let _ = env.with_env_async(|| async {
         // Try to uninstall when nothing is installed (should fail)
         let uninstall_args = env.uninstall_args("cursor", false);
-        let result = uninstall::execute(uninstall_args).await;
+        let result = env.uninstall_with_args(uninstall_args).await;
 
         assert!(result.is_err(), "Uninstall should fail when not installed");
         let error = result.unwrap_err();
@@ -490,7 +461,7 @@ fn test_install_cursor_empty_config() -> Result<()> {
 
         // Install should handle empty config gracefully
         let install_args = env.install_args("cursor");
-        let result = install::execute(install_args).await;
+        let result = env.install_with_args(install_args).await;
 
         assert!(
             result.is_ok(),
@@ -535,9 +506,9 @@ fn test_cursor_status_before_after_install() -> Result<()> {
 
         // Install cursor
         let install_args = env.install_args("cursor");
-        let install_response = install::execute(install_args).await?;
+        let install_response = env.install_with_args(install_args).await?;
         assert_eq!(
-            install_response.data.installation_status,
+            install_response.installation_status,
             InstallationStatus::Success
         );
 
@@ -573,7 +544,7 @@ fn test_cursor_status_detailed_mode() -> Result<()> {
     let _ = env.with_env_async(|| async {
         // Install cursor first
         let install_args = env.install_args("cursor");
-        install::execute(install_args).await?;
+        env.install_with_args(install_args).await?;
 
         // Test detailed status
         let status_response = env.get_status_response(Some("cursor"), true).await?;
@@ -652,7 +623,7 @@ fn test_cursor_status_with_issues() -> Result<()> {
     let _ = env.with_env_async(|| async {
         // Install with valid binary
         let install_args = env.install_args("cursor");
-        install::execute(install_args).await?;
+        env.install_with_args(install_args).await?;
 
         // Manually corrupt the config to create an issue
         let corrupt_config = r#"{
@@ -721,14 +692,11 @@ fn test_install_claude_code_end_to_end() -> Result<()> {
 
                 // Execute install command
                 let install_args = env.install_args("claude-code");
-                let response = install::execute(install_args).await?;
+                let response = env.install_with_args(install_args).await?;
 
                 // Verify response structure
-                assert_eq!(response.data.target, "claude-code");
-                assert_eq!(
-                    response.data.installation_status,
-                    InstallationStatus::Success
-                );
+                assert_eq!(response.target, "claude-code");
+                assert_eq!(response.installation_status, InstallationStatus::Success);
 
                 // Verify subagent template was created with expected content
                 env.verify_claude_subagent_template()?;
@@ -736,7 +704,6 @@ fn test_install_claude_code_end_to_end() -> Result<()> {
                 // Verify response mentions subagent creation
                 assert!(
                     response
-                        .data
                         .actions_taken
                         .iter()
                         .any(|action| action.contains("subagent")),
@@ -744,12 +711,159 @@ fn test_install_claude_code_end_to_end() -> Result<()> {
                 );
 
                 // Verify we get a successful response structure
-                assert_eq!(response.validation_status, ValidationStatus::Complete);
-
                 Ok::<(), anyhow::Error>(())
             });
         },
     );
+
+    Ok(())
+}
+
+/// Test human-readable install output format
+#[test]
+fn test_install_human_readable_output() -> Result<()> {
+    let env = TestEnvironment::new()?;
+
+    let _ = env.with_env_async(|| async {
+        // Test human-readable install output
+        let output = env.install_text_output("cursor").await?;
+
+        // Verify output contains expected human-readable elements
+        assert!(output.contains("✅"), "Output should contain success icon");
+        assert!(
+            output.contains("Successfully installed"),
+            "Output should contain success message"
+        );
+        assert!(
+            output.contains("Foundry MCP for cursor"),
+            "Output should mention target"
+        );
+        assert!(
+            output.contains("📁 Config:"),
+            "Output should show config path"
+        );
+        assert!(
+            output.contains("🔧 Binary:"),
+            "Output should show binary path"
+        );
+        assert!(
+            output.contains("📋 Actions taken:"),
+            "Output should list actions"
+        );
+        assert!(
+            output.contains("🎉 Installation complete!"),
+            "Output should have completion message"
+        );
+
+        // Verify it's not JSON format
+        assert!(
+            !output.trim().starts_with('{'),
+            "Output should not be JSON format"
+        );
+        assert!(
+            !output.contains("\"target\":"),
+            "Output should not contain JSON keys"
+        );
+
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    Ok(())
+}
+
+/// Test human-readable uninstall output format
+#[test]
+fn test_uninstall_human_readable_output() -> Result<()> {
+    let env = TestEnvironment::new()?;
+
+    let _ = env.with_env_async(|| async {
+        // First install to have something to uninstall
+        env.install_and_parse("cursor").await?;
+
+        // Test human-readable uninstall output
+        let output = env.uninstall_text_output("cursor", false).await?;
+
+        // Verify output contains expected human-readable elements
+        assert!(output.contains("✅"), "Output should contain success icon");
+        assert!(
+            output.contains("Successfully uninstalled"),
+            "Output should contain success message"
+        );
+        assert!(
+            output.contains("Foundry MCP from cursor"),
+            "Output should mention target"
+        );
+        assert!(
+            output.contains("📁 Config:"),
+            "Output should show config path"
+        );
+        assert!(
+            output.contains("📋 Actions taken:"),
+            "Output should list actions"
+        );
+        assert!(
+            output.contains("🎉 Uninstallation complete!"),
+            "Output should have completion message"
+        );
+
+        // Verify it's not JSON format
+        assert!(
+            !output.trim().starts_with('{'),
+            "Output should not be JSON format"
+        );
+        assert!(
+            !output.contains("\"target\":"),
+            "Output should not contain JSON keys"
+        );
+
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    Ok(())
+}
+
+/// Test JSON output format for install
+#[test]
+fn test_install_json_output() -> Result<()> {
+    let env = TestEnvironment::new()?;
+
+    let _ = env.with_env_async(|| async {
+        // Test JSON install output using the helper that forces JSON mode
+        let response = env.install_and_parse("cursor").await?;
+
+        // Verify structured data is available and correct
+        assert_eq!(response.target, "cursor");
+        assert_eq!(response.installation_status, InstallationStatus::Success);
+        assert!(!response.binary_path.is_empty());
+        assert!(!response.config_path.is_empty());
+        assert!(!response.actions_taken.is_empty());
+
+        Ok::<(), anyhow::Error>(())
+    })?;
+
+    Ok(())
+}
+
+/// Test JSON output format for uninstall
+#[test]
+fn test_uninstall_json_output() -> Result<()> {
+    let env = TestEnvironment::new()?;
+
+    let _ = env.with_env_async(|| async {
+        // First install to have something to uninstall
+        env.install_and_parse("cursor").await?;
+
+        // Test JSON uninstall output using the helper that forces JSON mode
+        let response = env.uninstall_and_parse("cursor", false).await?;
+
+        // Verify structured data is available and correct
+        assert_eq!(response.target, "cursor");
+        assert_eq!(response.uninstallation_status, InstallationStatus::Success);
+        assert!(!response.config_path.is_empty());
+        assert!(!response.actions_taken.is_empty());
+
+        Ok::<(), anyhow::Error>(())
+    })?;
 
     Ok(())
 }

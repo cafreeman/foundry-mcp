@@ -683,6 +683,13 @@ pub struct InstallArgs {
     /// Useful for installations where the binary is in a custom location
     #[arg(long)]
     pub binary_path: Option<String>,
+
+    /// Output installation information in JSON format
+    ///
+    /// When enabled, outputs structured JSON data instead of
+    /// human-readable formatted text with colors and status indicators
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// Arguments for uninstall command
@@ -701,6 +708,13 @@ pub struct UninstallArgs {
     /// unregistering the MCP server
     #[arg(long)]
     pub remove_config: bool,
+
+    /// Output uninstallation information in JSON format
+    ///
+    /// When enabled, outputs structured JSON data instead of
+    /// human-readable formatted text with colors and status indicators
+    #[arg(long)]
+    pub json: bool,
 }
 
 /// Arguments for status command

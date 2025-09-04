@@ -3,12 +3,12 @@
 use crate::{
     cli::args::InstallArgs,
     core::installation,
-    types::responses::{FoundryResponse, InstallResponse, InstallationStatus},
-    utils::response::{build_incomplete_response, build_success_response},
+    types::responses::{InstallResponse, InstallationStatus},
+    utils::formatting::format_install_output,
 };
 use anyhow::Result;
 
-pub async fn execute(args: InstallArgs) -> Result<FoundryResponse<InstallResponse>> {
+pub async fn execute(args: InstallArgs) -> Result<String> {
     // Validate installation target
     validate_target(&args.target)?;
 
@@ -36,23 +36,32 @@ pub async fn execute(args: InstallArgs) -> Result<FoundryResponse<InstallRespons
         }
     };
 
-    // Build response
+    // Build response data for both JSON and human-readable output
     let response_data = InstallResponse {
         target: args.target.clone(),
-        binary_path,
-        config_path: result.config_path,
+        binary_path: binary_path.clone(),
+        config_path: result.config_path.clone(),
         installation_status: if result.success {
             InstallationStatus::Success
         } else {
             InstallationStatus::Partial
         },
-        actions_taken: result.actions_taken,
+        actions_taken: result.actions_taken.clone(),
     };
 
-    if result.success {
-        Ok(build_success_response(response_data, vec![], vec![]))
+    // Return formatted output based on --json flag
+    if args.json {
+        // Return JSON format - only include the data for clean CLI output
+        Ok(serde_json::to_string_pretty(&response_data)?)
     } else {
-        Ok(build_incomplete_response(response_data, vec![], vec![]))
+        // Return human-readable format
+        Ok(format_install_output(
+            &args.target,
+            &binary_path,
+            &result.config_path,
+            result.success,
+            &result.actions_taken,
+        ))
     }
 }
 
@@ -187,6 +196,7 @@ mod tests {
         let args = InstallArgs {
             target: "invalid-target".to_string(),
             binary_path: None,
+            json: false,
         };
 
         // Test the validation logic without calling execute()
@@ -205,6 +215,7 @@ mod tests {
         let args = InstallArgs {
             target: "claude-code".to_string(),
             binary_path: Some("/custom/path/foundry".to_string()),
+            json: false,
         };
 
         assert_eq!(args.target, "claude-code");
@@ -216,6 +227,7 @@ mod tests {
         let args = InstallArgs {
             target: "cursor".to_string(),
             binary_path: None,
+            json: false,
         };
 
         assert_eq!(args.target, "cursor");
@@ -248,6 +260,7 @@ mod tests {
         let args = InstallArgs {
             target: "cursor".to_string(),
             binary_path: Some(binary_path.to_string_lossy().to_string()),
+            json: false,
         };
 
         // This test validates the CLI argument processing
@@ -269,6 +282,7 @@ mod tests {
         let _args = InstallArgs {
             target: "cursor".to_string(),
             binary_path: Some(binary_path.to_string_lossy().to_string()),
+            json: false,
         };
 
         // We can't easily test the full execute function due to path dependencies,
@@ -332,6 +346,7 @@ mod tests {
         let args1 = InstallArgs {
             target: "claude-code".to_string(),
             binary_path: None,
+            json: false,
         };
         assert_eq!(args1.target, "claude-code");
         assert!(args1.binary_path.is_none());
@@ -339,6 +354,7 @@ mod tests {
         let args2 = InstallArgs {
             target: "cursor".to_string(),
             binary_path: Some("/custom/path".to_string()),
+            json: true,
         };
         assert_eq!(args2.target, "cursor");
         assert_eq!(args2.binary_path, Some("/custom/path".to_string()));
