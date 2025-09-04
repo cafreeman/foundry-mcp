@@ -155,12 +155,16 @@ async fn main() -> Result<()> {
                 std::process::exit(1);
             });
         }
-        Commands::Install(args) => cli::commands::install::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
-        Commands::Uninstall(args) => cli::commands::uninstall::execute(args)
-            .await
-            .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+        Commands::Install(args) => {
+            let output = cli::commands::install::execute(args).await?;
+            println!("{}", output);
+            return Ok(());
+        }
+        Commands::Uninstall(args) => {
+            let output = cli::commands::uninstall::execute(args).await?;
+            println!("{}", output);
+            return Ok(());
+        }
         Commands::Status(args) => {
             let output = cli::commands::status::execute(args).await?;
             println!("{}", output);

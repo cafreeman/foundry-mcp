@@ -11,11 +11,27 @@ use crate::types::responses::EnvironmentStatus;
 use anyhow::{Context, Result};
 use std::fs;
 use tokio::process::Command;
+use which::which;
 
 /// Execute a claude command through the user's shell
 /// This properly handles aliases, shell functions, and PATH resolution
 async fn execute_claude_command(args: &[&str]) -> Result<std::process::Output> {
-    // Determine the shell to use
+    // First, try to find the claude executable using the which crate
+    // This handles PATH resolution properly across different platforms
+    if let Ok(claude_path) = which("claude") {
+        // Found claude in PATH, execute it directly
+        let mut command = Command::new(&claude_path);
+        command.args(args);
+
+        if let Ok(output) = command.output().await {
+            if output.status.success() {
+                return Ok(output);
+            }
+        }
+    }
+
+    // If direct execution fails or claude not found in PATH,
+    // try to execute through shell to handle aliases and shell functions
     let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/sh".to_string());
     let current_path = std::env::var("PATH").unwrap_or_default();
 
@@ -24,16 +40,23 @@ async fn execute_claude_command(args: &[&str]) -> Result<std::process::Output> {
     cmd_parts.extend(args);
     let cmd_string = cmd_parts.join(" ");
 
-    // Execute through shell to handle aliases and PATH properly
-    // Use non-interactive shell to avoid loading user config files in tests
-    let mut command = Command::new(&shell);
-    command.args(["-c", &cmd_string]);
-
-    command
-        .env("PATH", current_path)
+    // Try interactive shell to load user configuration and aliases
+    if let Ok(output) = Command::new(&shell)
+        .args(["-i", "-c", &cmd_string])
+        .env("PATH", &current_path)
         .output()
         .await
-        .context("Failed to execute claude command through shell")
+    {
+        if output.status.success() {
+            return Ok(output);
+        }
+    }
+
+    // If all approaches fail, return a descriptive error
+    Err(anyhow::anyhow!(
+        "Failed to execute claude command. Claude Code CLI may not be installed or not accessible in PATH. \
+         Please ensure Claude Code is installed and the 'claude' command is available."
+    ))
 }
 
 /// Install Foundry MCP server for Claude Code
@@ -160,9 +183,18 @@ pub async fn register_with_claude_code() -> Result<()> {
         .context("Failed to execute claude mcp add command")?;
 
     if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        // Check if the error is because the server already exists
+        if stderr.contains("already exists") || stdout.contains("already exists") {
+            // This is actually a success case - the server is already registered
+            return Ok(());
+        }
+
         return Err(anyhow::anyhow!(
             "Claude Code MCP registration failed: {}",
-            String::from_utf8_lossy(&output.stderr)
+            stderr
         ));
     }
 

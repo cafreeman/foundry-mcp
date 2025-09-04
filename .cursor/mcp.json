@@ -1,14 +1,5 @@
 {
   "mcpServers": {
-    "foundry": {
-      "command": "foundry",
-      "args": [
-        "serve"
-      ],
-      "env": {
-        "FOUNDRY_LOG_LEVEL": "info"
-      }
-    },
     "codanna": {
       "command": "codanna",
       "args": [
