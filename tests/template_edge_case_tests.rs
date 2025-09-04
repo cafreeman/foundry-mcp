@@ -8,7 +8,6 @@ use foundry_mcp::core::installation::install_for_cursor;
 use foundry_mcp::test_utils::TestEnvironment;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
-use temp_env;
 use tempfile::TempDir;
 
 /// Test template installation in read-only directories
@@ -233,7 +232,7 @@ fn test_template_uninstallation_missing_files() -> Result<()> {
         // Should not fail even though template was already missing
         // The uninstall should complete successfully regardless of template state
         assert!(
-            uninstall_response.data.actions_taken.len() > 0,
+            !uninstall_response.data.actions_taken.is_empty(),
             "Should have some actions taken during uninstall"
         );
 

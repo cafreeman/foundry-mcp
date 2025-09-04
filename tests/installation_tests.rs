@@ -697,43 +697,59 @@ fn test_cursor_status_with_issues() -> Result<()> {
 fn test_install_claude_code_end_to_end() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    env.with_env_async(|| async {
-        // Verify subagent doesn't exist initially
-        let subagent_path = env.claude_subagent_path();
-        assert!(
-            !subagent_path.exists(),
-            "Subagent should not exist initially"
-        );
+    // Create a mock claude command for testing
+    let mock_claude_path = env.create_mock_claude_binary()?;
+    let mock_bin_dir = mock_claude_path.parent().unwrap();
 
-        // Execute install command
-        let install_args = env.install_args("claude-code");
-        let response = install::execute(install_args).await?;
+    // Use temp-env to set PATH for this test scope with proper isolation
+    temp_env::with_var(
+        "PATH",
+        Some(format!(
+            "{}:{}",
+            mock_bin_dir.to_string_lossy(),
+            std::env::var("PATH").unwrap_or_default()
+        )),
+        || {
+            // Use TestEnvironment pattern with proper isolation
+            let _ = env.with_env_async(|| async {
+                // Verify subagent doesn't exist initially
+                let subagent_path = env.claude_subagent_path();
+                assert!(
+                    !subagent_path.exists(),
+                    "Subagent should not exist initially"
+                );
 
-        // Verify response structure
-        assert_eq!(response.data.target, "claude-code");
-        assert_eq!(
-            response.data.installation_status,
-            InstallationStatus::Success
-        );
+                // Execute install command
+                let install_args = env.install_args("claude-code");
+                let response = install::execute(install_args).await?;
 
-        // Verify subagent template was created with expected content
-        env.verify_claude_subagent_template()?;
+                // Verify response structure
+                assert_eq!(response.data.target, "claude-code");
+                assert_eq!(
+                    response.data.installation_status,
+                    InstallationStatus::Success
+                );
 
-        // Verify response mentions subagent creation
-        assert!(
-            response
-                .data
-                .actions_taken
-                .iter()
-                .any(|action| action.contains("subagent")),
-            "Response should mention subagent creation"
-        );
+                // Verify subagent template was created with expected content
+                env.verify_claude_subagent_template()?;
 
-        // Verify we get a successful response structure
-        assert_eq!(response.validation_status, ValidationStatus::Complete);
+                // Verify response mentions subagent creation
+                assert!(
+                    response
+                        .data
+                        .actions_taken
+                        .iter()
+                        .any(|action| action.contains("subagent")),
+                    "Response should mention subagent creation"
+                );
 
-        Ok::<(), anyhow::Error>(())
-    })?;
+                // Verify we get a successful response structure
+                assert_eq!(response.validation_status, ValidationStatus::Complete);
+
+                Ok::<(), anyhow::Error>(())
+            });
+        },
+    );
 
     Ok(())
 }

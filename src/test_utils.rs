@@ -15,7 +15,7 @@ use tempfile::TempDir;
 static TEST_MUTEX: Mutex<()> = Mutex::new(());
 
 /// Environment variable guard that restores the original value when dropped
-struct EnvVarGuard {
+pub struct EnvVarGuard {
     key: String,
     original_value: Option<String>,
 }
@@ -33,7 +33,7 @@ impl Drop for EnvVarGuard {
 }
 
 /// Helper function to temporarily set an environment variable with automatic cleanup
-fn env_var_guard(key: &str, value: &str) -> EnvVarGuard {
+pub fn env_var_guard(key: &str, value: &str) -> EnvVarGuard {
     let original_value = env::var(key).ok();
     unsafe {
         env::set_var(key, value);
@@ -385,6 +385,61 @@ impl TestEnvironment {
 
         let binary_path = binary_dir.join(name);
         std::fs::write(&binary_path, "#!/bin/bash\necho 'Mock binary'")?;
+
+        // Make it executable (Unix systems)
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let mut perms = std::fs::metadata(&binary_path)?.permissions();
+            perms.set_mode(0o755);
+            std::fs::set_permissions(&binary_path, perms)?;
+        }
+
+        Ok(binary_path)
+    }
+
+    /// Create a mock claude command that handles the specific commands used by the installation process
+    /// Returns the path to the created binary
+    pub fn create_mock_claude_binary(&self) -> Result<PathBuf> {
+        let binary_dir = self.temp_dir.path().join("bin");
+        std::fs::create_dir_all(&binary_dir)?;
+
+        let binary_path = binary_dir.join("claude");
+
+        // Create a bash script that handles the specific claude commands
+        let script_content = r#"#!/bin/bash
+# Mock claude command for testing
+case "$1" in
+    "--version")
+        echo "claude version 1.0.0"
+        exit 0
+        ;;
+    "mcp")
+        case "$2" in
+            "add")
+                # Mock successful MCP server registration
+                echo "MCP server 'foundry' added successfully"
+                exit 0
+                ;;
+            "remove")
+                # Mock successful MCP server removal
+                echo "MCP server 'foundry' removed successfully"
+                exit 0
+                ;;
+            *)
+                echo "Unknown mcp command: $2"
+                exit 1
+                ;;
+        esac
+        ;;
+    *)
+        echo "Unknown command: $1"
+        exit 1
+        ;;
+esac
+"#;
+
+        std::fs::write(&binary_path, script_content)?;
 
         // Make it executable (Unix systems)
         #[cfg(unix)]
