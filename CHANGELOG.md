@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Install/Uninstall Output Formatting**: Fixed newline escaping issue where `\n` characters were displayed literally instead of actual line breaks
+  - Install and uninstall commands now display properly formatted human-readable output
+  - JSON output mode continues to work correctly with `--json` flag
+  - Both output modes maintain proper formatting and emoji display
+- **Claude Code Path Detection**: Replaced hardcoded paths with robust cross-platform executable discovery
+  - Added `which` crate dependency for proper PATH resolution across different operating systems
+  - Improved `execute_claude_command` function to handle aliases and shell functions
+  - Better error handling for "already exists" scenarios in MCP server registration
+  - Enhanced compatibility across different user environments and installation methods
+
 ## [0.3.0] - 2025-09-04
 
 ### Added
@@ -62,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Critical Production Bugs**: 5 major context-based patching issues resolved through comprehensive TDD
   - Empty context boundary handling for file start/end insertions
-  - Replace/Delete position calculation logic (was inserting instead of replacing)  
+  - Replace/Delete position calculation logic (was inserting instead of replacing)
   - Search range extension for insertion operations at file boundaries
   - Content change detection with exact matching for concurrent modifications
   - Test interference issues in extreme threshold scenarios
