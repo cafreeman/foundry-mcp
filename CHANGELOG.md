@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved `execute_claude_command` function to handle aliases and shell functions
   - Better error handling for "already exists" scenarios in MCP server registration
   - Enhanced compatibility across different user environments and installation methods
+- **Installation Detection and Messaging**: Fixed installation detection issues and improved user feedback
+  - **Claude Code**: Fixed detection failure where "already exists" responses were treated as errors
+  - **Claude Code**: Modified `execute_claude_command` to return output regardless of exit status for proper error handling
+  - **Claude Code**: Added `RegistrationResult` enum to distinguish between new and existing MCP server registrations
+  - **Claude Code**: Improved messaging: "Registered" vs "already registered with Claude Code CLI"
+  - **Cursor**: Added check for existing server configuration before adding/updating
+  - **Cursor**: Improved messaging: "Added" vs "Updated existing Foundry MCP server in Cursor configuration"
+  - Both environments now provide clear feedback about what actually happened during installation
 
 ## [0.3.0] - 2025-09-04
 
