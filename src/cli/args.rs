@@ -671,8 +671,10 @@ pub struct InstallArgs {
     /// Target environment to install for
     ///
     /// Supported targets:
-    /// - claude-code: Install for Claude Code CLI environment
-    /// - cursor: Install for Cursor IDE environment
+    /// - claude-code: Install for Claude Code CLI environment (includes subagent template)
+    /// - cursor: Install for Cursor IDE environment (includes rules template)
+    ///
+    /// Installation creates both MCP server configuration and AI assistant guidance templates.
     pub target: String,
 
     /// Custom path to foundry binary (optional)
