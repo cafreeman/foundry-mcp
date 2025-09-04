@@ -26,7 +26,7 @@ pub async fn execute(args: UpdateSpecArgs) -> Result<FoundryResponse<UpdateSpecR
     }
 
     // Branch based on operation type
-    let (results, total_files_updated) = match args.operation.as_str() {
+    let (results, total_files_updated) = match args.operation.to_lowercase().as_str() {
         "context_patch" => execute_context_patch(&args).await?,
         "replace" | "append" => execute_traditional_update(&args).await?,
         _ => return Err(anyhow::anyhow!("Invalid operation: {}", args.operation)),
