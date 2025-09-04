@@ -29,6 +29,10 @@ foundry status
 
 That's it! Foundry MCP tools are now available in your AI assistant.
 
+**Installation includes helpful templates:**
+- **Cursor**: Gets `.cursor/rules/foundry.mdc` with context-patching guidance and workflow examples
+- **Claude Code**: Gets `~/.claude/agents/foundry-mcp-agent.md` with intelligent operation defaults
+
 ## Why Foundry?
 
 - 🎯 **Persistent Context**: Never lose project context between AI sessions
@@ -73,7 +77,7 @@ Foundry provides 9 MCP tools that enable comprehensive project management for AI
 
 - **`create_spec`**: Create timestamped specification with task breakdown
 - **`load_spec`**: Load specification content with project context
-- **`update_spec`**: Update multiple spec files with replace or append operations
+- **`update_spec`**: Update multiple spec files with replace, append, or context-based patching operations
 - **`delete_spec`**: Delete existing specification and all its files
 
 ### Content & Workflow
@@ -126,6 +130,13 @@ Day 5: "Let's work on authentication"
 - **Better code quality**: Specifications guide implementation details
 - **Reduced hallucination**: Structured context prevents AI from making assumptions
 
+### 🎯 **Context-Based Patching**
+
+- **Precise updates**: Make targeted changes to specifications without full file replacement
+- **Multi-algorithm fuzzy matching**: Handles typos and formatting differences automatically
+- **JSON interface**: Simple before/after context matching for reliable updates
+- **Smart suggestions**: Intelligent recommendations when context matching needs adjustment
+
 ### 🤝 **Collaborative User Experience**
 
 - **Option-based guidance**: All tools provide "You can..." suggestions instead of directive commands
@@ -143,7 +154,7 @@ Once installed, AI assistants have access to these tools:
 - **`list_projects`** - List all available projects with metadata
 - **`create_spec`** - Create timestamped specification with task breakdown
 - **`load_spec`** - Load specification content with project context
-- **`update_spec`** - Update multiple spec files with replace or append operations
+- **`update_spec`** - Update multiple spec files with replace, append, or context-based patching operations
 - **`delete_spec`** - Delete existing specification and all its files
 - **`validate_content`** - Validate content against schema requirements
 - **`get_foundry_help`** - Get workflow guidance and examples

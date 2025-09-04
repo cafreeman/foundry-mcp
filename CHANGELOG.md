@@ -9,40 +9,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Context-Based Patching System**: Complete engine for precise markdown updates without full file replacement
+  - Multi-algorithm fuzzy matching with RapidFuzz integration (Simple, Levenshtein, JaroWinkler, TokenSort, PartialRatio)
+  - JSON interface with schema validation and configurable similarity thresholds
+  - Section-aware matching for markdown hierarchy disambiguation
+  - Advanced features: context caching, batch operations, conflict detection, rollback system
+  - Smart suggestion engine for failed matches with similarity analysis
+  - Performance monitoring with real-time metrics collection
+  - Comprehensive help system with 'context-patching' topic and troubleshooting guidance
+  - 70-90% reduction in content generation for targeted updates
+- **Enhanced Purpose Communication System**: Complete 4-phase implementation
+  - 'CONTEXT FOR FUTURE IMPLEMENTATION' parameter enhancement across all document creation
+  - Cold Start Test principle integration ensuring documents serve as complete implementation contexts
+  - Enhanced validation system with context completeness scoring
+  - Template system enhancements for improved document quality
+- **Embedded Template Installation System**: Production-ready template infrastructure
+  - ClientTemplate trait for extensible template system
+  - Cursor rules template (.cursor/rules/foundry.mdc) with context-patching guidance
+  - Claude subagent template (~/.claude/agents/foundry-mcp-agent.md) with intelligent defaults
+  - Automatic template installation/removal integrated with install/uninstall commands
+  - Comprehensive edge case testing and error handling
+- **Testing Infrastructure Improvements**: Modern test organization and coverage
+  - Reorganized installation tests into focused files (install_cursor_tests.rs, etc.)
+  - Added comprehensive Claude Code uninstall test coverage (previously missing)
+  - Enhanced TestEnvironment utilities with PATH isolation support
+  - Test-only algorithm API for context-patching isolation testing
 - Comprehensive MCP tool improvements with enhanced user experience patterns
 - Option-based guidance replacing directive language across all 9 MCP tools
 - Content creation acknowledgment in tool responses to recognize AI assistant's role
 - Workflow efficiency improvements with smart guidance for optimal tool selection
 - Consistent user experience patterns across all tools with collaborative language
-- Test-only algorithm API for isolation testing of context-based patching system
-- 17 comprehensive edge case tests covering Unicode, large files, boundary conditions
-- 7 algorithm-specific isolation tests for all similarity algorithms (Simple, TokenSort, PartialRatio, Levenshtein)
 - Production-grade error handling with helpful suggestions for failed context matches
-- Robust boundary condition support for file start/end insertions
+- Robust boundary condition support for file start/end insertions in context-based patching
 
 ### Changed
 
 - **BREAKING**: All MCP tool descriptions enhanced with structural guidance and user experience improvements
 - **BREAKING**: Response patterns updated to use "You can..." instead of directive language
 - **BREAKING**: Workflow hints and next steps now provide option-based guidance
+- **BREAKING**: Algorithm selection completely hidden from LLMs in context-based patching (smart cascading internal)
 - Enhanced load_project tool with critical workflow efficiency improvements
 - Improved create_spec and analyze_project tools with content creation acknowledgment
 - Updated load_spec, delete_spec, and list_projects tools with consistent user experience patterns
 - Enhanced update_spec, validate_content, and get_foundry_help tools with improved response patterns
-- Context-based patching system now production-ready with comprehensive testing coverage
-- Algorithm cascading strategy optimized for reliability and performance
+- Improved context-based patching reliability for edge cases and boundary conditions
+- Refactored MCP command structure to use consistent `mcp_foundry_` prefix
+- Enhanced InstallArgs and UninstallArgs with JSON output format support
 
 ### Fixed
 
+- **Critical Production Bugs**: 5 major context-based patching issues resolved through comprehensive TDD
+  - Empty context boundary handling for file start/end insertions
+  - Replace/Delete position calculation logic (was inserting instead of replacing)  
+  - Search range extension for insertion operations at file boundaries
+  - Content change detection with exact matching for concurrent modifications
+  - Test interference issues in extreme threshold scenarios
+- Case sensitivity bug in context patching operation validation
 - Eliminated all directive language ("Use when...") across all 9 MCP tools
 - Improved user decision-making control with collaborative guidance patterns
 - Enhanced workflow efficiency with smart tool selection guidance
-- **CRITICAL**: Fixed empty context boundary handling for file start/end insertions
-- **CRITICAL**: Corrected Replace/Delete position calculation logic that was inserting instead of replacing
-- **CRITICAL**: Fixed search range extension for insertion operations at file boundaries  
-- **CRITICAL**: Enhanced content change detection with exact matching for concurrent modification scenarios
-- **CRITICAL**: Resolved test interference issues in extreme threshold scenarios
-- Added PartialEq trait to ContextOperation enum for proper comparison support
+- Testing artifacts and temporary code cleanup from development
 
 ## [0.2.0] - 2025-09-02
 
