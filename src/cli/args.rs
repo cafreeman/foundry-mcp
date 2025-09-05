@@ -558,7 +558,6 @@ pub struct UpdateSpecArgs {
     /// - after_context: Array of strings (3-5 lines recommended)
     /// - content: String content to insert/replace
     /// - section_context: Optional header for disambiguation (e.g., "## Requirements")
-    /// - match_config: Optional matching configuration
     #[arg(long)]
     pub context_patch: Option<String>,
 }
@@ -608,7 +607,7 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
 
         let mut context_patch_prop = serde_json::Map::new();
         context_patch_prop.insert("type".to_string(), serde_json::json!("string"));
-        context_patch_prop.insert("description".to_string(), serde_json::json!("Context-based patch data (JSON string, optional). Used with --operation context_patch for precise, targeted updates using surrounding text context. Avoids need for line number precision or full file replacement. JSON schema: {\"file_type\":\"spec|tasks|notes\",\"operation\":\"insert|replace|delete\",\"before_context\":[\"line1\",\"line2\"],\"after_context\":[\"line1\",\"line2\"],\"content\":\"new content\",\"section_context\":\"## Header (optional)\",\"match_config\":{\"ignore_whitespace\":true,\"similarity_threshold\":0.8,\"case_insensitive_fallback\":true} (optional)}"));
+        context_patch_prop.insert("description".to_string(), serde_json::json!("Context-based patch data (JSON string, optional). Used with --operation context_patch for precise, targeted updates using surrounding text context. Avoids need for line number precision or full file replacement. JSON schema: {\"file_type\":\"spec|tasks|notes\",\"operation\":\"insert|replace|delete\",\"before_context\":[\"line1\",\"line2\"],\"after_context\":[\"line1\",\"line2\"],\"content\":\"new content\",\"section_context\":\"## Header (optional)\"}"));
         properties.insert("context_patch".to_string(), context_patch_prop);
 
         rust_mcp_sdk::schema::Tool {
