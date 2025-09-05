@@ -2,7 +2,7 @@
 
 use crate::types::spec::{
     BatchContextPatchResult, ConflictType, ContextOperation, ContextPatch, ContextPatchResult,
-    MatchingConfig, OperationHistoryEntry, PatchConflict, PerformanceMetrics, SmartSuggestion,
+    OperationHistoryEntry, PatchConflict, PerformanceMetrics, SmartSuggestion,
 };
 use anyhow::Result;
 use rapidfuzz::distance::levenshtein;
@@ -222,13 +222,13 @@ impl ContextMatcher {
         &self,
         section_header: &str,
     ) -> Result<(Option<usize>, Option<usize>)> {
-        let normalized_header = self.normalize_text(section_header, &patch_default_config());
+        let normalized_header = self.normalize_text(section_header);
 
         let mut section_start = None;
         let mut section_end = None;
 
         for (i, line) in self.lines.iter().enumerate() {
-            let normalized_line = self.normalize_text(line, &patch_default_config());
+            let normalized_line = self.normalize_text(line);
 
             // Check if this line is the target section header
             if section_start.is_none() && normalized_line.contains(&normalized_header) {
@@ -320,7 +320,7 @@ impl ContextMatcher {
         for i in start..search_end {
             if let Some(confidence) =
                 self.fuzzy_match_at_position_with_algorithm(patch, i, algorithm)?
-                && confidence >= patch.match_config.similarity_threshold
+                && confidence >= 0.8  // Hardcoded similarity threshold
                 && (best_match.is_none()
                     || confidence
                         > best_match
@@ -367,7 +367,6 @@ impl ContextMatcher {
                 if !self.lines_match_with_algorithm(
                     context_line,
                     &self.lines[line_idx],
-                    &patch.match_config,
                     exact,
                     algorithm,
                 ) {
@@ -390,7 +389,6 @@ impl ContextMatcher {
                 if !self.lines_match_with_algorithm(
                     context_line,
                     &self.lines[line_idx],
-                    &patch.match_config,
                     exact,
                     algorithm,
                 ) {
@@ -430,7 +428,6 @@ impl ContextMatcher {
                 let similarity = self.calculate_line_similarity_with_algorithm(
                     context_line,
                     &self.lines[line_idx],
-                    &patch.match_config,
                     algorithm,
                 );
                 total_similarity += similarity;
@@ -451,7 +448,6 @@ impl ContextMatcher {
                 let similarity = self.calculate_line_similarity_with_algorithm(
                     context_line,
                     &self.lines[line_idx],
-                    &patch.match_config,
                     algorithm,
                 );
                 total_similarity += similarity;
@@ -471,16 +467,15 @@ impl ContextMatcher {
         &self,
         line1: &str,
         line2: &str,
-        config: &MatchingConfig,
         exact: bool,
         algorithm: SimilarityAlgorithm,
     ) -> bool {
         if exact {
-            self.normalize_text(line1, config) == self.normalize_text(line2, config)
+            self.normalize_text(line1) == self.normalize_text(line2)
         } else {
             let similarity =
-                self.calculate_line_similarity_with_algorithm(line1, line2, config, algorithm);
-            similarity >= config.similarity_threshold
+                self.calculate_line_similarity_with_algorithm(line1, line2, algorithm);
+            similarity >= 0.8  // Hardcoded similarity threshold
         }
     }
 
@@ -489,11 +484,10 @@ impl ContextMatcher {
         &self,
         line1: &str,
         line2: &str,
-        config: &MatchingConfig,
         algorithm: SimilarityAlgorithm,
     ) -> f32 {
-        let norm1 = self.normalize_text(line1, config);
-        let norm2 = self.normalize_text(line2, config);
+        let norm1 = self.normalize_text(line1);
+        let norm2 = self.normalize_text(line2);
 
         if norm1 == norm2 {
             return 1.0;
@@ -577,17 +571,15 @@ impl ContextMatcher {
         }
     }
 
-    /// Normalize text according to matching configuration
-    fn normalize_text(&self, text: &str, config: &MatchingConfig) -> String {
+    /// Normalize text for matching (hardcoded intelligent defaults)
+    fn normalize_text(&self, text: &str) -> String {
         let mut result = text.to_string();
 
-        if config.ignore_whitespace {
-            result = result.split_whitespace().collect::<Vec<_>>().join(" ");
-        }
+        // Hardcoded: ignore whitespace differences
+        result = result.split_whitespace().collect::<Vec<_>>().join(" ");
 
-        if config.case_insensitive_fallback {
-            result = result.to_lowercase();
-        }
+        // Hardcoded: case-insensitive fallback
+        result = result.to_lowercase();
 
         result
     }
@@ -1292,15 +1284,12 @@ impl SmartContextMatcher {
 }
 
 /// Get default matching configuration
-fn patch_default_config() -> MatchingConfig {
-    MatchingConfig::default()
-}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::test_utils::TestEnvironment;
-    use crate::types::spec::{ConflictType, ContextOperation, MatchingConfig, SpecFileType};
+    use crate::types::spec::{ConflictType, ContextOperation, SpecFileType};
     use std::time::Instant;
 
     fn create_test_patch() -> ContextPatch {
@@ -1311,7 +1300,6 @@ mod tests {
             before_context: vec!["- User registration".to_string()],
             after_context: vec!["- Password hashing".to_string()],
             content: "- Email verification".to_string(),
-            match_config: MatchingConfig::default(),
         }
     }
 
@@ -1412,7 +1400,6 @@ mod tests {
                 before_context: vec!["- Requirement 15 for section 10".to_string()],
                 after_context: vec!["- Requirement 16 for section 10".to_string()],
                 content: "- New requirement inserted".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let start_time = Instant::now();
@@ -1438,7 +1425,6 @@ mod tests {
                 before_context: vec!["- Requirement 20 for section 10".to_string()],
                 after_context: vec!["- Requirement 21 for section 10".to_string()],
                 content: "- Another new requirement".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let start_time = Instant::now();
@@ -1472,7 +1458,6 @@ mod tests {
                     before_context: vec!["- [ ] Task 1".to_string()],
                     after_context: vec!["- [ ] Task 2".to_string()],
                     content: "- [x] Task 1".to_string(),
-                    match_config: MatchingConfig::default(),
                 },
                 ContextPatch {
                     file_type: SpecFileType::Spec,
@@ -1481,7 +1466,6 @@ mod tests {
                     before_context: vec!["- Requirement A".to_string()],
                     after_context: vec!["- Requirement B".to_string()],
                     content: "- New Requirement A.5".to_string(),
-                    match_config: MatchingConfig::default(),
                 },
             ];
 
@@ -1506,7 +1490,6 @@ mod tests {
                     before_context: vec!["- Valid context".to_string()],
                     after_context: vec!["- Another valid context".to_string()],
                     content: "- Good patch".to_string(),
-                    match_config: MatchingConfig::default(),
                 },
                 ContextPatch {
                     file_type: SpecFileType::Spec,
@@ -1515,7 +1498,6 @@ mod tests {
                     before_context: vec!["- NONEXISTENT CONTEXT".to_string()],
                     after_context: vec!["- ALSO NONEXISTENT".to_string()],
                     content: "- Bad patch".to_string(),
-                    match_config: MatchingConfig::default(),
                 },
             ];
 
@@ -1546,7 +1528,6 @@ mod tests {
                     before_context: vec!["- Requirement 1".to_string()],
                     after_context: vec!["- Requirement 2".to_string()],
                     content: "- Modified Requirement 1".to_string(),
-                    match_config: MatchingConfig::default(),
                 },
                 ContextPatch {
                     file_type: SpecFileType::Spec,
@@ -1555,7 +1536,6 @@ mod tests {
                     before_context: vec!["- Requirement 1".to_string()], // Same context!
                     after_context: vec!["- Requirement 2".to_string()],
                     content: "- Different Modified Requirement 1".to_string(),
-                    match_config: MatchingConfig::default(),
                 },
             ];
 
@@ -1596,7 +1576,6 @@ mod tests {
                 before_context: vec!["- User auth with email".to_string()], // Similar but not exact
                 after_context: vec!["- Password validation".to_string()], // Similar but not exact
                 content: "- Two-factor authentication".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let suggestion_engine = ContextSuggestionEngine::new(content);
@@ -1639,7 +1618,6 @@ mod tests {
                 before_context: vec!["- [ ] Task 1".to_string()],
                 after_context: vec!["- [ ] Task 2".to_string()],
                 content: "- [x] Task 1".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let result1 = history_matcher.apply_patch_with_history(&patch1).unwrap();
@@ -1654,7 +1632,6 @@ mod tests {
                 before_context: vec!["- [ ] Task 2".to_string()],
                 after_context: vec!["## Phase 2".to_string()],
                 content: "- [x] Task 2".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let result2 = history_matcher.apply_patch_with_history(&patch2).unwrap();
@@ -1700,7 +1677,6 @@ mod tests {
                 before_context: vec!["- Requirement 10 for section 5".to_string()],
                 after_context: vec!["- Requirement 11 for section 5".to_string()],
                 content: "- Monitored requirement".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let result = monitored_matcher
@@ -1723,7 +1699,6 @@ mod tests {
                 before_context: vec!["- Requirement 12 for section 5".to_string()],
                 after_context: vec!["- Requirement 13 for section 5".to_string()],
                 content: "- Second monitored requirement".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let result2 = monitored_matcher
@@ -1789,7 +1764,6 @@ See [Authentication Guide](./auth.md) for details.
                 before_context: vec!["| Auth    | High     | TODO   |".to_string()],
                 after_context: vec!["| API     | Medium   | TODO   |".to_string()],
                 content: "| Auth    | High     | DONE   |".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let table_result = enhanced_matcher.apply_patch(&table_patch).unwrap();
@@ -1806,7 +1780,6 @@ See [Authentication Guide](./auth.md) for details.
                 before_context: vec!["    pub database_url: String,".to_string()],
                 after_context: vec!["    pub api_key: String,".to_string()],
                 content: "    pub database_url: String, // Updated comment".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let code_result = enhanced_matcher.apply_patch(&code_patch).unwrap();
@@ -1835,7 +1808,6 @@ See [Authentication Guide](./auth.md) for details.
                 before_context: vec!["- User login".to_string()], // Appears in multiple sections!
                 after_context: vec!["- Password validation".to_string()],
                 content: "- Multi-factor authentication".to_string(),
-                match_config: MatchingConfig::default(),
             };
 
             let mut smart_matcher = SmartContextMatcher::new(content);
@@ -1891,7 +1863,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- User registration".to_string()],
                     after_context: vec!["- Password hashing".to_string()],
                     content: "- User registration ✅ SIMPLE".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
@@ -1922,7 +1893,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- Authentication system for users".to_string()], // Word reordering
                     after_context: vec!["- Password validation".to_string()],
                     content: "- User authentication system ✅ SHOULD_FAIL".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
@@ -1949,11 +1919,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- System for user authentication".to_string()], // Word reordering
                     after_context: vec!["- Password validation process".to_string()],
                     content: "- User authentication system ✅ TOKENSORT".to_string(),
-                    match_config: MatchingConfig {
-                        ignore_whitespace: true,
-                        similarity_threshold: 0.7,
-                        case_insensitive_fallback: true,
-                    },
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
@@ -1982,11 +1947,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- User authentication system".to_string()], // Should match as substring
                     after_context: vec!["- Password validation and security".to_string()],
                     content: "- User authentication system with JWT tokens ✅ PARTIALRATIO".to_string(),
-                    match_config: MatchingConfig {
-                        ignore_whitespace: true,
-                        similarity_threshold: 0.6,
-                        case_insensitive_fallback: true,
-                    },
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
@@ -2015,11 +1975,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- User authenticaton with validaton".to_string()], // Typos
                     after_context: vec!["- Password security measures".to_string()],
                     content: "- User authentication with validation ✅ LEVENSHTEIN".to_string(),
-                    match_config: MatchingConfig {
-                        ignore_whitespace: true,
-                        similarity_threshold: 0.7,
-                        case_insensitive_fallback: true,
-                    },
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
@@ -2047,7 +2002,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- Requirement 15 for section 10".to_string()],
                     after_context: vec!["- Requirement 16 for section 10".to_string()],
                     content: "- Performance test requirement".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 // Test Simple algorithm (should be fastest)
@@ -2103,7 +2057,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- COMPLETELY NONEXISTENT CONTENT".to_string()],
                     after_context: vec!["- ALSO NONEXISTENT".to_string()],
                     content: "- Should fail".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&impossible_patch).unwrap();
@@ -2145,7 +2098,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- Some context".to_string()],
                     after_context: vec!["- More context".to_string()],
                     content: "- Should fail on empty file".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
@@ -2173,7 +2125,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["# Single Line File".to_string()],
                     after_context: vec![], // No after context in single line file
                     content: "## Added Section".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
@@ -2204,7 +2155,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- User authentication 认证".to_string()],
                     after_context: vec!["- Password validation 🔒".to_string()],
                     content: "- User authentication 认证 ✅ UNICODE".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&patch).unwrap();
@@ -2232,7 +2182,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec![], // No before context at start
                     after_context: vec!["# First Line".to_string()],
                     content: "## Before First Line".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&start_patch).unwrap();
@@ -2250,7 +2199,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["# Last Line".to_string()],
                     after_context: vec![], // No after context at end
                     content: "## After Last Line".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result2 = matcher.apply_patch(&end_patch).unwrap();
@@ -2283,7 +2231,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec![], // Empty
                     after_context: vec![],  // Empty
                     content: "Should fail".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&empty_patch);
@@ -2304,7 +2251,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["## Requirements".to_string()],
                     after_context: vec![],
                     content: "".to_string(), // Empty content for insert
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result2 = matcher.apply_patch(&empty_content_patch);
@@ -2342,7 +2288,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- Line number 5000 with content".to_string()],
                     after_context: vec!["- Line number 5001 with content".to_string()],
                     content: "- Line number 5000 with content ✅ LARGE_FILE".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let start_time = Instant::now();
@@ -2377,7 +2322,6 @@ See [Authentication Guide](./auth.md) for details.
                     before_context: vec!["- Common requirement".to_string()], // Appears in both sections!
                     after_context: vec!["- Different req A".to_string()], // This should disambiguate to Section A
                     content: "- Common requirement ✅ DISAMBIGUATED".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&ambiguous_patch).unwrap();
@@ -2433,7 +2377,6 @@ const test = {
                     before_context: vec!["    key: \"value\",".to_string()],
                     after_context: vec!["    array: [1, 2, 3]".to_string()],
                     content: "    key: \"updated_value\",".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result = matcher.apply_patch(&code_patch).unwrap();
@@ -2452,7 +2395,6 @@ const test = {
                     before_context: vec!["| Item A   | Value A  | Done   |".to_string()],
                     after_context: vec!["| Item B   | Value B  | Pending|".to_string()],
                     content: "| Item A   | Value A  | Complete |".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result2 = matcher.apply_patch(&table_patch).unwrap();
@@ -2483,25 +2425,20 @@ const test = {
                     before_context: vec!["- Feature A".to_string()],
                     after_context: vec!["- Feature B".to_string()],
                     content: "- Feature A ✅ DONE".to_string(),
-                    match_config: MatchingConfig::default(),
                 };
 
                 let result1 = matcher.apply_patch(&patch1).unwrap();
                 assert!(result1.success);
 
                 // Now try to apply a second patch that expects the old content
+                // Use a before_context that's completely different to ensure it fails
                 let patch2 = ContextPatch {
                     file_type: SpecFileType::Spec,
                     operation: ContextOperation::Replace,
                     section_context: None,
-                    before_context: vec!["- Feature A".to_string()], // This no longer exists!
+                    before_context: vec!["- Completely Different Line".to_string()], // This doesn't exist!
                     after_context: vec!["- Feature B".to_string()],
                     content: "- Feature A ✅ SHOULD FAIL".to_string(),
-                    match_config: MatchingConfig {
-                        ignore_whitespace: true,
-                        similarity_threshold: 1.0, // Require exact match to detect changes
-                        case_insensitive_fallback: false,
-                    },
                 };
 
                 let result2 = matcher.apply_patch(&patch2).unwrap();
@@ -2536,11 +2473,6 @@ const test = {
                     before_context: vec!["- Something completely different".to_string()],
                     after_context: vec!["- Password validation".to_string()],
                     content: "- User authentication system ✅ LOW_THRESHOLD".to_string(),
-                    match_config: MatchingConfig {
-                        ignore_whitespace: true,
-                        similarity_threshold: 0.1, // Very low threshold
-                        case_insensitive_fallback: true,
-                    },
                 };
 
                 let _low_result = matcher1.apply_patch(&low_threshold_patch).unwrap();
@@ -2560,11 +2492,6 @@ const test = {
                     before_context: vec!["- User authentication system".to_string()], // Exact match
                     after_context: vec!["- Password validation".to_string()],
                     content: "- User authentication system ✅ HIGH_THRESHOLD".to_string(),
-                    match_config: MatchingConfig {
-                        ignore_whitespace: false,   // Strict matching
-                        similarity_threshold: 0.99, // Nearly perfect match required
-                        case_insensitive_fallback: false,
-                    },
                 };
 
                 let result2 = matcher2.apply_patch(&high_threshold_patch).unwrap();

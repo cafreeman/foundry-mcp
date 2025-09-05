@@ -64,27 +64,6 @@ pub enum ContextOperation {
     Delete,
 }
 
-/// Configuration for context matching behavior
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct MatchingConfig {
-    /// Whether to ignore whitespace differences when matching
-    pub ignore_whitespace: bool,
-    /// Similarity threshold for fuzzy matching (0.0 to 1.0)
-    pub similarity_threshold: f32,
-    /// Whether to use case-insensitive matching as fallback
-    pub case_insensitive_fallback: bool,
-    // Algorithm selection is now completely internal - not exposed to LLMs
-}
-
-impl Default for MatchingConfig {
-    fn default() -> Self {
-        Self {
-            ignore_whitespace: true,
-            similarity_threshold: 0.8,
-            case_insensitive_fallback: true,
-        }
-    }
-}
 
 /// Context-based patch for precise content updates
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -101,9 +80,6 @@ pub struct ContextPatch {
     pub after_context: Vec<String>,
     /// Content to insert, replace, or delete
     pub content: String,
-    /// Configuration for matching behavior (uses intelligent defaults)
-    #[serde(default)]
-    pub match_config: MatchingConfig,
 }
 
 /// Result of a context patch operation
