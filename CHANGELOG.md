@@ -18,12 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Priority-Based Matching Algorithm**: 5-tier matching strategy (Exact → Feature → Substring → Fuzzy Feature → Fuzzy Name)
   - **Comprehensive Error Handling**: Clear disambiguation for multiple matches, helpful suggestions for no matches
   - **Backward Compatibility**: All existing exact match workflows continue working unchanged
-- **Context Operations Usage Guide**: Comprehensive documentation for context-based patching
-  - Detailed examples for Insert, Replace, and Delete operations
-  - Best practices for context selection and error handling
-  - Token efficiency benefits (70-90% reduction vs full file replacement)
-  - Recovery patterns for failed context matches
-  - Integration examples with MCP tool calls
 
 ### Changed
 
