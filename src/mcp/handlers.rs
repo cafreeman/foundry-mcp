@@ -109,6 +109,18 @@ impl FoundryServerHandler {
 
                 Ok(serde_json::to_value(result)?)
             }
+            "list_specs" => {
+                let args = cli::args::ListSpecsArgs::from_mcp_params(params).map_err(|e| {
+                    FoundryMcpError::invalid_params(format!(
+                        "Invalid parameters for list_specs: {}",
+                        e
+                    ))
+                })?;
+
+                let result = cli::commands::list_specs::execute(args).await?;
+
+                Ok(serde_json::to_value(result)?)
+            }
             "validate_content" => {
                 let args =
                     cli::args::ValidateContentArgs::from_mcp_params(params).map_err(|e| {

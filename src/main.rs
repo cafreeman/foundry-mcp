@@ -110,6 +110,12 @@ enum McpCommands {
     /// Use this to discover existing projects
     ListProjects(cli::args::ListProjectsArgs),
 
+    /// List available specifications for a project without loading full context
+    ///
+    /// Returns lightweight spec metadata including names, feature names, and creation dates
+    /// Use this for efficient spec discovery before loading specific specs
+    ListSpecs(cli::args::ListSpecsArgs),
+
     /// Get comprehensive workflow guidance and examples
     ///
     /// Topics: workflows, content-examples, project-structure, parameter-guidance
@@ -187,6 +193,9 @@ async fn main() -> Result<()> {
                 .await
                 .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
             McpCommands::ListProjects(args) => cli::commands::list_projects::execute(args)
+                .await
+                .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
+            McpCommands::ListSpecs(args) => cli::commands::list_specs::execute(args)
                 .await
                 .and_then(|r| serde_json::to_value(r).map_err(anyhow::Error::from)),
             McpCommands::GetFoundryHelp(args) => cli::commands::get_foundry_help::execute(args)

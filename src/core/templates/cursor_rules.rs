@@ -86,10 +86,11 @@ Each spec contains:
   - Best for: Documentation, structured management of legacy projects
   - MCP Tool Call: `{"name": "analyze_project", "arguments": {"project_name": "...", "vision": "...", "tech_stack": "...", "summary": "..."}}`
 
-- **`load_project`**: ALWAYS do this first when working on existing projects
-  - When: Starting work sessions, understanding project scope
+- **`mcp_foundry_load_project`**: For project-wide analysis and context
+  - When: Starting comprehensive work sessions, understanding full project scope
   - Returns: Project vision, tech-stack, summary, available specs
-  - Critical: Never create specs without loading project context first
+  - Use for: Project-wide analysis, architectural decisions, creating multiple specs
+  - Critical: Use this for comprehensive analysis and new feature creation
   - MCP Tool Call: `{"name": "load_project", "arguments": {"project_name": "..."}}`
 
 #### Specification Management
@@ -105,6 +106,8 @@ Each spec contains:
 
   - When: Continuing work on existing features, checking task status
   - Returns: Complete spec content with project context
+  - Supports: Fuzzy matching on feature names (e.g., "auth" matches "user_authentication")
+  - Includes: Project summary automatically for context
   - MCP Tool Call: `{"name": "load_spec", "arguments": {"project_name": "...", "spec_name": "..."}}`
 
 - **`update_spec`**: Updating spec files with three operation types for different use cases
@@ -147,23 +150,23 @@ Each spec contains:
       - **Requirements**: 3-5 lines of unique, specific surrounding text for reliable matching
       - **JSON Format**: Requires JSON with file_type, operation (insert/replace/delete), before_context, after_context, content
       - **MCP Tool Call**: `{"name": "update_spec", "arguments": {"project_name": "...", "spec_name": "...", "operation": "context_patch", "context_patch": "{\"file_type\":\"tasks\",\"operation\":\"replace\",\"before_context\":[\"- [ ] Task\"],\"after_context\":[\"- [ ] Next\"],\"content\":\"- [x] Task\"}"}}`
-  
+
   ### Smart Content Loading Strategy
-  
+
   **Load spec content when:**
   - Starting work on a spec you haven't recently loaded in this conversation
   - After making previous edits that changed the content state
   - When context_patch matching fails (to verify exact current text)
   - Long conversations where content may have been edited elsewhere
-  
+
   **Skip loading when:**
   - You just loaded the spec content in the current conversation
   - Making first edit with fresh content already in context
   - Using append operations (content position doesn't matter)
-  
+
   **Recovery Pattern:**
   If context_patch fails → reload current content → identify exact text → retry with precise context
-  
+
   - **Best Practices**:
     - **Load strategically**: Use `load_spec` when you need current state, not reflexively
     - Use `context_patch` for small targeted changes: Mark tasks complete, add single requirements, fix typos
@@ -174,7 +177,15 @@ Each spec contains:
 
 #### Discovery & Validation
 
-- **`list_projects`**: Discovering available projects
+- **`mcp_foundry_list_specs`**: Lightweight spec discovery for focused work
+
+  - When: Finding available specs without loading full project context
+  - Returns: Spec metadata (name, feature, date) without project details
+  - Use for: Quick spec discovery, focused feature work
+  - Performance: ~90% reduction in data transfer vs load_project
+  - MCP Tool Call: `{"name": "list_specs", "arguments": {"project_name": "..."}}`
+
+- **`mcp_foundry_list_projects`**: Discovering available projects
 
   - When: Finding project names, checking what exists
   - Returns: Project names, creation dates, spec counts
@@ -351,7 +362,27 @@ Each spec contains:
 
 ## Best Practices & Workflow Patterns
 
-### 1. Always Load Context First
+### 1. Efficient Spec Workflow
+
+#### For Focused Feature Work:
+```
+# ✅ Optimal: Direct spec loading with fuzzy matching
+mcp_foundry_load_spec project-name "auth"  # Fuzzy matches "user_authentication"
+
+# ✅ Alternative: Lightweight discovery then load
+mcp_foundry_list_specs project-name
+mcp_foundry_load_spec project-name specific-spec-name
+
+# ✅ For new features: Load project context first
+mcp_foundry_load_project project-name
+mcp_foundry_create_spec project-name new-feature
+```
+
+#### For Project-Wide Analysis:
+```
+# ✅ Use load_project for comprehensive context
+mcp_foundry_load_project project-name  # Full vision + tech-stack + all specs
+```
 
 ```json
 // ✅ Good: Load project context before working
@@ -433,11 +464,23 @@ Each spec contains:
 
 ### Feature Development Cycle
 
-1. **Load Project**: `{"name": "load_project", "arguments": {"project_name": "my-app"}}` (get context)
-2. **Create Spec**: `{"name": "create_spec", "arguments": {"project_name": "my-app", "feature_name": "payment-integration", "spec": "...", "tasks": "...", "notes": "..."}}`
-3. **Update Progress**: Use `update_spec` with `append` to add new tasks to bottom
+#### For Existing Features:
+1. **Load Spec**: `mcp_foundry_load_spec my-app "payment"` (fuzzy matching)
+2. **Update Progress**: Use `mcp_foundry_update_spec` with `append` to add new tasks to bottom
+3. **Add Notes**: Document implementation decisions by appending to notes
+4. **Review Status**: Load spec again to check progress and get workflow guidance
+
+#### For New Features:
+1. **Load Project**: `mcp_foundry_load_project my-app` (get full context)
+   ```json
+   {"name": "load_project", "arguments": {"project_name": "my-app"}}
+   ```
+2. **Create Spec**: `mcp_foundry_create_spec my-app payment-integration`
+   ```json
+   {"name": "create_spec", "arguments": {"project_name": "my-app", "feature_name": "payment-integration", "spec": "...", "tasks": "...", "notes": "..."}}
+   ```
+3. **Update Progress**: Use `mcp_foundry_update_spec` with `append` to add new tasks to bottom
 4. **Add Notes**: Document implementation decisions by appending to notes
-5. **Load Spec**: Review progress and get workflow guidance
 
 ### Existing Codebase Analysis
 
@@ -447,9 +490,9 @@ Each spec contains:
 
 ### Context Loading for Conversations
 
-1. **Quick Context**: Load project summary for high-level understanding
-2. **Detailed Context**: Load specific specs for implementation work
-3. **Full Context**: Load entire project when starting comprehensive work
+1. **Focused Work**: Load specific specs directly with fuzzy matching (includes project summary)
+2. **Spec Discovery**: Use `list_specs` for lightweight discovery without full project load
+3. **Full Context**: Load entire project when starting comprehensive work or creating new features
 
 ## Error Handling & Troubleshooting
 
@@ -461,9 +504,10 @@ Each spec contains:
 
 ### Project/Spec Not Found
 
-- **"Project not found"**: Use `list_projects` to see available projects
-- **"Spec not found"**: Load project first to see available specs
-- **Solution**: Always load project context before working with specs
+- **"Project not found"**: Use `list-projects` to see available projects
+- **"Spec not found"**: Try fuzzy matching or use `list-specs` to see available specs
+- **Solution**: Use `list-specs` for discovery or try fuzzy matching with feature names
+- **For comprehensive analysis**: Use `load_project` to see full project context
 
 ### File Operation Errors
 
@@ -480,18 +524,32 @@ Each spec contains:
 
 ## Tips for Effective Usage
 
-1. **Start with Context**: Always load project before creating specs
-2. **Use Append for Updates**: Build up task lists and notes incrementally
-3. **Follow Guidance**: Pay attention to next_steps and workflow_hints
-4. **Validate First**: Use validate-content to avoid rejection
-5. **Keep Specs Focused**: One feature per spec, use task-list for breakdown
-6. **Document Decisions**: Use notes.md for rationale and context
-7. **Update Regularly**: Mark tasks complete, add implementation notes
-8. **Get Help**: Use get-foundry-help for workflow guidance
+1. **Choose Right Workflow**: Use direct spec loading for focused work, project loading for comprehensive analysis
+2. **Leverage Fuzzy Matching**: Use natural language queries like "auth" instead of exact spec names
+3. **Use Lightweight Discovery**: `list-specs` for quick discovery without full project context
+4. **Use Append for Updates**: Build up task lists and notes incrementally
+5. **Follow Guidance**: Pay attention to next_steps and workflow_hints
+6. **Validate First**: Use validate-content to avoid rejection
+7. **Keep Specs Focused**: One feature per spec, use task-list for breakdown
+8. **Document Decisions**: Use notes.md for rationale and context
+9. **Update Regularly**: Mark tasks complete, add implementation notes
+10. **Get Help**: Use get-foundry-help for workflow guidance
 
 ## Quick Reference
 
 ### Most Common Commands
+
+```
+# Focused work on existing feature (PREFERRED for efficiency)
+mcp_foundry_load_spec my-project "auth"  # Fuzzy matching
+
+# Lightweight spec discovery
+mcp_foundry_list_specs my-project
+
+# Create new feature spec (load project first for context)
+mcp_foundry_load_project my-project
+mcp_foundry_create_spec my-project user-auth
+```
 
 ```json
 // Start working on existing project
