@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **MCP Interface Documentation**: Fixed critical interface mismatch between CLI syntax and MCP tool call format
+  - Updated all templates (Claude Subagent and Cursor Rules) to show correct MCP tool call JSON format
+  - Replaced CLI syntax (`mcp_foundry_update_spec --operation context_patch --context-patch '{...}'`) with proper MCP format (`{"name": "update_spec", "arguments": {...}}`)
+  - Fixed tool names throughout documentation (removed `mcp_foundry_` prefix, now uses `update_spec`, `create_project`, etc.)
+  - Updated all error messages and workflow hints to show MCP syntax instead of CLI commands
+  - Fixed help content examples to use correct JSON parameter format
+  - Updated test validations to check for correct tool names in generated templates
+- **Context Operations Clarification**: Documented and clarified the three context patch operations
+  - **Insert**: Adds content between `before_context` and `after_context` landmarks (for new requirements/tasks)
+  - **Replace**: Replaces the last line of `before_context` with new content (for task completion, updates)
+  - **Delete**: Removes the last line of `before_context` (for cleanup, obsolete items)
+  - Created comprehensive `CONTEXT_OPERATIONS_GUIDE.md` with detailed examples and best practices
+  - Clarified when to use each operation type and how context selection affects success rates
+
+### Added
+
+- **Context Operations Usage Guide**: Comprehensive documentation for context-based patching
+  - Detailed examples for Insert, Replace, and Delete operations
+  - Best practices for context selection and error handling
+  - Token efficiency benefits (70-90% reduction vs full file replacement)
+  - Recovery patterns for failed context matches
+  - Integration examples with MCP tool calls
+
 ## [0.3.1] - 2025-09-04
 
 ### Fixed

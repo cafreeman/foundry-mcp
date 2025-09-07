@@ -542,23 +542,34 @@ pub struct UpdateSpecArgs {
     /// **Context-Based Patching (--operation context_patch)**:
     /// - Enables precise, targeted updates using surrounding text context
     /// - Avoids need for line number precision or full file replacement
-    /// - Use JSON format with before_context, after_context, and content fields
-    /// - Supports fuzzy matching for minor formatting variations
-    /// - Example: {"file_type":"spec","operation":"insert","before_context":["- User auth"],"after_context":["- Session mgmt"],"content":"- Two-factor auth"}
+    /// - Requires exact text matching with current content for reliability
+    /// - Choose unique, specific context lines (avoid generic words like "TODO")
+    /// - Example: {"file_type":"tasks","operation":"replace","section_context":"## Phase 1: Authentication","before_context":["## Phase 1: Authentication","- [ ] Implement OAuth2 integration with Google"],"after_context":["- [ ] Add password strength validation"],"content":"- [x] Implement OAuth2 integration with Google"}
+    ///
+    /// **Prerequisites for Success**:
+    /// - Ensure you have current content in context (reload with load_spec if you've made previous edits)
+    /// - Use exact text from current content for context selection
+    /// - Choose 3-5 lines of unique, distinctive text unlikely to appear elsewhere
+    /// - Use section_context for disambiguation when context appears in multiple sections
     ///
     /// **When to use context_patch**:
-    /// - Small targeted changes (mark task complete, add single requirement)
-    /// - Precise insertions between existing content
-    /// - Updates where you know the surrounding context
+    /// - Mark tasks complete, add single requirements, fix specific content
+    /// - Small targeted changes where you know unique surrounding context
+    /// - Updates that need precise positioning within existing structure
+    ///
+    /// **Recovery when context matching fails**:
+    /// - Reload current content to verify exact text
+    /// - Choose more specific, unique context lines
+    /// - Add section_context to disambiguate
+    /// - As last resort, use replace for major changes or append for additions
     ///
     /// **JSON Schema Requirements**:
     /// - file_type: "spec", "tasks", or "notes"
     /// - operation: "insert", "replace", or "delete"
-    /// - before_context: Array of strings (3-5 lines recommended)
-    /// - after_context: Array of strings (3-5 lines recommended)
+    /// - before_context: Array of strings (unique text from current content)
+    /// - after_context: Array of strings (unique text from current content)
     /// - content: String content to insert/replace
     /// - section_context: Optional header for disambiguation (e.g., "## Requirements")
-    /// - match_config: Optional matching configuration
     #[arg(long)]
     pub context_patch: Option<String>,
 }
@@ -608,7 +619,7 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
 
         let mut context_patch_prop = serde_json::Map::new();
         context_patch_prop.insert("type".to_string(), serde_json::json!("string"));
-        context_patch_prop.insert("description".to_string(), serde_json::json!("Context-based patch data (JSON string, optional). Used with --operation context_patch for precise, targeted updates using surrounding text context. Avoids need for line number precision or full file replacement. JSON schema: {\"file_type\":\"spec|tasks|notes\",\"operation\":\"insert|replace|delete\",\"before_context\":[\"line1\",\"line2\"],\"after_context\":[\"line1\",\"line2\"],\"content\":\"new content\",\"section_context\":\"## Header (optional)\",\"match_config\":{\"ignore_whitespace\":true,\"similarity_threshold\":0.8,\"case_insensitive_fallback\":true}}"));
+        context_patch_prop.insert("description".to_string(), serde_json::json!("Context-based patch data (JSON string, optional). Used with --operation context_patch for precise, targeted updates using surrounding text context. Requires exact text from current content for reliable matching. Choose unique, specific context lines. Example: {\"file_type\":\"tasks\",\"operation\":\"replace\",\"section_context\":\"## Phase 1: Authentication\",\"before_context\":[\"- [ ] Implement OAuth2 integration\"],\"after_context\":[\"- [ ] Add password validation\"],\"content\":\"- [x] Implement OAuth2 integration\"}. Recovery: If matching fails, reload content and use more specific context."));
         properties.insert("context_patch".to_string(), context_patch_prop);
 
         rust_mcp_sdk::schema::Tool {
