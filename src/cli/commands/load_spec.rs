@@ -70,7 +70,7 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
             let match_info = match match_strategy {
                 spec::SpecMatchStrategy::Exact(_) => None, // No match info for exact matches
                 _ => Some(crate::types::responses::MatchInfo {
-                    requested_spec: spec_name.clone(),
+                    requested_spec: spec_name,
                     matched_spec: spec_data.name.clone(),
                     match_type: match match_strategy {
                         spec::SpecMatchStrategy::FeatureExact(_) => "feature_exact".to_string(),
