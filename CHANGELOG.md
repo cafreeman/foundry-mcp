@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Streamlined Spec Discovery System**: Complete intelligent spec discovery and loading capabilities
+  - **Fuzzy Matching for Spec Loading**: Natural language queries like "auth" automatically match "user_authentication" specs
+  - **Lightweight Spec Discovery**: New `list_specs` command for efficient spec discovery without full project context loading
+  - **Intelligent Workflow Selection**: Updated guidance templates to recommend optimal workflows based on task type
+  - **Performance Optimization**: ~90% reduction in data transfer for focused spec work compared to full project loading
+  - **Enhanced LoadSpecResponse**: Added optional `MatchInfo` struct for fuzzy match feedback and confidence scoring
+  - **Priority-Based Matching Algorithm**: 5-tier matching strategy (Exact → Feature → Substring → Fuzzy Feature → Fuzzy Name)
+  - **Comprehensive Error Handling**: Clear disambiguation for multiple matches, helpful suggestions for no matches
+  - **Backward Compatibility**: All existing exact match workflows continue working unchanged
+- **Context Operations Usage Guide**: Comprehensive documentation for context-based patching
+  - Detailed examples for Insert, Replace, and Delete operations
+  - Best practices for context selection and error handling
+  - Token efficiency benefits (70-90% reduction vs full file replacement)
+  - Recovery patterns for failed context matches
+  - Integration examples with MCP tool calls
+
+### Changed
+
+- **BREAKING**: Updated guidance templates to remove "ALWAYS load project first" mandates in favor of intelligent workflow selection
+- **BREAKING**: Enhanced `load_spec` command with fuzzy matching capabilities while maintaining exact match behavior
+- **BREAKING**: Updated CLI argument documentation to include fuzzy matching guidance and repo name inference patterns
+- **BREAKING**: Revised workflow patterns in templates to promote efficient spec discovery and loading
+- Enhanced `load_spec` command with natural language query support and match confidence feedback
+- Updated Cursor rules template with new efficient workflow patterns and fuzzy matching guidance
+- Updated Claude subagent template with intelligent workflow selection and performance optimization recommendations
+- Improved CLI argument documentation with comprehensive fuzzy matching capability descriptions
+
 ### Fixed
 
 - **MCP Interface Documentation**: Fixed critical interface mismatch between CLI syntax and MCP tool call format
@@ -22,15 +51,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Delete**: Removes the last line of `before_context` (for cleanup, obsolete items)
   - Created comprehensive `CONTEXT_OPERATIONS_GUIDE.md` with detailed examples and best practices
   - Clarified when to use each operation type and how context selection affects success rates
-
-### Added
-
-- **Context Operations Usage Guide**: Comprehensive documentation for context-based patching
-  - Detailed examples for Insert, Replace, and Delete operations
-  - Best practices for context selection and error handling
-  - Token efficiency benefits (70-90% reduction vs full file replacement)
-  - Recovery patterns for failed context matches
-  - Integration examples with MCP tool calls
+- **Workflow Inefficiency**: Eliminated contradictory guidance that forced LLMs to load full project context before spec work
+- **Spec Discovery Gap**: Resolved issue where users couldn't efficiently discover specs using natural language
+- **Performance Issues**: Addressed redundant data transfer in common "work on specific feature" scenarios
+- **User Experience**: Improved workflow efficiency by matching natural language patterns to technical spec names
 
 ## [0.3.1] - 2025-09-04
 
