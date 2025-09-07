@@ -2,6 +2,7 @@
 
 use anyhow::{Context, Result};
 use chrono::{Datelike, Timelike, Utc};
+use rapidfuzz::distance::levenshtein;
 use std::fs;
 use std::path::PathBuf;
 
@@ -359,6 +360,148 @@ pub fn validate_spec_files(project_name: &str, spec_name: &str) -> Result<SpecVa
     Ok(result)
 }
 
+/// Fuzzy matching strategy for spec discovery
+#[derive(Debug, Clone, PartialEq)]
+pub enum SpecMatchStrategy {
+    /// Direct exact match found
+    Exact(String),
+    /// Matched by feature name (exact)
+    FeatureExact(String),
+    /// Matched by feature name (fuzzy)
+    FeatureFuzzy(String),
+    /// Matched by spec name similarity
+    NameFuzzy(String),
+    /// Multiple candidates found
+    Multiple(Vec<String>),
+    /// No reasonable matches
+    None,
+}
+
+/// Find the best matching spec using fuzzy matching
+pub fn find_spec_match(project_name: &str, query: &str) -> Result<SpecMatchStrategy> {
+    let available_specs = list_specs(project_name)?;
+
+    if available_specs.is_empty() {
+        return Ok(SpecMatchStrategy::None);
+    }
+
+    // Try exact spec name match first (highest priority)
+    if let Some(exact_match) = available_specs.iter().find(|s| s.name == query) {
+        return Ok(SpecMatchStrategy::Exact(exact_match.name.clone()));
+    }
+
+    // Try exact feature name match
+    if let Some(feature_match) = available_specs.iter().find(|s| s.feature_name == query) {
+        return Ok(SpecMatchStrategy::FeatureExact(feature_match.name.clone()));
+    }
+
+    // Try feature name substring match (case-insensitive)
+    let query_lower = query.to_lowercase();
+    if let Some(substring_match) = available_specs
+        .iter()
+        .find(|s| s.feature_name.to_lowercase().contains(&query_lower))
+    {
+        return Ok(SpecMatchStrategy::FeatureFuzzy(
+            substring_match.name.clone(),
+        ));
+    }
+
+    // Try fuzzy matching on feature names
+    let feature_matches: Vec<(String, f32)> = available_specs
+        .iter()
+        .map(|s| {
+            let distance = levenshtein::distance(query.chars(), s.feature_name.chars());
+            let max_len = query.len().max(s.feature_name.len()) as f32;
+            let similarity = if max_len == 0.0 {
+                1.0
+            } else {
+                1.0 - (distance as f32 / max_len)
+            };
+            (s.name.clone(), similarity)
+        })
+        .filter(|(_, confidence)| *confidence > 0.8) // High confidence threshold
+        .collect();
+
+    if feature_matches.len() == 1 {
+        return Ok(SpecMatchStrategy::FeatureFuzzy(
+            feature_matches[0].0.clone(),
+        ));
+    } else if feature_matches.len() > 1 {
+        // Multiple feature matches - return for disambiguation
+        let mut names: Vec<String> = feature_matches.into_iter().map(|(name, _)| name).collect();
+        names.sort();
+        return Ok(SpecMatchStrategy::Multiple(names));
+    }
+
+    // Try fuzzy matching on spec names
+    let name_matches: Vec<(String, f32)> = available_specs
+        .iter()
+        .map(|s| {
+            let distance = levenshtein::distance(query.chars(), s.name.chars());
+            let max_len = query.len().max(s.name.len()) as f32;
+            let similarity = if max_len == 0.0 {
+                1.0
+            } else {
+                1.0 - (distance as f32 / max_len)
+            };
+            (s.name.clone(), similarity)
+        })
+        .filter(|(_, confidence)| *confidence > 0.8) // High confidence threshold
+        .collect();
+
+    if name_matches.len() == 1 {
+        return Ok(SpecMatchStrategy::NameFuzzy(name_matches[0].0.clone()));
+    } else if name_matches.len() > 1 {
+        // Multiple name matches - return for disambiguation
+        let mut names: Vec<String> = name_matches.into_iter().map(|(name, _)| name).collect();
+        names.sort();
+        return Ok(SpecMatchStrategy::Multiple(names));
+    }
+
+    Ok(SpecMatchStrategy::None)
+}
+
+/// Load a spec with fuzzy matching support
+pub fn load_spec_with_fuzzy(project_name: &str, query: &str) -> Result<(Spec, SpecMatchStrategy)> {
+    let match_strategy = find_spec_match(project_name, query)?;
+
+    match &match_strategy {
+        SpecMatchStrategy::Exact(spec_name)
+        | SpecMatchStrategy::FeatureExact(spec_name)
+        | SpecMatchStrategy::FeatureFuzzy(spec_name)
+        | SpecMatchStrategy::NameFuzzy(spec_name) => {
+            let spec = load_spec(project_name, spec_name)?;
+            Ok((spec, match_strategy))
+        }
+        SpecMatchStrategy::Multiple(candidates) => Err(anyhow::anyhow!(
+            "Multiple specs match '{}': {}. Please specify which one you want to load.",
+            query,
+            candidates.join(", ")
+        )),
+        SpecMatchStrategy::None => {
+            // Get available specs for helpful error message
+            let available_specs = list_specs(project_name)?;
+            if available_specs.is_empty() {
+                Err(anyhow::anyhow!(
+                    "No specs found in project '{}'. Use 'foundry create-spec {} <feature_name>' to create your first spec.",
+                    project_name,
+                    project_name
+                ))
+            } else {
+                let spec_names: Vec<String> = available_specs
+                    .into_iter()
+                    .map(|s| format!("{} ({})", s.name, s.feature_name))
+                    .collect();
+                Err(anyhow::anyhow!(
+                    "No specs found matching '{}'. Available specs: {}",
+                    query,
+                    spec_names.join(", ")
+                ))
+            }
+        }
+    }
+}
+
 /// Load a specific spec with validation
 pub fn load_spec(project_name: &str, spec_name: &str) -> Result<Spec> {
     // Validate spec name format first
@@ -707,5 +850,185 @@ mod tests {
 
         assert_eq!(spec_path, created_spec.path);
         assert!(spec_path.exists());
+    }
+
+    #[test]
+    fn test_fuzzy_matching_exact_spec_name() {
+        use crate::test_utils::TestEnvironment;
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test_fuzzy_exact_spec";
+
+        // Create test specs
+        let config1 = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "user_authentication".to_string(),
+            content: SpecContentData {
+                spec: "Auth spec".to_string(),
+                notes: "Auth notes".to_string(),
+                tasks: "- Auth task".to_string(),
+            },
+        };
+        let spec1 = create_spec(config1).unwrap();
+
+        let config2 = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "payment_processing".to_string(),
+            content: SpecContentData {
+                spec: "Payment spec".to_string(),
+                notes: "Payment notes".to_string(),
+                tasks: "- Payment task".to_string(),
+            },
+        };
+        let spec2 = create_spec(config2).unwrap();
+
+        // Test exact spec name match
+        let result = find_spec_match(project_name, &spec1.name).unwrap();
+        assert_eq!(result, SpecMatchStrategy::Exact(spec1.name.clone()));
+
+        let result = find_spec_match(project_name, &spec2.name).unwrap();
+        assert_eq!(result, SpecMatchStrategy::Exact(spec2.name.clone()));
+    }
+
+    #[test]
+    fn test_fuzzy_matching_feature_name() {
+        use crate::test_utils::TestEnvironment;
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test_fuzzy_feature";
+
+        // Create test specs
+        let config1 = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "user_authentication".to_string(),
+            content: SpecContentData {
+                spec: "Auth spec".to_string(),
+                notes: "Auth notes".to_string(),
+                tasks: "- Auth task".to_string(),
+            },
+        };
+        let spec1 = create_spec(config1).unwrap();
+
+        let config2 = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "payment_processing".to_string(),
+            content: SpecContentData {
+                spec: "Payment spec".to_string(),
+                notes: "Payment notes".to_string(),
+                tasks: "- Payment task".to_string(),
+            },
+        };
+        let spec2 = create_spec(config2).unwrap();
+
+        // Test exact feature name match
+        let result = find_spec_match(project_name, "user_authentication").unwrap();
+        assert_eq!(result, SpecMatchStrategy::FeatureExact(spec1.name.clone()));
+
+        let result = find_spec_match(project_name, "payment_processing").unwrap();
+        assert_eq!(result, SpecMatchStrategy::FeatureExact(spec2.name.clone()));
+
+        // Test feature name substring match
+        let result = find_spec_match(project_name, "auth").unwrap();
+        assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(spec1.name.clone()));
+
+        let result = find_spec_match(project_name, "payment").unwrap();
+        assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(spec2.name.clone()));
+    }
+
+    #[test]
+    fn test_fuzzy_matching_no_matches() {
+        use crate::test_utils::TestEnvironment;
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test_fuzzy_no_matches";
+
+        // Create test specs
+        let config = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "user_authentication".to_string(),
+            content: SpecContentData {
+                spec: "Auth spec".to_string(),
+                notes: "Auth notes".to_string(),
+                tasks: "- Auth task".to_string(),
+            },
+        };
+        let _spec = create_spec(config).unwrap();
+
+        // Test no matches
+        let result = find_spec_match(project_name, "completely_different").unwrap();
+        assert_eq!(result, SpecMatchStrategy::None);
+
+        let result = find_spec_match(project_name, "xyz").unwrap();
+        assert_eq!(result, SpecMatchStrategy::None);
+    }
+
+    #[test]
+    fn test_fuzzy_matching_empty_project() {
+        use crate::test_utils::TestEnvironment;
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test_fuzzy_empty";
+
+        // Test empty project
+        let result = find_spec_match(project_name, "anything").unwrap();
+        assert_eq!(result, SpecMatchStrategy::None);
+    }
+
+    #[test]
+    fn test_load_spec_with_fuzzy() {
+        use crate::test_utils::TestEnvironment;
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test_load_fuzzy";
+
+        // Create test spec
+        let config = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "user_authentication".to_string(),
+            content: SpecContentData {
+                spec: "Auth spec".to_string(),
+                notes: "Auth notes".to_string(),
+                tasks: "- Auth task".to_string(),
+            },
+        };
+        let created_spec = create_spec(config).unwrap();
+
+        // Test fuzzy loading with feature name
+        let (loaded_spec, match_strategy) = load_spec_with_fuzzy(project_name, "auth").unwrap();
+        assert_eq!(loaded_spec.name, created_spec.name);
+        assert!(matches!(match_strategy, SpecMatchStrategy::FeatureFuzzy(_)));
+
+        // Test exact loading
+        let (loaded_spec, match_strategy) =
+            load_spec_with_fuzzy(project_name, &created_spec.name).unwrap();
+        assert_eq!(loaded_spec.name, created_spec.name);
+        assert_eq!(
+            match_strategy,
+            SpecMatchStrategy::Exact(created_spec.name.clone())
+        );
+    }
+
+    #[test]
+    fn test_load_spec_with_fuzzy_no_matches() {
+        use crate::test_utils::TestEnvironment;
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test_load_fuzzy_no_matches";
+
+        // Create test spec
+        let config = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "user_authentication".to_string(),
+            content: SpecContentData {
+                spec: "Auth spec".to_string(),
+                notes: "Auth notes".to_string(),
+                tasks: "- Auth task".to_string(),
+            },
+        };
+        let _spec = create_spec(config).unwrap();
+
+        // Test no matches
+        let result = load_spec_with_fuzzy(project_name, "completely_different");
+        assert!(result.is_err());
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("No specs found matching")
+        );
     }
 }

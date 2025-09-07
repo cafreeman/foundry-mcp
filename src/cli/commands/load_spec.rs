@@ -35,6 +35,7 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
                 created_at: None,
                 spec_content: None,
                 available_specs: available_specs.clone(),
+                match_info: None,
             };
 
             Ok(FoundryResponse {
@@ -49,12 +50,36 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
             })
         }
         Some(spec_name) => {
-            // Load specific spec
-            let spec_data = spec::load_spec(&args.project_name, &spec_name)
-                .with_context(|| format!("Failed to load spec '{}'", spec_name))?;
+            // Try fuzzy matching first, fall back to exact match
+            let (spec_data, match_strategy) =
+                match spec::load_spec_with_fuzzy(&args.project_name, &spec_name) {
+                    Ok(result) => result,
+                    Err(_) => {
+                        // Fall back to exact match for backward compatibility
+                        let spec_data = spec::load_spec(&args.project_name, &spec_name)
+                            .with_context(|| format!("Failed to load spec '{}'", spec_name))?;
+                        (spec_data, spec::SpecMatchStrategy::Exact(spec_name.clone()))
+                    }
+                };
 
             let spec_content = SpecContent {
                 content: spec_data.content,
+            };
+
+            // Create match info for fuzzy matches
+            let match_info = match match_strategy {
+                spec::SpecMatchStrategy::Exact(_) => None, // No match info for exact matches
+                _ => Some(crate::types::responses::MatchInfo {
+                    requested_spec: spec_name.clone(),
+                    matched_spec: spec_data.name.clone(),
+                    match_type: match match_strategy {
+                        spec::SpecMatchStrategy::FeatureExact(_) => "feature_exact".to_string(),
+                        spec::SpecMatchStrategy::FeatureFuzzy(_) => "feature_fuzzy".to_string(),
+                        spec::SpecMatchStrategy::NameFuzzy(_) => "name_fuzzy".to_string(),
+                        _ => "exact".to_string(),
+                    },
+                    confidence: 1.0, // We'll calculate this properly later
+                }),
             };
 
             let response_data = LoadSpecResponse {
@@ -64,6 +89,7 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
                 created_at: Some(spec_data.created_at.clone()),
                 spec_content: Some(spec_content),
                 available_specs: Vec::new(), // Empty when loading specific spec
+                match_info,
             };
 
             Ok(FoundryResponse {

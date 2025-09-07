@@ -365,6 +365,27 @@ pub struct ListProjectsArgs;
 // Returns: project names, creation dates, spec counts, validation status
 // Use this to discover available projects before loading or creating specs
 
+/// Arguments for list_specs command
+#[derive(Args, Debug)]
+pub struct ListSpecsArgs {
+    /// Project name to list specs for
+    ///
+    /// Must be an existing project in ~/.foundry/
+    /// Typically matches repository name - try this first before listing projects
+    pub project_name: String,
+}
+
+// Generate MCP tool implementation for ListSpecsArgs
+impl_mcp_tool! {
+    name = "list_specs",
+    description = "List available specifications for a project without loading full context. Returns lightweight spec metadata including names, feature names, and creation dates for efficient spec discovery.",
+    struct ListSpecsArgs {
+        project_name: String {
+            description = "Name of the existing project to list specs for (must exist in ~/.foundry/)"
+        }
+    }
+}
+
 /// Arguments for get_foundry_help command
 #[derive(Args, Debug)]
 pub struct GetFoundryHelpArgs {

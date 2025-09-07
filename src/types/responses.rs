@@ -51,6 +51,14 @@ pub struct ProjectInfo {
     pub path: String,
 }
 
+/// Response for list_specs command
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ListSpecsResponse {
+    pub project_name: String,
+    pub specs: Vec<SpecInfo>,
+    pub total_count: usize,
+}
+
 /// Response for load_project command
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoadProjectResponse {
@@ -90,6 +98,9 @@ pub struct LoadSpecResponse {
     pub spec_content: Option<SpecContent>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub available_specs: Vec<SpecInfo>,
+    /// Indicates if fuzzy matching was used
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub match_info: Option<MatchInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -97,6 +108,14 @@ pub struct SpecInfo {
     pub name: String,
     pub feature_name: String,
     pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MatchInfo {
+    pub requested_spec: String,
+    pub matched_spec: String,
+    pub match_type: String, // "exact", "feature_fuzzy", "name_fuzzy"
+    pub confidence: f32,    // 0.0 to 1.0
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
