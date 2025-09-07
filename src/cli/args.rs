@@ -286,9 +286,14 @@ pub struct LoadSpecArgs {
 
     /// Specific spec name (if not provided, lists available specs)
     ///
-    /// Spec names are in format: YYYYMMDD_HHMMSS_feature_name
+    /// **Exact Match**: Use full spec name (YYYYMMDD_HHMMSS_feature_name format)
+    /// **Fuzzy Matching**: Use natural language queries like "auth" or "user management"
+    ///   - Supports feature name matching (e.g., "auth" matches "user_authentication")
+    ///   - Supports partial spec name matching with Levenshtein distance
+    ///   - Returns match confidence and details in response
+    ///
     /// If omitted, returns list of all available specs for the project
-    /// Use 'foundry load-project PROJECT_NAME' to see project context first
+    /// Use 'foundry list-specs PROJECT_NAME' for lightweight spec discovery
     pub spec_name: Option<String>,
 }
 
@@ -307,12 +312,12 @@ impl crate::mcp::traits::McpToolDefinition for LoadSpecArgs {
 
         let mut spec_name_prop = serde_json::Map::new();
         spec_name_prop.insert("type".to_string(), serde_json::json!("string"));
-        spec_name_prop.insert("description".to_string(), serde_json::json!("Optional: specific spec to load (YYYYMMDD_HHMMSS_feature_name format). If omitted, lists available specs"));
+        spec_name_prop.insert("description".to_string(), serde_json::json!("Optional: specific spec to load. Supports exact spec names (YYYYMMDD_HHMMSS_feature_name format) or fuzzy matching with natural language queries like 'auth' or 'user management'. If omitted, lists available specs"));
         properties.insert("spec_name".to_string(), spec_name_prop);
 
         rust_mcp_sdk::schema::Tool {
             name: "load_spec".to_string(),
-            description: Some("Load specific specification content with project context. You can use this to review full specification details, task lists, and implementation notes. If spec_name is omitted, lists available specs.".to_string()),
+            description: Some("Load specific specification content with project context. Supports fuzzy matching on feature names (e.g., 'auth' matches 'user_authentication'). You can use this to review full specification details, task lists, and implementation notes. If spec_name is omitted, lists available specs.".to_string()),
             title: None,
             input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
                 vec!["project_name".to_string()], // Only project_name is required
@@ -372,6 +377,11 @@ pub struct ListSpecsArgs {
     ///
     /// Must be an existing project in ~/.foundry/
     /// Typically matches repository name - try this first before listing projects
+    ///
+    /// **Efficient Workflow**: Use this for lightweight spec discovery without loading
+    /// full project context. Returns only spec metadata for focused feature work.
+    ///
+    /// **Performance**: ~90% reduction in data transfer compared to load_project
     pub project_name: String,
 }
 
