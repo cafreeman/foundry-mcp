@@ -424,7 +424,7 @@ impl TestEnvironment {
         if !rules_content.contains("# Foundry MCP Usage Guide") {
             anyhow::bail!("Rules should contain usage guide header");
         }
-        if !rules_content.contains("mcp_foundry_") {
+        if !rules_content.contains("create_project") || !rules_content.contains("update_spec") {
             anyhow::bail!("Rules should reference Foundry MCP tools");
         }
         if !rules_content.contains("Content Agnostic") {

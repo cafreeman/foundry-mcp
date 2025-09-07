@@ -1,8 +1,9 @@
 //! Context-based patching engine for precise markdown file updates
 
 use crate::types::spec::{
-    BatchContextPatchResult, ConflictType, ContextOperation, ContextPatch, ContextPatchResult,
-    OperationHistoryEntry, PatchConflict, PerformanceMetrics, SmartSuggestion,
+    BatchContextPatchResult, ConflictType, ContextAnalysis, ContextOperation, ContextPatch, 
+    ContextPatchResult, ContextValidationResult, OperationHistoryEntry, PatchConflict, 
+    PerformanceMetrics, SmartSuggestion,
 };
 use anyhow::Result;
 use rapidfuzz::distance::levenshtein;
@@ -57,6 +58,102 @@ impl ContextMatcher {
         Self::new(content).force_algorithm(algorithm)
     }
 
+    /// Validate context quality before attempting patch (proactive failure prevention)
+    pub fn validate_context_preflight(&self, patch: &ContextPatch) -> ContextValidationResult {
+        let mut warnings = Vec::new();
+        let mut suggestions = Vec::new();
+        let mut success_factors = Vec::new();
+        
+        // Factor 1: Context length analysis
+        let total_context_lines = patch.before_context.len() + patch.after_context.len();
+        if total_context_lines < 2 {
+            warnings.push("Very short context (< 2 lines) increases failure risk".to_string());
+            suggestions.push("Add more context lines (3-5 recommended) for reliable matching".to_string());
+            success_factors.push(0.3); // Low success probability
+        } else if total_context_lines < 3 {
+            warnings.push("Short context may be ambiguous".to_string());
+            suggestions.push("Consider adding 1-2 more context lines for better precision".to_string());
+            success_factors.push(0.6);
+        } else {
+            success_factors.push(0.9); // Good context length
+        }
+
+        // Factor 2: Context uniqueness analysis  
+        let uniqueness_analysis = self.analyze_context_uniqueness(patch);
+        if uniqueness_analysis.has_duplicates {
+            warnings.push(format!(
+                "Ambiguous context: '{}' appears {} times", 
+                uniqueness_analysis.duplicate_text.trim(),
+                uniqueness_analysis.occurrence_count
+            ));
+            if patch.section_context.is_none() {
+                suggestions.push("Add section_context to disambiguate (e.g., '## Requirements')".to_string());
+            } else {
+                suggestions.push("Use more specific, unique surrounding text".to_string());
+            }
+            success_factors.push(0.4); // Low success due to ambiguity
+        } else {
+            success_factors.push(0.9); // Good uniqueness
+        }
+
+        // Factor 3: Context quality analysis (generic vs specific)
+        let generic_score = self.calculate_generic_context_score(patch);
+        if generic_score > 0.7 {
+            warnings.push("Context contains generic terms that may appear multiple places".to_string());
+            suggestions.push("Use more specific text (avoid 'TODO', 'implement', 'add', etc.)".to_string());
+            success_factors.push(0.5);
+        } else if generic_score > 0.4 {
+            suggestions.push("Consider using more distinctive text for higher reliability".to_string());
+            success_factors.push(0.7);
+        } else {
+            success_factors.push(0.9); // Good specific context
+        }
+
+        // Factor 4: Section context necessity
+        if patch.section_context.is_none() && self.has_multiple_sections() {
+            let similar_sections = self.count_sections_with_similar_content(patch);
+            if similar_sections > 1 {
+                warnings.push(format!("Similar content found in {} sections", similar_sections));
+                suggestions.push("Add section_context to specify which section to modify".to_string());
+                success_factors.push(0.5);
+            } else {
+                success_factors.push(0.8);
+            }
+        } else {
+            success_factors.push(0.9); // Section context provided or not needed
+        }
+
+        // Calculate overall success probability
+        let success_probability = success_factors.iter().sum::<f32>() / success_factors.len() as f32;
+        let is_likely_to_succeed = success_probability >= 0.7;
+
+        // Estimate token efficiency (context patch typically saves 80-95% tokens)
+        let estimated_content_size = self.lines.len() * 50; // rough estimate
+        let patch_size = patch.content.len() + 200; // context overhead
+        let token_efficiency = 1.0 - (patch_size as f32 / estimated_content_size as f32).min(1.0);
+
+        // Add encouragement for good context
+        if is_likely_to_succeed {
+            suggestions.push(format!(
+                "✅ Context looks good! Estimated {}% token savings vs replace", 
+                (token_efficiency * 100.0) as u8
+            ));
+        } else {
+            suggestions.push(format!(
+                "⚠️  Context patch could save {}% tokens if successful - consider improvements above",
+                (token_efficiency * 100.0) as u8
+            ));
+        }
+
+        ContextValidationResult {
+            success_probability,
+            is_likely_to_succeed,
+            warnings,
+            improvement_suggestions: suggestions,
+            token_efficiency,
+        }
+    }
+
     /// Apply a context patch to the content
     pub fn apply_patch(&mut self, patch: &ContextPatch) -> Result<ContextPatchResult> {
         // Validate patch requirements
@@ -90,13 +187,7 @@ impl ContextMatcher {
                 match_confidence: None,
                 lines_modified: 0,
                 patch_type: format!("{:?}", patch.operation),
-                error_message: Some(format!(
-                    "Context not found: Could not locate the specified before/after context{}",
-                    patch
-                        .section_context
-                        .as_ref()
-                        .map_or_else(String::new, |section| format!(" in section '{}'", section))
-                )),
+                error_message: Some(self.generate_enhanced_error_message(patch)),
                 suggestions,
                 operation_id: None,
                 smart_suggestions: None,
@@ -656,25 +747,237 @@ impl ContextMatcher {
         }
     }
 
-    /// Generate helpful suggestions when context matching fails
+    /// Generate enhanced error message with immediate actionable guidance
+    fn generate_enhanced_error_message(&self, patch: &ContextPatch) -> String {
+        let section_info = patch
+            .section_context
+            .as_ref()
+            .map_or_else(String::new, |section| format!(" in section '{}'", section));
+
+        // Check for similar content
+        let similar_matches = self.find_similar_context(patch);
+        if !similar_matches.is_empty() {
+            let (line_num, content, similarity) = &similar_matches[0];
+            return format!(
+                "Context not found{}, but similar content exists:\n• Line {}: '{}' ({}% match)\n\nTIP: Load current content with load_spec and copy exact text for better matching.",
+                section_info,
+                line_num + 1,
+                content.trim(),
+                (*similarity * 100.0) as u8
+            );
+        }
+
+        // Check for ambiguous context
+        let context_analysis = self.analyze_context_uniqueness(patch);
+        if context_analysis.has_duplicates {
+            return format!(
+                "Context is ambiguous{}: '{}' appears {} times in document.\n\nTIP: Add section_context to specify which occurrence you want, or use more unique surrounding text.",
+                section_info,
+                context_analysis.duplicate_text.trim(),
+                context_analysis.occurrence_count
+            );
+        }
+
+        // Generic case with efficiency reminder
+        format!(
+            "Context not found{}: Could not locate the specified before/after context.\n\nRECOVERY: Load current content and copy exact text. Context patch saves ~90% tokens vs replace.",
+            section_info
+        )
+    }
+
+    /// Generate intelligent, actionable suggestions when context matching fails
     fn generate_match_suggestions(&self, patch: &ContextPatch) -> Vec<String> {
-        let mut suggestions = vec![
-            "Check if content has changed since last load".to_string(),
-            "Try broader context (fewer lines) or more specific context".to_string(),
-            "Use load_spec to see current content".to_string(),
-        ];
-
-        if patch.section_context.is_some() {
-            suggestions.push("Verify section header exists and is spelled correctly".to_string());
-        } else {
-            suggestions.push("Consider adding section_context to disambiguate".to_string());
+        let mut suggestions = Vec::new();
+        
+        // Analyze what similar content exists in the document
+        let similar_matches = self.find_similar_context(patch);
+        
+        if !similar_matches.is_empty() {
+            suggestions.push("SIMILAR CONTENT FOUND - Consider these alternatives:".to_string());
+            for (line_num, content, similarity) in similar_matches.iter().take(3) {
+                suggestions.push(format!(
+                    "  • Line {}: '{}' ({}% match)", 
+                    line_num + 1, 
+                    content.trim(), 
+                    (similarity * 100.0) as u8
+                ));
+            }
+            suggestions.push("Try using the exact text from one of these matches.".to_string());
         }
 
-        if patch.before_context.len() + patch.after_context.len() < 3 {
-            suggestions.push("Consider providing more context lines (3-5 recommended)".to_string());
+        // Check for context uniqueness issues
+        let context_analysis = self.analyze_context_uniqueness(patch);
+        if context_analysis.has_duplicates {
+            suggestions.push(format!(
+                "AMBIGUOUS CONTEXT: '{}' appears {} times in document.",
+                context_analysis.duplicate_text,
+                context_analysis.occurrence_count
+            ));
+            suggestions.push("Add section_context to specify which occurrence you want.".to_string());
         }
+
+        // Provide specific remediation steps
+        suggestions.push("RECOMMENDED NEXT STEPS:".to_string());
+        suggestions.push("1. Load current content with mcp_foundry_load_spec to see exact text".to_string());
+        suggestions.push("2. Copy exact text (including spacing) from the loaded content".to_string());
+        suggestions.push("3. Choose 3-5 unique lines that only appear at your target location".to_string());
+        
+        if patch.section_context.is_none() && self.has_multiple_sections() {
+            suggestions.push("4. Add section_context (e.g., '## Requirements') to disambiguate".to_string());
+        }
+
+        suggestions.push("TOKEN EFFICIENCY: Context patch uses ~90% fewer tokens than replace".to_string());
 
         suggestions
+    }
+
+    /// Find similar content in the document that might match the intended context
+    fn find_similar_context(&self, patch: &ContextPatch) -> Vec<(usize, String, f32)> {
+        let mut similar_matches = Vec::new();
+        
+        // Combine all context lines for similarity analysis
+        let search_terms: Vec<String> = patch.before_context
+            .iter()
+            .chain(patch.after_context.iter())
+            .cloned()
+            .collect();
+
+        for (line_idx, line) in self.lines.iter().enumerate() {
+            for search_term in &search_terms {
+                let similarity = self.calculate_line_similarity_with_algorithm(
+                    search_term, 
+                    line, 
+                    SimilarityAlgorithm::PartialRatio
+                );
+                
+                // Only include reasonably similar matches (40-80% - above 80% should have matched)
+                if (0.4..0.8).contains(&similarity) {
+                    similar_matches.push((line_idx, line.clone(), similarity));
+                }
+            }
+        }
+
+        // Sort by similarity and remove duplicates
+        similar_matches.sort_by(|a, b| b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal));
+        similar_matches.dedup_by(|a, b| a.1 == b.1);
+        
+        similar_matches
+    }
+
+    /// Analyze context uniqueness to identify ambiguous matches
+    fn analyze_context_uniqueness(&self, patch: &ContextPatch) -> ContextAnalysis {
+        // Check for duplicate occurrences of context lines
+        for context_line in patch.before_context.iter().chain(patch.after_context.iter()) {
+            let normalized_search = self.normalize_text(context_line);
+            let mut occurrence_count = 0;
+            
+            for line in &self.lines {
+                let normalized_line = self.normalize_text(line);
+                if normalized_line.contains(&normalized_search) {
+                    occurrence_count += 1;
+                }
+            }
+            
+            if occurrence_count > 1 {
+                return ContextAnalysis {
+                    has_duplicates: true,
+                    duplicate_text: context_line.clone(),
+                    occurrence_count,
+                };
+            }
+        }
+        
+        ContextAnalysis {
+            has_duplicates: false,
+            duplicate_text: String::new(),
+            occurrence_count: 0,
+        }
+    }
+
+    /// Check if document has multiple sections (useful for suggesting section_context)
+    fn has_multiple_sections(&self) -> bool {
+        let section_count = self.lines.iter()
+            .filter(|line| line.trim_start().starts_with('#'))
+            .count();
+        section_count > 1
+    }
+
+    /// Calculate how generic/common the context terms are (0.0 = very specific, 1.0 = very generic)
+    fn calculate_generic_context_score(&self, patch: &ContextPatch) -> f32 {
+        let generic_terms = [
+            "todo", "implement", "add", "create", "update", "fix", "change", 
+            "modify", "remove", "delete", "new", "old", "test", "check",
+            "feature", "function", "method", "class", "variable", "item"
+        ];
+        
+        let mut generic_matches = 0;
+        let mut total_words = 0;
+        
+        for context_line in patch.before_context.iter().chain(patch.after_context.iter()) {
+            let lowercase_line = context_line.to_lowercase();
+            let words: Vec<&str> = lowercase_line
+                .split_whitespace()
+                .collect();
+            
+            total_words += words.len();
+            
+            for word in &words {
+                if generic_terms.contains(&word.trim_matches(|c: char| !c.is_alphanumeric())) {
+                    generic_matches += 1;
+                }
+            }
+        }
+        
+        if total_words == 0 {
+            return 0.0;
+        }
+        
+        generic_matches as f32 / total_words as f32
+    }
+
+    /// Count how many sections contain similar content to the patch context
+    fn count_sections_with_similar_content(&self, patch: &ContextPatch) -> usize {
+        let mut section_matches = 0;
+        let mut _current_section = String::new();
+        let mut found_in_current_section = false;
+        
+        let search_terms: Vec<String> = patch.before_context
+            .iter()
+            .chain(patch.after_context.iter())
+            .cloned()
+            .collect();
+        
+        for line in &self.lines {
+            // Check if this is a new section
+            if line.trim_start().starts_with('#') {
+                if found_in_current_section {
+                    section_matches += 1;
+                }
+                _current_section = line.clone();
+                found_in_current_section = false;
+                continue;
+            }
+            
+            // Check if any search terms appear in this line
+            for search_term in &search_terms {
+                let similarity = self.calculate_line_similarity_with_algorithm(
+                    search_term, 
+                    line, 
+                    SimilarityAlgorithm::PartialRatio
+                );
+                if similarity > 0.6 {
+                    found_in_current_section = true;
+                    break;
+                }
+            }
+        }
+        
+        // Check the last section
+        if found_in_current_section {
+            section_matches += 1;
+        }
+        
+        section_matches
     }
 }
 

@@ -18,7 +18,7 @@ pub async fn execute(args: UpdateSpecArgs) -> Result<FoundryResponse<UpdateSpecR
     // Validate spec exists
     if !spec::spec_exists(&args.project_name, &args.spec_name)? {
         return Err(anyhow::anyhow!(
-            "Spec '{}' not found in project '{}'. Use 'foundry load-project {}' to see available specs.",
+            "Spec '{}' not found in project '{}'. Use load_project tool to see available specs: {{\"name\": \"load_project\", \"arguments\": {{\"project_name\": \"{}\"}}}}",
             args.spec_name,
             args.project_name,
             args.project_name
@@ -82,7 +82,7 @@ fn validate_args(args: &UpdateSpecArgs) -> Result<()> {
 fn validate_project_exists(project_name: &str) -> Result<()> {
     if !project::project_exists(project_name)? {
         return Err(anyhow::anyhow!(
-            "Project '{}' not found. Use 'foundry list-projects' to see available projects.",
+            "Project '{}' not found. Use list_projects tool to see available projects: {{\"name\": \"list_projects\", \"arguments\": {{}}}}",
             project_name
         ));
     }
@@ -218,36 +218,53 @@ fn generate_next_steps(args: &UpdateSpecArgs) -> Vec<String> {
             args.spec_name, args.project_name, args.operation
         ),
         format!(
-            "Load updated spec: foundry load_spec {} {}",
+            "Load updated spec: {{\"name\": \"load_spec\", \"arguments\": {{\"project_name\": \"{}\", \"spec_name\": \"{}\"}}}}",
             args.project_name, args.spec_name
         ),
-        "Use 'foundry get-foundry-help content-examples' for formatting guidance".to_string(),
+        "Use get_foundry_help tool for formatting guidance: {\"name\": \"get_foundry_help\", \"arguments\": {\"topic\": \"content-examples\"}}".to_string(),
     ];
 
     // Add operation-specific guidance
     if args.operation.to_lowercase() == "append" {
         steps.push("Content was appended to preserve existing data".to_string());
         steps.push(format!(
-            "Continue iterating: foundry update-spec {} {} --operation append",
+            "Continue iterating: {{\"name\": \"update_spec\", \"arguments\": {{\"project_name\": \"{}\", \"spec_name\": \"{}\", \"operation\": \"append\", \"tasks\": \"new task content\"}}}}",
             args.project_name, args.spec_name
         ));
     } else {
         steps.push("Content was completely replaced".to_string());
         steps.push(
-            "Use --operation append for future updates to preserve existing content".to_string(),
+            "Use append operation for future updates to preserve existing content".to_string(),
         );
     }
 
     steps
 }
 
-/// Generate workflow hints for the response
+/// Generate workflow hints with efficiency guidance
 fn generate_workflow_hints(args: &UpdateSpecArgs) -> Vec<String> {
     let mut hints = vec![
         "📋 DOCUMENT PURPOSE: Your updates serve as COMPLETE CONTEXT for future implementation".to_string(),
         "🎯 CONTEXT TEST: Could someone with no prior knowledge implement using your updated documents?".to_string(),
-        format!("Operation: {} content across multiple files", args.operation),
     ];
+
+    // Add operation-specific efficiency guidance
+    match args.operation.to_lowercase().as_str() {
+        "context_patch" => {
+            hints.push("✅ EFFICIENT CHOICE: Context patch uses ~90% fewer tokens than replace".to_string());
+            hints.push("🎯 PRECISE UPDATES: Targeted changes preserve existing content".to_string());
+        }
+        "replace" => {
+            hints.push("⚠️  HIGH TOKEN COST: Replace operation uses full document tokens".to_string());
+            hints.push("💡 EFFICIENCY TIP: Use context_patch for small targeted changes next time".to_string());
+            hints.push("📊 TOKEN COMPARISON: Context patch saves 80-95% tokens vs replace".to_string());
+        }
+        "append" => {
+            hints.push("📝 ADDITIVE APPROACH: Content appended to preserve existing data".to_string());
+            hints.push("💡 PRECISION OPTION: Consider context_patch for insertions in specific locations".to_string());
+        }
+        _ => {}
+    }
 
     // Add hints about which files were updated
     let mut file_hints = Vec::new();
@@ -262,22 +279,31 @@ fn generate_workflow_hints(args: &UpdateSpecArgs) -> Vec<String> {
     }
 
     if !file_hints.is_empty() {
-        hints.push(format!("Updated files: {}", file_hints.join(", ")));
+        hints.push(format!("📁 Updated files: {}", file_hints.join(", ")));
     }
 
-    // Add operation-specific guidance
-    if args.operation.to_lowercase() == "append" {
-        hints.push("Content was appended to preserve existing data".to_string());
-        hints.push("Use append operations to iteratively build up specifications".to_string());
-    } else {
-        hints.push("Content was completely replaced".to_string());
-        hints.push("Use replace operations for major restructuring or rewrites".to_string());
+    // Add strategic recommendations based on operation used
+    match args.operation.to_lowercase().as_str() {
+        "replace" => {
+            hints.push("🚀 NEXT TIME: For marking tasks complete, try context_patch with specific task text".to_string());
+            hints.push("🎯 EXAMPLE: {\"name\": \"update_spec\", \"arguments\": {\"project_name\": \"project\", \"spec_name\": \"spec\", \"operation\": \"context_patch\", \"context_patch\": \"{\\\"file_type\\\":\\\"tasks\\\",\\\"operation\\\":\\\"replace\\\",\\\"before_context\\\":[\\\"- [ ] Implement feature X\\\"],\\\"after_context\\\":[\\\"- [ ] Add validation\\\"],\\\"content\\\":\\\"- [x] Implement feature X\\\"}\"}}".to_string());
+        }
+        "append" => {
+            hints.push("📍 PRECISE INSERTIONS: Use context_patch to add content at specific locations".to_string());
+            hints.push("⚡ EFFICIENCY: Context patch can place content exactly where needed".to_string());
+        }
+        "context_patch" => {
+            hints.push("🎉 EXCELLENT: You're using the most efficient update method!".to_string());
+            hints.push("📈 PATTERN: Save this context pattern for similar updates".to_string());
+        }
+        _ => {}
     }
 
     // Add general guidance
-    hints.push("Load the spec to see all updated content".to_string());
-    hints.push("Use --operation append for iterative development".to_string());
-    hints.push("Use --operation replace for major changes".to_string());
+    hints.push("📖 Load the spec to see all updated content".to_string());
+    hints.push("🔄 ITERATIVE: Use append for building up content over time".to_string());
+    hints.push("🎯 TARGETED: Use context_patch for precise changes".to_string());
+    hints.push("🔄 MAJOR CHANGES: Use replace only for complete rewrites".to_string());
 
     hints
 }
@@ -305,7 +331,7 @@ async fn execute_context_patch(args: &UpdateSpecArgs) -> Result<(Vec<FileUpdateR
     let current_content = filesystem::read_file(&file_path)?;
 
     // Apply the context patch
-    let mut matcher = ContextMatcher::new(current_content);
+    let mut matcher = ContextMatcher::new(current_content.clone());
     let patch_result = matcher.apply_patch(&patch)?;
 
     let mut results = Vec::new();
@@ -313,6 +339,18 @@ async fn execute_context_patch(args: &UpdateSpecArgs) -> Result<(Vec<FileUpdateR
     if patch_result.success {
         // Write the updated content back to the file
         filesystem::write_file_atomic(&file_path, matcher.get_content())?;
+
+        // Calculate and show efficiency gains
+        let original_content_size = current_content.len();
+        let patch_content_size = patch.content.len() + 200; // estimate context overhead
+        let efficiency_percentage = (1.0 - (patch_content_size as f32 / original_content_size as f32).min(1.0)) * 100.0;
+        
+        // Success amplification messaging
+        if let Some(confidence) = patch_result.match_confidence {
+            eprintln!("✅ Context patch succeeded with {:.1}% match confidence", confidence * 100.0);
+        }
+        eprintln!("⚡ Token efficiency: Saved ~{:.0}% tokens vs replace operation", efficiency_percentage);
+        eprintln!("🎯 Modified {} lines with precise targeting", patch_result.lines_modified);
 
         results.push(FileUpdateResult {
             file_type: format!("{:?}", patch.file_type),
@@ -364,7 +402,7 @@ async fn execute_traditional_update(
     Ok((results, total_files_updated))
 }
 
-/// Validate arguments for traditional operations (replace/append)
+/// Validate arguments for traditional operations (replace/append) with efficiency warnings
 fn validate_traditional_args(args: &UpdateSpecArgs) -> Result<()> {
     // Validate at least one content parameter is provided
     let has_spec = args.spec.as_ref().is_some_and(|s| !s.trim().is_empty());
@@ -373,8 +411,26 @@ fn validate_traditional_args(args: &UpdateSpecArgs) -> Result<()> {
 
     if !has_spec && !has_tasks && !has_notes {
         return Err(anyhow::anyhow!(
-            "At least one content parameter must be provided. Use --spec, --tasks, or --notes to specify content for the files you want to update."
+            "At least one content parameter must be provided. Use spec, tasks, or notes parameters to specify content for the files you want to update."
         ));
+    }
+
+    // Add strategic friction for replace operations
+    if args.operation.to_lowercase() == "replace" {
+        eprintln!("⚠️  TOKEN EFFICIENCY WARNING:");
+        eprintln!("   Replace operation will use ~10-20x more tokens than context_patch");
+        eprintln!("   Consider using context_patch for targeted changes:");
+        eprintln!("   • Mark tasks complete: use context_patch with specific task text");
+        eprintln!("   • Add single requirements: use context_patch to insert at specific location");
+        eprintln!("   • Fix specific content: use context_patch with surrounding context");
+        eprintln!();
+        eprintln!("   Example context_patch for task completion:");
+        eprintln!("   {{\"name\": \"update_spec\", \"arguments\": {{");
+        eprintln!("     \"project_name\": \"project\", \"spec_name\": \"spec\",");
+        eprintln!("     \"operation\": \"context_patch\",");
+        eprintln!("     \"context_patch\": \"{{\\\"file_type\\\":\\\"tasks\\\",\\\"operation\\\":\\\"replace\\\",\\\"before_context\\\":[\\\"- [ ] Implement user authentication\\\"],\\\"after_context\\\":[\\\"- [ ] Add password validation\\\"],\\\"content\\\":\\\"- [x] Implement user authentication\\\"}}\"");
+        eprintln!("   }}}}");
+        eprintln!();
     }
 
     Ok(())
@@ -419,7 +475,7 @@ fn validate_context_patch_args(args: &UpdateSpecArgs) -> Result<()> {
     // Ensure traditional content parameters are not provided with context_patch
     if args.spec.is_some() || args.tasks.is_some() || args.notes.is_some() {
         return Err(anyhow::anyhow!(
-            "Cannot use --spec, --tasks, or --notes parameters with --operation context_patch. Use context_patch JSON parameter instead."
+            "Cannot use spec, tasks, or notes parameters with context_patch operation. Use context_patch JSON parameter instead."
         ));
     }
 

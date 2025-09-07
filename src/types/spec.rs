@@ -49,6 +49,7 @@ pub struct SpecFilter {
 
 /// Spec file types for content updates
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum SpecFileType {
     Spec,
     Notes,
@@ -63,7 +64,6 @@ pub enum ContextOperation {
     Replace,
     Delete,
 }
-
 
 /// Context-based patch for precise content updates
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -200,6 +200,32 @@ pub struct OperationHistoryEntry {
     pub content_after: String,
     /// Patch that was applied (if applicable)
     pub patch_applied: Option<ContextPatch>,
+}
+
+/// Context analysis result for enhanced error reporting
+#[derive(Debug, Clone)]
+pub struct ContextAnalysis {
+    /// Whether the context has duplicate occurrences in the document
+    pub has_duplicates: bool,
+    /// The text that appears multiple times (if any)
+    pub duplicate_text: String,
+    /// Number of times the context appears in the document
+    pub occurrence_count: usize,
+}
+
+/// Pre-flight context validation result
+#[derive(Debug, Clone)]
+pub struct ContextValidationResult {
+    /// Overall likelihood of successful matching (0.0 to 1.0)
+    pub success_probability: f32,
+    /// Whether the context is likely to succeed
+    pub is_likely_to_succeed: bool,
+    /// Warnings about potential issues
+    pub warnings: Vec<String>,
+    /// Suggestions for improvement
+    pub improvement_suggestions: Vec<String>,
+    /// Estimated token efficiency compared to replace operation
+    pub token_efficiency: f32,
 }
 
 /// Content validation status
