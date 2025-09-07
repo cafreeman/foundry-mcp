@@ -641,6 +641,28 @@ esac
 
         Ok(())
     }
+
+    /// Create a test project for testing spec functionality
+    pub async fn create_test_project(&self, project_name: &str) -> Result<()> {
+        use crate::cli::commands::create_project;
+        let args = self.create_project_args(project_name);
+        create_project::execute(args).await?;
+        Ok(())
+    }
+
+    /// Create a test spec for testing spec functionality
+    pub async fn create_test_spec(
+        &self,
+        project_name: &str,
+        feature_name: &str,
+        spec_content: &str,
+    ) -> Result<()> {
+        use crate::cli::commands::create_spec;
+        let mut args = self.create_spec_args(project_name, feature_name);
+        args.spec = spec_content.to_string();
+        create_spec::execute(args).await?;
+        Ok(())
+    }
 }
 
 impl Drop for TestEnvironment {
