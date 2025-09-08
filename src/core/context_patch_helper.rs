@@ -8,77 +8,53 @@ pub fn preprocess_context_patch(patch: &mut ContextPatch, content: &str) {
     let lines: Vec<String> = content.lines().map(|s| s.to_string()).collect();
     
     // Check if the patch is missing empty lines between contexts
-    if should_add_empty_lines_between_contexts(patch, &lines) {
-        add_missing_empty_lines(patch, &lines);
+    if let Some(empty_lines) = find_missing_empty_lines(patch, &lines) {
+        // Insert empty lines at the beginning of after_context
+        let mut new_after = empty_lines;
+        new_after.extend(patch.after_context.clone());
+        patch.after_context = new_after;
     }
 }
 
-/// Check if we should add empty lines between before and after context
-fn should_add_empty_lines_between_contexts(patch: &ContextPatch, lines: &[String]) -> bool {
+/// Find empty lines that should be added between before and after context
+/// Returns Some(empty_lines) if empty lines are found between contexts, None otherwise
+fn find_missing_empty_lines(patch: &ContextPatch, lines: &[String]) -> Option<Vec<String>> {
     // If either context is empty, don't modify
     if patch.before_context.is_empty() || patch.after_context.is_empty() {
-        return false;
+        return None;
     }
     
-    // Get the last line of before_context and first line of after_context
-    let last_before = patch.before_context.last().unwrap();
-    let first_after = patch.after_context.first().unwrap();
+    let last_before = patch.before_context.last()?;
+    let first_after = patch.after_context.first()?;
     
-    // Check if these appear in the document with empty lines between them
-    for i in 0..lines.len().saturating_sub(1) {
-        if lines[i].trim() == last_before.trim() {
-            // Look ahead for the first_after line
-            for j in (i + 1)..lines.len() {
-                if lines[j].trim() == first_after.trim() {
-                    // Check if there are empty lines between them
-                    for k in (i + 1)..j {
-                        if lines[k].trim().is_empty() {
-                            return true; // Found empty lines between the contexts
-                        }
-                    }
-                    break;
-                }
-            }
-        }
-    }
-    
-    false
-}
-
-/// Add missing empty lines to the patch context
-fn add_missing_empty_lines(patch: &mut ContextPatch, lines: &[String]) {
-    // Find where the contexts appear in the document
-    let last_before = patch.before_context.last().unwrap();
-    let first_after = patch.after_context.first().unwrap();
-    
-    for i in 0..lines.len().saturating_sub(1) {
-        if lines[i].trim() == last_before.trim() {
-            // Look ahead for the first_after line
-            for j in (i + 1)..lines.len() {
-                if lines[j].trim() == first_after.trim() {
-                    // Collect empty lines between them
-                    let mut empty_lines = Vec::new();
-                    for k in (i + 1)..j {
-                        if lines[k].trim().is_empty() {
-                            empty_lines.push(lines[k].clone());
-                        } else {
-                            // If we encounter a non-empty line that's not first_after, stop
-                            break;
-                        }
-                    }
+    // Find the position of last_before in the document
+    lines.iter()
+        .enumerate()
+        .find(|(_, line)| line.trim() == last_before.trim())
+        .and_then(|(before_idx, _)| {
+            // Find the position of first_after after last_before
+            lines.iter()
+                .enumerate()
+                .skip(before_idx + 1)
+                .find(|(_, line)| line.trim() == first_after.trim())
+                .and_then(|(after_idx, _)| {
+                    // Extract lines between before_idx and after_idx
+                    let between_lines = &lines[(before_idx + 1)..after_idx];
                     
-                    // If we found empty lines, add them to after_context
-                    if !empty_lines.is_empty() {
-                        // Insert empty lines at the beginning of after_context
-                        let mut new_after = empty_lines;
-                        new_after.extend(patch.after_context.clone());
-                        patch.after_context = new_after;
+                    // Collect consecutive empty lines from the beginning
+                    let empty_lines: Vec<String> = between_lines
+                        .iter()
+                        .take_while(|line| line.trim().is_empty())
+                        .cloned()
+                        .collect();
+                    
+                    if empty_lines.is_empty() {
+                        None
+                    } else {
+                        Some(empty_lines)
                     }
-                    return;
-                }
-            }
-        }
-    }
+                })
+        })
 }
 
 #[cfg(test)]
@@ -294,7 +270,7 @@ mod tests {
     }
 
     #[test]
-    fn test_should_add_empty_lines_between_contexts() {
+    fn test_find_missing_empty_lines_found() {
         let lines = vec![
             "Line 1".to_string(),
             "Line 2".to_string(),
@@ -311,11 +287,13 @@ mod tests {
             section_context: None,
         };
         
-        assert!(should_add_empty_lines_between_contexts(&patch, &lines));
+        let result = find_missing_empty_lines(&patch, &lines);
+        assert!(result.is_some());
+        assert_eq!(result.unwrap(), vec![""]);
     }
 
     #[test]
-    fn test_should_not_add_when_no_empty_lines() {
+    fn test_find_missing_empty_lines_not_found() {
         let lines = vec![
             "Line 1".to_string(),
             "Line 2".to_string(),
@@ -331,6 +309,6 @@ mod tests {
             section_context: None,
         };
         
-        assert!(!should_add_empty_lines_between_contexts(&patch, &lines));
+        assert!(find_missing_empty_lines(&patch, &lines).is_none());
     }
 }
