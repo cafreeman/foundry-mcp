@@ -1,7 +1,7 @@
 //! Integration tests for context patching with preprocessing
 
 use foundry_mcp::core::context_patch::ContextMatcher;
-use foundry_mcp::types::spec::{ContextPatch, ContextOperation, SpecFileType};
+use foundry_mcp::types::spec::{ContextOperation, ContextPatch, SpecFileType};
 
 #[test]
 fn test_llm_style_patch_missing_empty_lines() {
@@ -38,14 +38,17 @@ fn test_llm_style_patch_missing_empty_lines() {
 
     assert!(result.success, "Patch should succeed with preprocessing");
     assert_eq!(result.lines_modified, 1, "Should modify exactly one line");
-    
+
     // Verify the content was replaced, not duplicated
     let updated = matcher.get_content();
     let count = updated.matches("Extend PromoBadge").count();
     assert_eq!(count, 1, "Should have exactly one 'Extend PromoBadge' line");
-    
+
     // Verify the task was marked as complete
-    assert!(updated.contains("- [x] Extend PromoBadge"), "Task should be marked complete");
+    assert!(
+        updated.contains("- [x] Extend PromoBadge"),
+        "Task should be marked complete"
+    );
 }
 
 #[test]
@@ -90,12 +93,9 @@ Line 4"#;
     let patch = ContextPatch {
         file_type: SpecFileType::Spec,
         operation: ContextOperation::Replace,
-        before_context: vec![
-            "Line 1".to_string(),
-            "Line 2".to_string(),
-        ],
+        before_context: vec!["Line 1".to_string(), "Line 2".to_string()],
         after_context: vec![
-            "".to_string(),  // Empty line included
+            "".to_string(), // Empty line included
             "Line 3".to_string(),
         ],
         content: "New Line 2".to_string(),
@@ -135,13 +135,8 @@ Final thoughts."#;
     let patch = ContextPatch {
         file_type: SpecFileType::Spec,
         operation: ContextOperation::Replace,
-        before_context: vec![
-            "- Item 1".to_string(),
-            "- Item 2".to_string(),
-        ],
-        after_context: vec![
-            "### Subsection 2".to_string(),
-        ],
+        before_context: vec!["- Item 1".to_string(), "- Item 2".to_string()],
+        after_context: vec!["### Subsection 2".to_string()],
         content: "- Item 1 (updated)\n- Item 2 (updated)".to_string(),
         section_context: Some("### Subsection 1".to_string()),
     };
@@ -190,10 +185,7 @@ Line 3"#;
     let patch = ContextPatch {
         file_type: SpecFileType::Spec,
         operation: ContextOperation::Delete,
-        before_context: vec![
-            "Line 2".to_string(),
-            "Line to delete".to_string(),
-        ],
+        before_context: vec!["Line 2".to_string(), "Line to delete".to_string()],
         after_context: vec!["Line 3".to_string()],
         content: String::new(),
         section_context: None,
@@ -277,7 +269,7 @@ fn test_real_world_spec_update() {
     let updated = matcher.get_content();
     assert!(updated.contains("Setup database ✓"));
     assert!(updated.contains("Add migrations"));
-    
+
     // Verify structure is maintained
     assert!(updated.contains("### Phase 1"));
     assert!(updated.contains("### Phase 2"));
@@ -291,10 +283,7 @@ fn test_windows_line_endings() {
     let patch = ContextPatch {
         file_type: SpecFileType::Spec,
         operation: ContextOperation::Replace,
-        before_context: vec![
-            "Line 1".to_string(),
-            "Line 2".to_string(),
-        ],
+        before_context: vec!["Line 1".to_string(), "Line 2".to_string()],
         after_context: vec!["Line 3".to_string()],
         content: "Updated Line 2".to_string(),
         section_context: None,

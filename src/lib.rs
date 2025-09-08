@@ -6,7 +6,6 @@
 //! This library provides the core functionality for managing project specifications
 //! and maintaining context for LLM-based coding assistants.
 
-
 pub mod cli;
 pub mod core;
 pub mod mcp;
