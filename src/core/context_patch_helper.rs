@@ -126,4 +126,211 @@ mod tests {
         // Should not have changed
         assert_eq!(patch.after_context, original_after);
     }
+
+    #[test]
+    fn test_preprocess_multiple_empty_lines() {
+        let content = "Line 1\nLine 2\n\n\n\nLine 3\nLine 4";
+        
+        let mut patch = ContextPatch {
+            file_type: SpecFileType::Spec,
+            operation: ContextOperation::Replace,
+            before_context: vec!["Line 1".to_string(), "Line 2".to_string()],
+            after_context: vec!["Line 3".to_string()],
+            content: "New Line".to_string(),
+            section_context: None,
+        };
+        
+        preprocess_context_patch(&mut patch, content);
+        
+        // Should have added multiple empty lines
+        assert_eq!(patch.after_context.len(), 4);
+        assert_eq!(patch.after_context[0], "");
+        assert_eq!(patch.after_context[1], "");
+        assert_eq!(patch.after_context[2], "");
+        assert_eq!(patch.after_context[3], "Line 3");
+    }
+
+    #[test]
+    fn test_preprocess_empty_before_context() {
+        let content = "Line 1\nLine 2\n\nLine 3\nLine 4";
+        
+        let mut patch = ContextPatch {
+            file_type: SpecFileType::Spec,
+            operation: ContextOperation::Insert,
+            before_context: vec![],
+            after_context: vec!["Line 3".to_string()],
+            content: "New Line".to_string(),
+            section_context: None,
+        };
+        
+        let original_after = patch.after_context.clone();
+        preprocess_context_patch(&mut patch, content);
+        
+        // Should not modify when before_context is empty
+        assert_eq!(patch.after_context, original_after);
+    }
+
+    #[test]
+    fn test_preprocess_empty_after_context() {
+        let content = "Line 1\nLine 2\n\nLine 3\nLine 4";
+        
+        let mut patch = ContextPatch {
+            file_type: SpecFileType::Spec,
+            operation: ContextOperation::Replace,
+            before_context: vec!["Line 2".to_string()],
+            after_context: vec![],
+            content: "New Line".to_string(),
+            section_context: None,
+        };
+        
+        let original_after = patch.after_context.clone();
+        preprocess_context_patch(&mut patch, content);
+        
+        // Should not modify when after_context is empty
+        assert_eq!(patch.after_context, original_after);
+    }
+
+    #[test]
+    fn test_preprocess_with_whitespace_variations() {
+        let content = "  Line 1  \n  Line 2  \n\n  Line 3  \n  Line 4  ";
+        
+        let mut patch = ContextPatch {
+            file_type: SpecFileType::Spec,
+            operation: ContextOperation::Replace,
+            before_context: vec!["Line 1".to_string(), "Line 2".to_string()],
+            after_context: vec!["Line 3".to_string()],
+            content: "New Line".to_string(),
+            section_context: None,
+        };
+        
+        preprocess_context_patch(&mut patch, content);
+        
+        // Should have added the empty line (handles trimmed comparison)
+        assert_eq!(patch.after_context.len(), 2);
+        assert_eq!(patch.after_context[0], "");
+        assert_eq!(patch.after_context[1], "Line 3");
+    }
+
+    #[test]
+    fn test_preprocess_markdown_headers() {
+        let content = "## Header 1\n\nContent 1\n\n## Header 2\n\nContent 2";
+        
+        let mut patch = ContextPatch {
+            file_type: SpecFileType::Spec,
+            operation: ContextOperation::Replace,
+            before_context: vec!["Content 1".to_string()],
+            after_context: vec!["## Header 2".to_string()],
+            content: "Modified Content 1".to_string(),
+            section_context: None,
+        };
+        
+        preprocess_context_patch(&mut patch, content);
+        
+        // Should have added the empty line between content and header
+        assert_eq!(patch.after_context.len(), 2);
+        assert_eq!(patch.after_context[0], "");
+        assert_eq!(patch.after_context[1], "## Header 2");
+    }
+
+    #[test]
+    fn test_preprocess_task_list() {
+        let content = "## Tasks\n\n- [x] Task 1\n- [ ] Task 2\n\n## Next Section";
+        
+        let mut patch = ContextPatch {
+            file_type: SpecFileType::TaskList,
+            operation: ContextOperation::Replace,
+            before_context: vec!["- [x] Task 1".to_string(), "- [ ] Task 2".to_string()],
+            after_context: vec!["## Next Section".to_string()],
+            content: "- [x] Task 2".to_string(),
+            section_context: None,
+        };
+        
+        preprocess_context_patch(&mut patch, content);
+        
+        // Should have added the empty line
+        assert_eq!(patch.after_context.len(), 2);
+        assert_eq!(patch.after_context[0], "");
+        assert_eq!(patch.after_context[1], "## Next Section");
+    }
+
+    #[test]
+    fn test_preprocess_no_match_found() {
+        let content = "Line 1\nLine 2\n\nLine 3\nLine 4";
+        
+        let mut patch = ContextPatch {
+            file_type: SpecFileType::Spec,
+            operation: ContextOperation::Replace,
+            before_context: vec!["Not Found 1".to_string(), "Not Found 2".to_string()],
+            after_context: vec!["Not Found 3".to_string()],
+            content: "New Line".to_string(),
+            section_context: None,
+        };
+        
+        let original_after = patch.after_context.clone();
+        preprocess_context_patch(&mut patch, content);
+        
+        // Should not change if context not found in document
+        assert_eq!(patch.after_context, original_after);
+    }
+
+    #[test]
+    fn test_preprocess_partial_match() {
+        let content = "Line 1\nLine 2\nLine 3\n\nLine 4";
+        
+        let mut patch = ContextPatch {
+            file_type: SpecFileType::Spec,
+            operation: ContextOperation::Replace,
+            before_context: vec!["Line 2".to_string()],
+            after_context: vec!["Line 4".to_string()],  // Line 3 is skipped
+            content: "New Line".to_string(),
+            section_context: None,
+        };
+        
+        let original_after = patch.after_context.clone();
+        preprocess_context_patch(&mut patch, content);
+        
+        // Should not add empty lines if there's non-empty content between
+        assert_eq!(patch.after_context, original_after);
+    }
+
+    #[test]
+    fn test_should_add_empty_lines_between_contexts() {
+        let lines = vec![
+            "Line 1".to_string(),
+            "Line 2".to_string(),
+            "".to_string(),
+            "Line 3".to_string(),
+        ];
+        
+        let patch = ContextPatch {
+            file_type: SpecFileType::Spec,
+            operation: ContextOperation::Replace,
+            before_context: vec!["Line 1".to_string(), "Line 2".to_string()],
+            after_context: vec!["Line 3".to_string()],
+            content: "New".to_string(),
+            section_context: None,
+        };
+        
+        assert!(should_add_empty_lines_between_contexts(&patch, &lines));
+    }
+
+    #[test]
+    fn test_should_not_add_when_no_empty_lines() {
+        let lines = vec![
+            "Line 1".to_string(),
+            "Line 2".to_string(),
+            "Line 3".to_string(),
+        ];
+        
+        let patch = ContextPatch {
+            file_type: SpecFileType::Spec,
+            operation: ContextOperation::Replace,
+            before_context: vec!["Line 1".to_string(), "Line 2".to_string()],
+            after_context: vec!["Line 3".to_string()],
+            content: "New".to_string(),
+            section_context: None,
+        };
+        
+        assert!(!should_add_empty_lines_between_contexts(&patch, &lines));
+    }
 }
