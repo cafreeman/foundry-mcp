@@ -1,0 +1,15 @@
+[tools]
+rust = { version = "1.89", components = "rust-analyzer,clippy" }
+"cargo:cargo-watch" = "latest"
+
+[env]
+RUST_BACKTRACE = "1"
+CARGO_TERM_COLOR = "always"
+
+[tasks]
+build = "cargo build"
+test = "cargo test"
+check = "cargo check"
+clippy = "cargo clippy -- -D warnings"
+fmt = "cargo fmt"
+dev = "cargo watch -x check -x test"
