@@ -156,15 +156,19 @@ impl ContextMatcher {
 
     /// Apply a context patch to the content
     pub fn apply_patch(&mut self, patch: &ContextPatch) -> Result<ContextPatchResult> {
+        // Preprocess the patch to handle common LLM omissions
+        let mut processed_patch = patch.clone();
+        crate::core::context_patch_helper::preprocess_context_patch(&mut processed_patch, &self.content);
+        
         // Validate patch requirements
-        self.validate_patch(patch)?;
+        self.validate_patch(&processed_patch)?;
 
         // Find the target location using context matching
-        let match_result = self.find_context_match(patch)?;
+        let match_result = self.find_context_match(&processed_patch)?;
 
         if let Some((position, confidence)) = match_result {
             // Apply the operation at the found position
-            let lines_modified = self.apply_operation_at_position(patch, position)?;
+            let lines_modified = self.apply_operation_at_position(&processed_patch, position)?;
 
             // Update the content string from modified lines
             self.content = self.lines.join("\n");
@@ -173,7 +177,7 @@ impl ContextMatcher {
                 success: true,
                 match_confidence: Some(confidence),
                 lines_modified,
-                patch_type: format!("{:?}", patch.operation),
+                patch_type: format!("{:?}", processed_patch.operation),
                 error_message: None,
                 suggestions: vec![],
                 operation_id: None,
@@ -181,13 +185,13 @@ impl ContextMatcher {
             })
         } else {
             // Context not found - provide helpful error and suggestions
-            let suggestions = self.generate_match_suggestions(patch);
+            let suggestions = self.generate_match_suggestions(&processed_patch);
             Ok(ContextPatchResult {
                 success: false,
                 match_confidence: None,
                 lines_modified: 0,
-                patch_type: format!("{:?}", patch.operation),
-                error_message: Some(self.generate_enhanced_error_message(patch)),
+                patch_type: format!("{:?}", processed_patch.operation),
+                error_message: Some(self.generate_enhanced_error_message(&processed_patch)),
                 suggestions,
                 operation_id: None,
                 smart_suggestions: None,
