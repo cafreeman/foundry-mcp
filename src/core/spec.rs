@@ -951,6 +951,16 @@ mod tests {
         let _env = TestEnvironment::new().unwrap();
         let project_name = "test_fuzzy_exact_spec";
 
+        // Create the project first
+        use crate::types::project::ProjectConfig;
+        let project_config = ProjectConfig {
+            name: project_name.to_string(),
+            vision: "Test vision for fuzzy matching tests".to_string(),
+            tech_stack: "Test tech stack".to_string(),
+            summary: "Test summary".to_string(),
+        };
+        crate::core::project::create_project(project_config).unwrap();
+
         // Create test specs
         let config1 = SpecConfig {
             project_name: project_name.to_string(),
@@ -987,6 +997,16 @@ mod tests {
         use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
         let project_name = "test_fuzzy_feature";
+
+        // Create the project first
+        use crate::types::project::ProjectConfig;
+        let project_config = ProjectConfig {
+            name: project_name.to_string(),
+            vision: "Test vision for fuzzy matching tests".to_string(),
+            tech_stack: "Test tech stack".to_string(),
+            summary: "Test summary".to_string(),
+        };
+        crate::core::project::create_project(project_config).unwrap();
 
         // Create test specs
         let config1 = SpecConfig {
@@ -1032,6 +1052,16 @@ mod tests {
         let _env = TestEnvironment::new().unwrap();
         let project_name = "test_fuzzy_no_matches";
 
+        // Create the project first
+        use crate::types::project::ProjectConfig;
+        let project_config = ProjectConfig {
+            name: project_name.to_string(),
+            vision: "Test vision for fuzzy matching tests".to_string(),
+            tech_stack: "Test tech stack".to_string(),
+            summary: "Test summary".to_string(),
+        };
+        crate::core::project::create_project(project_config).unwrap();
+
         // Create test specs
         let config = SpecConfig {
             project_name: project_name.to_string(),
@@ -1057,6 +1087,16 @@ mod tests {
         use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
         let project_name = "test_fuzzy_empty";
+
+        // Create the project but don't add specs
+        use crate::types::project::ProjectConfig;
+        let project_config = ProjectConfig {
+            name: project_name.to_string(),
+            vision: "Test vision for fuzzy matching tests".to_string(),
+            tech_stack: "Test tech stack".to_string(),
+            summary: "Test summary".to_string(),
+        };
+        crate::core::project::create_project(project_config).unwrap();
 
         // Test empty project
         let result = find_spec_match(project_name, "anything").unwrap();
@@ -1182,23 +1222,49 @@ mod tests {
         let _env = TestEnvironment::new().unwrap();
         let project_name = "test-multiple-matches";
 
-        _env.with_env_async(|| async {
-            _env.create_test_project(project_name).await.unwrap();
-            _env.create_test_spec(project_name, "user_authentication", "User auth spec")
-                .await
-                .unwrap();
-            _env.create_test_spec(project_name, "user_management", "User management spec")
-                .await
-                .unwrap();
+        // Create the project first
+        use crate::types::project::ProjectConfig;
+        let project_config = ProjectConfig {
+            name: project_name.to_string(),
+            vision: "Test vision for fuzzy matching tests".to_string(),
+            tech_stack: "Test tech stack".to_string(),
+            summary: "Test summary".to_string(),
+        };
+        crate::core::project::create_project(project_config).unwrap();
 
-            // Test multiple matches
-            let result = load_spec_with_fuzzy(project_name, "user");
-            assert!(result.is_err());
-            let error = result.unwrap_err();
-            assert!(error.to_string().contains("Multiple specs match"));
-            assert!(error.to_string().contains("user_authentication"));
-            assert!(error.to_string().contains("user_management"));
-        });
+        // Create test specs with similar names
+        let config1 = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "user_authentication".to_string(),
+            content: SpecContentData {
+                spec: "User auth spec".to_string(),
+                notes: "Auth notes".to_string(),
+                tasks: "- Auth task".to_string(),
+            },
+        };
+        let _spec1 = create_spec(config1).unwrap();
+
+        let config2 = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "user_management".to_string(),
+            content: SpecContentData {
+                spec: "User management spec".to_string(),
+                notes: "Management notes".to_string(),
+                tasks: "- Management task".to_string(),
+            },
+        };
+        let _spec2 = create_spec(config2).unwrap();
+
+        // Test multiple matches
+        let result = find_spec_match(project_name, "user").unwrap();
+        match result {
+            SpecMatchStrategy::Multiple(specs) => {
+                assert_eq!(specs.len(), 2);
+                assert!(specs.iter().any(|s| s.contains("user_authentication")));
+                assert!(specs.iter().any(|s| s.contains("user_management")));
+            }
+            _ => panic!("Expected Multiple, got {:?}", result),
+        }
     }
 
     #[test]
@@ -1207,16 +1273,19 @@ mod tests {
         let _env = TestEnvironment::new().unwrap();
         let project_name = "test-empty-project-with-query";
 
-        _env.with_env_async(|| async {
-            _env.create_test_project(project_name).await.unwrap();
+        // Create the project but don't add specs
+        use crate::types::project::ProjectConfig;
+        let project_config = ProjectConfig {
+            name: project_name.to_string(),
+            vision: "Test vision for fuzzy matching tests".to_string(),
+            tech_stack: "Test tech stack".to_string(),
+            summary: "Test summary".to_string(),
+        };
+        crate::core::project::create_project(project_config).unwrap();
 
-            // Test query on empty project
-            let result = load_spec_with_fuzzy(project_name, "any_query");
-            assert!(result.is_err());
-            let error = result.unwrap_err();
-            assert!(error.to_string().contains("No specs found in project"));
-            assert!(error.to_string().contains("create-spec"));
-        });
+        // Test query on empty project
+        let result = find_spec_match(project_name, "any_query").unwrap();
+        assert_eq!(result, SpecMatchStrategy::None);
     }
 
     #[test]
