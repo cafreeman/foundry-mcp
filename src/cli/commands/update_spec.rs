@@ -251,17 +251,33 @@ fn generate_workflow_hints(args: &UpdateSpecArgs) -> Vec<String> {
     // Add operation-specific efficiency guidance
     match args.operation.to_lowercase().as_str() {
         "context_patch" => {
-            hints.push("✅ EFFICIENT CHOICE: Context patch uses ~90% fewer tokens than replace".to_string());
-            hints.push("🎯 PRECISE UPDATES: Targeted changes preserve existing content".to_string());
+            hints.push(
+                "✅ EFFICIENT CHOICE: Context patch uses ~90% fewer tokens than replace"
+                    .to_string(),
+            );
+            hints
+                .push("🎯 PRECISE UPDATES: Targeted changes preserve existing content".to_string());
         }
         "replace" => {
-            hints.push("⚠️  HIGH TOKEN COST: Replace operation uses full document tokens".to_string());
-            hints.push("💡 EFFICIENCY TIP: Use context_patch for small targeted changes next time".to_string());
-            hints.push("📊 TOKEN COMPARISON: Context patch saves 80-95% tokens vs replace".to_string());
+            hints.push(
+                "⚠️  HIGH TOKEN COST: Replace operation uses full document tokens".to_string(),
+            );
+            hints.push(
+                "💡 EFFICIENCY TIP: Use context_patch for small targeted changes next time"
+                    .to_string(),
+            );
+            hints.push(
+                "📊 TOKEN COMPARISON: Context patch saves 80-95% tokens vs replace".to_string(),
+            );
         }
         "append" => {
-            hints.push("📝 ADDITIVE APPROACH: Content appended to preserve existing data".to_string());
-            hints.push("💡 PRECISION OPTION: Consider context_patch for insertions in specific locations".to_string());
+            hints.push(
+                "📝 ADDITIVE APPROACH: Content appended to preserve existing data".to_string(),
+            );
+            hints.push(
+                "💡 PRECISION OPTION: Consider context_patch for insertions in specific locations"
+                    .to_string(),
+            );
         }
         _ => {}
     }
@@ -289,8 +305,13 @@ fn generate_workflow_hints(args: &UpdateSpecArgs) -> Vec<String> {
             hints.push("🎯 EXAMPLE: {\"name\": \"update_spec\", \"arguments\": {\"project_name\": \"project\", \"spec_name\": \"spec\", \"operation\": \"context_patch\", \"context_patch\": \"{\\\"file_type\\\":\\\"tasks\\\",\\\"operation\\\":\\\"replace\\\",\\\"before_context\\\":[\\\"- [ ] Implement feature X\\\"],\\\"after_context\\\":[\\\"- [ ] Add validation\\\"],\\\"content\\\":\\\"- [x] Implement feature X\\\"}\"}}".to_string());
         }
         "append" => {
-            hints.push("📍 PRECISE INSERTIONS: Use context_patch to add content at specific locations".to_string());
-            hints.push("⚡ EFFICIENCY: Context patch can place content exactly where needed".to_string());
+            hints.push(
+                "📍 PRECISE INSERTIONS: Use context_patch to add content at specific locations"
+                    .to_string(),
+            );
+            hints.push(
+                "⚡ EFFICIENCY: Context patch can place content exactly where needed".to_string(),
+            );
         }
         "context_patch" => {
             hints.push("🎉 EXCELLENT: You're using the most efficient update method!".to_string());
@@ -343,14 +364,24 @@ async fn execute_context_patch(args: &UpdateSpecArgs) -> Result<(Vec<FileUpdateR
         // Calculate and show efficiency gains
         let original_content_size = current_content.len();
         let patch_content_size = patch.content.len() + 200; // estimate context overhead
-        let efficiency_percentage = (1.0 - (patch_content_size as f32 / original_content_size as f32).min(1.0)) * 100.0;
-        
+        let efficiency_percentage =
+            (1.0 - (patch_content_size as f32 / original_content_size as f32).min(1.0)) * 100.0;
+
         // Success amplification messaging
         if let Some(confidence) = patch_result.match_confidence {
-            eprintln!("✅ Context patch succeeded with {:.1}% match confidence", confidence * 100.0);
+            eprintln!(
+                "✅ Context patch succeeded with {:.1}% match confidence",
+                confidence * 100.0
+            );
         }
-        eprintln!("⚡ Token efficiency: Saved ~{:.0}% tokens vs replace operation", efficiency_percentage);
-        eprintln!("🎯 Modified {} lines with precise targeting", patch_result.lines_modified);
+        eprintln!(
+            "⚡ Token efficiency: Saved ~{:.0}% tokens vs replace operation",
+            efficiency_percentage
+        );
+        eprintln!(
+            "🎯 Modified {} lines with precise targeting",
+            patch_result.lines_modified
+        );
 
         results.push(FileUpdateResult {
             file_type: format!("{:?}", patch.file_type),
@@ -428,7 +459,9 @@ fn validate_traditional_args(args: &UpdateSpecArgs) -> Result<()> {
         eprintln!("   {{\"name\": \"update_spec\", \"arguments\": {{");
         eprintln!("     \"project_name\": \"project\", \"spec_name\": \"spec\",");
         eprintln!("     \"operation\": \"context_patch\",");
-        eprintln!("     \"context_patch\": \"{{\\\"file_type\\\":\\\"tasks\\\",\\\"operation\\\":\\\"replace\\\",\\\"before_context\\\":[\\\"- [ ] Implement user authentication\\\"],\\\"after_context\\\":[\\\"- [ ] Add password validation\\\"],\\\"content\\\":\\\"- [x] Implement user authentication\\\"}}\"");
+        eprintln!(
+            "     \"context_patch\": \"{{\\\"file_type\\\":\\\"tasks\\\",\\\"operation\\\":\\\"replace\\\",\\\"before_context\\\":[\\\"- [ ] Implement user authentication\\\"],\\\"after_context\\\":[\\\"- [ ] Add password validation\\\"],\\\"content\\\":\\\"- [x] Implement user authentication\\\"}}\""
+        );
         eprintln!("   }}}}");
         eprintln!();
     }
