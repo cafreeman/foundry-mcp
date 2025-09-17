@@ -430,8 +430,7 @@ fn test_update_spec_replace() {
         let spec_name = spec_response.data.spec_name;
 
         // Test replace operation on spec.md
-        let update_args =
-            env.update_spec_args_single("update-test-project", &spec_name, "spec", "replace");
+        let update_args = env.update_spec_args_single("update-test-project", &spec_name, "spec");
         let response = update_spec::execute(update_args).await.unwrap();
 
         // Verify response
@@ -490,8 +489,7 @@ fn test_update_spec_append() {
         let spec_name = spec_response.data.spec_name;
 
         // Test append operation on notes.md
-        let update_args =
-            env.update_spec_args_single("append-test-project", &spec_name, "notes", "append");
+        let update_args = env.update_spec_args_single("append-test-project", &spec_name, "notes");
         let response = update_spec::execute(update_args).await.unwrap();
 
         // Verify response
@@ -534,7 +532,7 @@ fn test_update_spec_task_list() {
 
         // Update task list with new tasks
         let mut update_args =
-        env.update_spec_args_single("task-test-project", &spec_name, "task-list", "append");
+        env.update_spec_args_single("task-test-project", &spec_name, "task-list");
         update_args.tasks = Some("## Phase 3: Additional Tasks\n- [ ] New task to complete\n- [x] Completed task from previous work".to_string());
 
         let response = update_spec::execute(update_args).await.unwrap();
@@ -568,8 +566,7 @@ fn test_update_spec_error_handling() {
     let env = TestEnvironment::new().unwrap();
     env.with_env_async(|| async {
         // Test nonexistent project
-        let update_args =
-            env.update_spec_args_single("nonexistent-project", "fake-spec", "spec", "replace");
+        let update_args = env.update_spec_args_single("nonexistent-project", "fake-spec", "spec");
         let result = update_spec::execute(update_args).await;
         assert!(result.is_err());
 
@@ -584,32 +581,8 @@ fn test_update_spec_error_handling() {
         let spec_name = spec_response.data.spec_name;
 
         // Test nonexistent spec
-        let update_args = env.update_spec_args_single(
-            "error-test-project",
-            "nonexistent-spec",
-            "spec",
-            "replace",
-        );
-        let result = update_spec::execute(update_args).await;
-        assert!(result.is_err());
-
-        // Test invalid operation (helper function validates file types)
-        let update_args = UpdateSpecArgs {
-            project_name: "error-test-project".to_string(),
-            spec_name: spec_name.clone(),
-            spec: Some("test content".to_string()),
-            tasks: None,
-            notes: None,
-            operation: "invalid".to_string(),
-            context_patch: None,
-        };
-        let result = update_spec::execute(update_args).await;
-        assert!(result.is_err());
-
-        // Test empty content
-        let mut update_args =
-            env.update_spec_args_single("error-test-project", &spec_name, "spec", "replace");
-        update_args.spec = Some("".to_string());
+        let update_args =
+            env.update_spec_args_single("error-test-project", "nonexistent-spec", "spec");
         let result = update_spec::execute(update_args).await;
         assert!(result.is_err());
     });

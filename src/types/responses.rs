@@ -179,10 +179,10 @@ pub struct FileUpdateResult {
     /// Error message if the operation failed (None if successful)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error_message: Option<String>,
-    /// Number of lines modified (for context patches)
+    /// Number of lines modified (when applicable for edit commands)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lines_modified: Option<usize>,
-    /// Type of patch applied ("Insert", "Replace", "Delete" for context patches)
+    /// Type of content change applied (e.g., command effect summary)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub patch_type: Option<String>,
     /// Confidence score of context match (0.0 to 1.0)

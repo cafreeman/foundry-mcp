@@ -118,39 +118,35 @@ impl TestEnvironment {
         project_name: &str,
         spec_name: &str,
         file_type: &str,
-        operation: &str,
     ) -> UpdateSpecArgs {
         let content = "Updated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.".to_string();
 
-        match file_type {
-            "spec" => UpdateSpecArgs {
-                project_name: project_name.to_string(),
-                spec_name: spec_name.to_string(),
-                spec: Some(content),
-                tasks: None,
-                notes: None,
-                operation: operation.to_string(),
-                context_patch: None,
-            },
-            "task-list" | "tasks" => UpdateSpecArgs {
-                project_name: project_name.to_string(),
-                spec_name: spec_name.to_string(),
-                spec: None,
-                tasks: Some(content),
-                notes: None,
-                operation: operation.to_string(),
-                context_patch: None,
-            },
-            "notes" => UpdateSpecArgs {
-                project_name: project_name.to_string(),
-                spec_name: spec_name.to_string(),
-                spec: None,
-                tasks: None,
-                notes: Some(content),
-                operation: operation.to_string(),
-                context_patch: None,
-            },
+        let command = match file_type {
+            "spec" => serde_json::json!({
+                "target": "spec",
+                "command": "append_to_section",
+                "selector": {"type": "section", "value": "# Feature Name"},
+                "content": content
+            }),
+            "task-list" | "tasks" => serde_json::json!({
+                "target": "tasks",
+                "command": "upsert_task",
+                "selector": {"type": "task_text", "value": "Test task"},
+                "content": "- [ ] Test task"
+            }),
+            "notes" => serde_json::json!({
+                "target": "notes",
+                "command": "append_to_section",
+                "selector": {"type": "section", "value": "## Notes"},
+                "content": content
+            }),
             _ => panic!("Invalid file_type: {}", file_type),
+        };
+
+        UpdateSpecArgs {
+            project_name: project_name.to_string(),
+            spec_name: spec_name.to_string(),
+            commands: serde_json::to_string(&vec![command]).unwrap(),
         }
     }
 
@@ -159,19 +155,43 @@ impl TestEnvironment {
         &self,
         project_name: &str,
         spec_name: &str,
-        operation: &str,
         spec_content: Option<&str>,
         tasks_content: Option<&str>,
         notes_content: Option<&str>,
     ) -> UpdateSpecArgs {
+        let mut commands: Vec<serde_json::Value> = Vec::new();
+
+        if let Some(spec) = spec_content {
+            commands.push(serde_json::json!({
+                "target": "spec",
+                "command": "append_to_section",
+                "selector": {"type": "section", "value": "## Implementation"},
+                "content": spec
+            }));
+        }
+
+        if let Some(tasks) = tasks_content {
+            commands.push(serde_json::json!({
+                "target": "tasks",
+                "command": "upsert_task",
+                "selector": {"type": "task_text", "value": tasks},
+                "content": format!("- [ ] {}", tasks)
+            }));
+        }
+
+        if let Some(notes) = notes_content {
+            commands.push(serde_json::json!({
+                "target": "notes",
+                "command": "append_to_section",
+                "selector": {"type": "section", "value": "## Design Decisions"},
+                "content": notes
+            }));
+        }
+
         UpdateSpecArgs {
             project_name: project_name.to_string(),
             spec_name: spec_name.to_string(),
-            spec: spec_content.map(|s| s.to_string()),
-            tasks: tasks_content.map(|s| s.to_string()),
-            notes: notes_content.map(|s| s.to_string()),
-            operation: operation.to_string(),
-            context_patch: None,
+            commands: serde_json::to_string(&commands).unwrap(),
         }
     }
 
