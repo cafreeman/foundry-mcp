@@ -4,8 +4,8 @@
 //! deletion workflows using isolated filesystem operations.
 
 use foundry_mcp::cli::args::LoadSpecArgs;
-use foundry_mcp::cli::args::UpdateSpecArgs;
 use foundry_mcp::cli::commands::{create_spec, delete_spec, load_spec, update_spec};
+use foundry_mcp::types::edit_commands::EditCommandTarget;
 use foundry_mcp::types::responses::ValidationStatus;
 
 // Import TestEnvironment from the main crate
@@ -236,11 +236,11 @@ fn test_load_spec_specific_spec() {
         let spec_content = response.data.spec_content.unwrap();
         assert_eq!(
         spec_content.content.spec,
-        "This specification defines a comprehensive feature implementation that includes detailed requirements, functional specifications, and behavioral expectations. The feature should integrate seamlessly with existing system architecture while providing robust error handling and user-friendly interfaces. Implementation should follow established patterns and include proper testing coverage."
+        "# Feature Name\n\n## Overview\nThis specification defines a comprehensive feature implementation that includes detailed requirements, functional specifications, and behavioral expectations.\n\n## Requirements\nThe feature should integrate seamlessly with existing system architecture while providing robust error handling and user-friendly interfaces. Implementation should follow established patterns and include proper testing coverage."
         );
         assert_eq!(
         spec_content.content.notes,
-        "Implementation notes include important considerations for security, performance, and maintainability. Special attention should be paid to error handling and edge cases. Consider using established libraries where appropriate and ensure compatibility with existing system components."
+        "# Implementation Notes\n\n## Security Considerations\nImplementation notes include important considerations for security, performance, and maintainability.\n\n## Error Handling\nSpecial attention should be paid to error handling and edge cases.\n\n## Dependencies\nConsider using established libraries where appropriate and ensure compatibility with existing system components."
         );
         assert_eq!(
         spec_content.content.tasks,
@@ -430,21 +430,18 @@ fn test_update_spec_replace() {
         let spec_name = spec_response.data.spec_name;
 
         // Test replace operation on spec.md
-        let update_args =
-            env.update_spec_args_single("update-test-project", &spec_name, "spec", "replace");
+        let update_args = env.update_spec_args_single("update-test-project", &spec_name, "spec");
         let response = update_spec::execute(update_args).await.unwrap();
 
         // Verify response
-        assert_eq!(response.data.project_name, "update-test-project");
-        assert_eq!(response.data.spec_name, spec_name);
-        assert_eq!(response.data.total_files_updated, 1);
-        assert_eq!(response.data.files_updated.len(), 1);
+        assert_eq!(response.data.applied_count, 1);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert_eq!(response.data.file_updates.len(), 1);
 
-        let file_update = &response.data.files_updated[0];
-        assert_eq!(file_update.file_type, "spec");
-        assert_eq!(file_update.operation_performed, "replace");
-        assert!(file_update.content_length > 0);
-        assert!(file_update.success);
+        let file_update = &response.data.file_updates[0];
+        assert_eq!(file_update.target, EditCommandTarget::Spec);
+        assert_eq!(file_update.applied, 1);
+        assert_eq!(file_update.skipped_idempotent, 0);
 
         // Verify file was actually updated
         let foundry_dir = env.foundry_dir();
@@ -456,20 +453,20 @@ fn test_update_spec_replace() {
 
         let content = std::fs::read_to_string(spec_file).unwrap();
         assert!(content.contains("Updated content for testing"));
-        assert!(!content.contains("comprehensive feature implementation")); // Original content should be gone
+        assert!(content.contains("comprehensive feature implementation")); // Original content should still be there (append operation)
 
         // Verify next steps and workflow hints
         assert!(
             response
                 .next_steps
                 .iter()
-                .any(|s| s.contains("Successfully updated"))
+                .any(|s| s.contains("Load updated spec"))
         );
         assert!(
             response
                 .workflow_hints
                 .iter()
-                .any(|h| h.contains("Updated files: spec.md"))
+                .any(|h| h.contains("copy exact task text"))
         );
     });
 }
@@ -490,18 +487,18 @@ fn test_update_spec_append() {
         let spec_name = spec_response.data.spec_name;
 
         // Test append operation on notes.md
-        let update_args =
-            env.update_spec_args_single("append-test-project", &spec_name, "notes", "append");
+        let update_args = env.update_spec_args_single("append-test-project", &spec_name, "notes");
         let response = update_spec::execute(update_args).await.unwrap();
 
         // Verify response
-        assert_eq!(response.data.total_files_updated, 1);
-        assert_eq!(response.data.files_updated.len(), 1);
+        assert_eq!(response.data.applied_count, 1);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert_eq!(response.data.file_updates.len(), 1);
 
-        let file_update = &response.data.files_updated[0];
-        assert_eq!(file_update.operation_performed, "append");
-        assert_eq!(file_update.file_type, "notes");
-        assert!(file_update.success);
+        let file_update = &response.data.file_updates[0];
+        assert_eq!(file_update.target, EditCommandTarget::Notes);
+        assert_eq!(file_update.applied, 1);
+        assert_eq!(file_update.skipped_idempotent, 0);
 
         // Verify file contains both original and appended content
         let foundry_dir = env.foundry_dir();
@@ -522,44 +519,40 @@ fn test_update_spec_append() {
 fn test_update_spec_task_list() {
     let env = TestEnvironment::new().unwrap();
     env.with_env_async(|| async {
-
-
         // Setup
         let project_args = env.create_project_args("task-test-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args).await.unwrap();
+        foundry_mcp::cli::commands::create_project::execute(project_args)
+            .await
+            .unwrap();
 
         let spec_args = env.create_spec_args("task-test-project", "task_feature");
         let spec_response = create_spec::execute(spec_args).await.unwrap();
         let spec_name = spec_response.data.spec_name;
 
-        // Update task list with new tasks
-        let mut update_args =
-        env.update_spec_args_single("task-test-project", &spec_name, "task-list", "append");
-        update_args.tasks = Some("## Phase 3: Additional Tasks\n- [ ] New task to complete\n- [x] Completed task from previous work".to_string());
+        // Update task list with new tasks using edit_commands
+        let update_args = env.update_spec_args_single("task-test-project", &spec_name, "tasks");
 
         let response = update_spec::execute(update_args).await.unwrap();
 
         // Verify task-list file was updated
         let foundry_dir = env.foundry_dir();
         let task_file = foundry_dir
-        .join("task-test-project")
-        .join("specs")
-        .join(&spec_name)
-        .join("task-list.md");
+            .join("task-test-project")
+            .join("specs")
+            .join(&spec_name)
+            .join("task-list.md");
 
         let content = std::fs::read_to_string(task_file).unwrap();
-        assert!(content.contains("- [ ] New task to complete"));
-        assert!(content.contains("- [x] Completed task"));
+        assert!(content.contains("- [ ] Test task"));
 
-        // Verify workflow hints mention file updates
+        // Verify workflow hints mention editing guidance
         assert!(
-        response
-            .workflow_hints
-            .iter()
-            .any(|h| h.contains("Updated files:"))
+            response
+                .workflow_hints
+                .iter()
+                .any(|h| h.contains("copy exact task text"))
         );
-
-        });
+    });
 }
 
 /// Test update_spec error handling for invalid inputs
@@ -568,8 +561,7 @@ fn test_update_spec_error_handling() {
     let env = TestEnvironment::new().unwrap();
     env.with_env_async(|| async {
         // Test nonexistent project
-        let update_args =
-            env.update_spec_args_single("nonexistent-project", "fake-spec", "spec", "replace");
+        let update_args = env.update_spec_args_single("nonexistent-project", "fake-spec", "spec");
         let result = update_spec::execute(update_args).await;
         assert!(result.is_err());
 
@@ -581,35 +573,11 @@ fn test_update_spec_error_handling() {
 
         let spec_args = env.create_spec_args("error-test-project", "error_feature");
         let spec_response = create_spec::execute(spec_args).await.unwrap();
-        let spec_name = spec_response.data.spec_name;
+        let _spec_name = spec_response.data.spec_name;
 
         // Test nonexistent spec
-        let update_args = env.update_spec_args_single(
-            "error-test-project",
-            "nonexistent-spec",
-            "spec",
-            "replace",
-        );
-        let result = update_spec::execute(update_args).await;
-        assert!(result.is_err());
-
-        // Test invalid operation (helper function validates file types)
-        let update_args = UpdateSpecArgs {
-            project_name: "error-test-project".to_string(),
-            spec_name: spec_name.clone(),
-            spec: Some("test content".to_string()),
-            tasks: None,
-            notes: None,
-            operation: "invalid".to_string(),
-            context_patch: None,
-        };
-        let result = update_spec::execute(update_args).await;
-        assert!(result.is_err());
-
-        // Test empty content
-        let mut update_args =
-            env.update_spec_args_single("error-test-project", &spec_name, "spec", "replace");
-        update_args.spec = Some("".to_string());
+        let update_args =
+            env.update_spec_args_single("error-test-project", "nonexistent-spec", "spec");
         let result = update_spec::execute(update_args).await;
         assert!(result.is_err());
     });
@@ -715,78 +683,75 @@ fn test_delete_spec_error_handling() {
 fn test_spec_lifecycle_workflow() {
     let env = TestEnvironment::new().unwrap();
     env.with_env_async(|| async {
-
-
         // Setup: Create project and spec
         let project_args = env.create_project_args("lifecycle-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args).await.unwrap();
+        foundry_mcp::cli::commands::create_project::execute(project_args)
+            .await
+            .unwrap();
 
         let spec_args = env.create_spec_args("lifecycle-project", "lifecycle_feature");
         let spec_response = create_spec::execute(spec_args).await.unwrap();
         let spec_name = spec_response.data.spec_name;
 
         // Phase 1: Update spec with replace
-        let update_args =
-        env.update_spec_args_single("lifecycle-project", &spec_name, "spec", "replace");
+        let update_args = env.update_spec_args_single("lifecycle-project", &spec_name, "spec");
         let update_response = update_spec::execute(update_args).await.unwrap();
         assert_eq!(
-        update_response.validation_status,
-        ValidationStatus::Complete
+            update_response.validation_status,
+            ValidationStatus::Complete
         );
 
         // Phase 2: Append to notes
-        let append_args =
-        env.update_spec_args_single("lifecycle-project", &spec_name, "notes", "append");
+        let append_args = env.update_spec_args_single("lifecycle-project", &spec_name, "notes");
         let append_response = update_spec::execute(append_args).await.unwrap();
+        assert_eq!(append_response.data.applied_count, 1);
         assert_eq!(
-        append_response.data.files_updated[0].operation_performed,
-        "append"
+            append_response.data.file_updates[0].target,
+            EditCommandTarget::Notes
         );
 
         // Phase 3: Update task list
-        let mut task_args =
-        env.update_spec_args_single("lifecycle-project", &spec_name, "tasks", "replace");
-        task_args.tasks = Some("## Implementation Progress\n- [x] Initial setup complete\n- [ ] Core implementation pending\n- [ ] Testing and documentation needed".to_string());
+        let task_args = env.update_spec_args_single("lifecycle-project", &spec_name, "tasks");
         let task_response = update_spec::execute(task_args).await.unwrap();
-        assert!(task_response.data.files_updated[0].content_length > 50);
+        assert_eq!(task_response.data.applied_count, 1);
+        assert_eq!(task_response.data.file_updates.len(), 1);
 
         // Phase 4: Load spec to verify all updates
         let load_args = LoadSpecArgs {
-        project_name: "lifecycle-project".to_string(),
-        spec_name: Some(spec_name.clone()),
+            project_name: "lifecycle-project".to_string(),
+            spec_name: Some(spec_name.clone()),
         };
         let load_response = load_spec::execute(load_args).await.unwrap();
 
         let spec_content = load_response.data.spec_content.unwrap();
         assert!(
-        spec_content
-            .content
-            .spec
-            .contains("Updated content for testing")
+            spec_content
+                .content
+                .spec
+                .contains("Updated content for testing")
         );
         assert!(spec_content.content.notes.contains("Implementation notes")); // Original + appended
         assert!(
-        spec_content
-            .content
-            .tasks
-            .contains("- [x] Initial setup complete")
+            spec_content
+                .content
+                .tasks
+                .contains("- [x] Initial setup complete")
         );
 
         // Phase 5: Delete spec to complete lifecycle
         let delete_args = env.delete_spec_args("lifecycle-project", &spec_name);
         let delete_response = delete_spec::execute(delete_args).await.unwrap();
         assert_eq!(
-        delete_response.validation_status,
-        ValidationStatus::Complete
+            delete_response.validation_status,
+            ValidationStatus::Complete
         );
 
         // Verify spec is completely removed
         let foundry_dir = env.foundry_dir();
         let spec_dir = foundry_dir
-        .join("lifecycle-project")
-        .join("specs")
-        .join(&spec_name);
+            .join("lifecycle-project")
+            .join("specs")
+            .join(&spec_name);
         assert!(!spec_dir.exists());
-
-        });
+    });
 }

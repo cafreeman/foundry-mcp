@@ -1,7 +1,7 @@
 //! Project management core logic
 
 use anyhow::Result;
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use std::fs;
 use std::path::PathBuf;
 
@@ -86,15 +86,15 @@ pub fn list_projects() -> Result<Vec<ProjectMetadata>> {
                 .metadata()
                 .ok()
                 .and_then(|m| m.created().ok())
-                .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
+                .map(DateTime::<Utc>::from)
+                .map(|dt| dt.to_rfc3339())
+                .unwrap_or_else(|| Utc::now().to_rfc3339());
 
             ProjectMetadata {
                 name: project_name,
-                created_at: created_at.to_string(),
+                created_at: created_at.clone(),
                 spec_count,
-                last_modified: created_at.to_string(), // TODO: Use actual last modified time
+                last_modified: created_at, // TODO: Use actual last modified time
             }
         })
         .collect();
@@ -116,11 +116,7 @@ pub fn load_project(project_name: &str) -> Result<Project> {
     let summary = filesystem::read_file(project_path.join("summary.md")).ok();
 
     // Get creation time from directory metadata
-    let created_at = fs::metadata(&project_path)?
-        .created()?
-        .duration_since(std::time::UNIX_EPOCH)?
-        .as_secs()
-        .to_string();
+    let created_at = DateTime::<Utc>::from(fs::metadata(&project_path)?.created()?).to_rfc3339();
 
     Ok(Project {
         name: project_name.to_string(),
@@ -130,4 +126,68 @@ pub fn load_project(project_name: &str) -> Result<Project> {
         tech_stack,
         summary,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_utils::TestEnvironment;
+
+    #[test]
+    fn test_list_projects_rfc3339_timestamps() {
+        let env = TestEnvironment::new().unwrap();
+
+        env.with_env_async(|| async {
+            // Create a test project
+            env.create_test_project("test-rfc3339-timestamps")
+                .await
+                .unwrap();
+
+            // List projects and verify timestamp format
+            let projects = list_projects().unwrap();
+            assert_eq!(projects.len(), 1);
+
+            let project = &projects[0];
+            assert_eq!(project.name, "test-rfc3339-timestamps");
+
+            // Verify RFC3339 format (should contain timezone offset or 'Z')
+            assert!(project.created_at.contains('+') || project.created_at.contains('Z'));
+            assert!(project.created_at.contains('T')); // ISO format separator
+            assert!(project.created_at.len() >= 20); // Minimum RFC3339 length
+
+            // Verify it can be parsed as a valid DateTime
+            let parsed = chrono::DateTime::parse_from_rfc3339(&project.created_at)
+                .or_else(|_| {
+                    chrono::DateTime::parse_from_str(&project.created_at, "%Y-%m-%dT%H:%M:%SZ")
+                })
+                .unwrap();
+            assert!(parsed.timestamp() > 0); // Should be a valid timestamp
+        });
+    }
+
+    #[test]
+    fn test_load_project_rfc3339_timestamps() {
+        let env = TestEnvironment::new().unwrap();
+        let project_name = "test-load-rfc3339";
+
+        env.with_env_async(|| async {
+            // Create a test project
+            env.create_test_project(project_name).await.unwrap();
+
+            // Load project and verify timestamp format
+            let project = load_project(project_name).unwrap();
+
+            // Verify RFC3339 format
+            assert!(project.created_at.contains('+') || project.created_at.contains('Z'));
+            assert!(project.created_at.contains('T'));
+
+            // Verify it can be parsed as a valid DateTime
+            let parsed = chrono::DateTime::parse_from_rfc3339(&project.created_at)
+                .or_else(|_| {
+                    chrono::DateTime::parse_from_str(&project.created_at, "%Y-%m-%dT%H:%M:%SZ")
+                })
+                .unwrap();
+            assert!(parsed.timestamp() > 0);
+        });
+    }
 }

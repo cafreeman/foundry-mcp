@@ -99,8 +99,8 @@ impl TestEnvironment {
         CreateSpecArgs {
             project_name: project_name.to_string(),
             feature_name: feature_name.to_string(),
-            spec: "This specification defines a comprehensive feature implementation that includes detailed requirements, functional specifications, and behavioral expectations. The feature should integrate seamlessly with existing system architecture while providing robust error handling and user-friendly interfaces. Implementation should follow established patterns and include proper testing coverage.".to_string(),
-            notes: "Implementation notes include important considerations for security, performance, and maintainability. Special attention should be paid to error handling and edge cases. Consider using established libraries where appropriate and ensure compatibility with existing system components.".to_string(),
+            spec: "# Feature Name\n\n## Overview\nThis specification defines a comprehensive feature implementation that includes detailed requirements, functional specifications, and behavioral expectations.\n\n## Requirements\nThe feature should integrate seamlessly with existing system architecture while providing robust error handling and user-friendly interfaces. Implementation should follow established patterns and include proper testing coverage.".to_string(),
+            notes: "# Implementation Notes\n\n## Security Considerations\nImplementation notes include important considerations for security, performance, and maintainability.\n\n## Error Handling\nSpecial attention should be paid to error handling and edge cases.\n\n## Dependencies\nConsider using established libraries where appropriate and ensure compatibility with existing system components.".to_string(),
             tasks: "Create feature scaffolding and basic structure, Implement core functionality with proper error handling, Add comprehensive test coverage for all scenarios, Update documentation and user guides, Perform integration testing with existing features, Conduct code review and optimization".to_string(),
         }
     }
@@ -118,39 +118,56 @@ impl TestEnvironment {
         project_name: &str,
         spec_name: &str,
         file_type: &str,
-        operation: &str,
     ) -> UpdateSpecArgs {
-        let content = "Updated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.".to_string();
+        let content = match file_type {
+            "spec" => "\n## Requirements\nUpdated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.\n".to_string(),
+            _ => "Updated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.".to_string(),
+        };
 
-        match file_type {
-            "spec" => UpdateSpecArgs {
-                project_name: project_name.to_string(),
-                spec_name: spec_name.to_string(),
-                spec: Some(content),
-                tasks: None,
-                notes: None,
-                operation: operation.to_string(),
-                context_patch: None,
-            },
-            "task-list" | "tasks" => UpdateSpecArgs {
-                project_name: project_name.to_string(),
-                spec_name: spec_name.to_string(),
-                spec: None,
-                tasks: Some(content),
-                notes: None,
-                operation: operation.to_string(),
-                context_patch: None,
-            },
-            "notes" => UpdateSpecArgs {
-                project_name: project_name.to_string(),
-                spec_name: spec_name.to_string(),
-                spec: None,
-                tasks: None,
-                notes: Some(content),
-                operation: operation.to_string(),
-                context_patch: None,
-            },
+        let command = match file_type {
+            "spec" => serde_json::json!({
+                "target": "spec",
+                "command": "append_to_section",
+                "selector": {"type": "section", "value": "## Requirements"},
+                "content": content
+            }),
+            "task-list" | "tasks" => {
+                if spec_name.contains("lifecycle_feature") || spec_name.contains("lifecycle") {
+                    serde_json::json!([{
+                        "target": "tasks",
+                        "command": "upsert_task",
+                        "selector": {"type": "task_text", "value": "Initial setup complete"},
+                        "content": "- [x] Initial setup complete"
+                    }])
+                } else {
+                    serde_json::json!([{
+                        "target": "tasks",
+                        "command": "upsert_task",
+                        "selector": {"type": "task_text", "value": "Test task"},
+                        "content": "- [ ] Test task"
+                    }])
+                }
+            }
+            "notes" => serde_json::json!({
+                "target": "notes",
+                "command": "append_to_section",
+                "selector": {"type": "section", "value": "## Security Considerations"},
+                "content": content
+            }),
             _ => panic!("Invalid file_type: {}", file_type),
+        };
+
+        // If tasks, we already created an array of commands; otherwise wrap single command in an array
+        let commands_json = if file_type == "task-list" || file_type == "tasks" {
+            command
+        } else {
+            serde_json::json!([command])
+        };
+
+        UpdateSpecArgs {
+            project_name: project_name.to_string(),
+            spec_name: spec_name.to_string(),
+            commands: serde_json::to_string(&commands_json).unwrap(),
         }
     }
 
@@ -159,19 +176,43 @@ impl TestEnvironment {
         &self,
         project_name: &str,
         spec_name: &str,
-        operation: &str,
         spec_content: Option<&str>,
         tasks_content: Option<&str>,
         notes_content: Option<&str>,
     ) -> UpdateSpecArgs {
+        let mut commands: Vec<serde_json::Value> = Vec::new();
+
+        if let Some(spec) = spec_content {
+            commands.push(serde_json::json!({
+                "target": "spec",
+                "command": "append_to_section",
+                "selector": {"type": "section", "value": "## Implementation"},
+                "content": spec
+            }));
+        }
+
+        if let Some(tasks) = tasks_content {
+            commands.push(serde_json::json!({
+                "target": "tasks",
+                "command": "upsert_task",
+                "selector": {"type": "task_text", "value": tasks},
+                "content": format!("- [ ] {}", tasks)
+            }));
+        }
+
+        if let Some(notes) = notes_content {
+            commands.push(serde_json::json!({
+                "target": "notes",
+                "command": "append_to_section",
+                "selector": {"type": "section", "value": "## Design Decisions"},
+                "content": notes
+            }));
+        }
+
         UpdateSpecArgs {
             project_name: project_name.to_string(),
             spec_name: spec_name.to_string(),
-            spec: spec_content.map(|s| s.to_string()),
-            tasks: tasks_content.map(|s| s.to_string()),
-            notes: notes_content.map(|s| s.to_string()),
-            operation: operation.to_string(),
-            context_patch: None,
+            commands: serde_json::to_string(&commands).unwrap(),
         }
     }
 

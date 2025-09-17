@@ -16,15 +16,15 @@ pub async fn execute(args: GetFoundryHelpArgs) -> Result<FoundryResponse<GetFoun
         "project-structure" => create_project_structure_help(),
         "parameter-guidance" => create_parameter_guidance_help(),
         "tool-capabilities" => create_tool_capabilities_help(),
-        "context-patching" => create_context_patching_help(),
+        "edit-commands" => create_edit_commands_help(),
         _ => create_overview_help(),
     };
 
     let next_steps = vec![
-        "Available help topics: workflows, decision-points, content-examples, project-structure, parameter-guidance, tool-capabilities, context-patching".to_string(),
+        "Available help topics: workflows, decision-points, content-examples, project-structure, parameter-guidance, tool-capabilities, edit-commands".to_string(),
         "Choose topics based on what you need guidance for".to_string(),
         "Use decision-points topic to understand when each tool is appropriate".to_string(),
-        "Use context-patching topic for targeted update guidance and examples".to_string(),
+        "Use edit-commands topic for deterministic, idempotent spec edits with examples".to_string(),
     ];
 
     let workflow_hints = vec![
@@ -93,9 +93,8 @@ fn create_workflows_help() -> HelpContent {
             "".to_string(),
             "# When user wants to make targeted updates to existing specs:".to_string(),
             "→ Use: {\"name\": \"load_spec\", \"arguments\": {\"project_name\": \"PROJECT_NAME\", \"spec_name\": \"SPEC_NAME\"}} to see current content".to_string(),
-            "→ For small changes (mark task complete, add single item): use context patching".to_string(),
-            "→ For major changes (complete rewrites): use replace operation".to_string(),
-            "→ For additions to end of file: use append operation".to_string(),
+            "→ For small targeted changes (mark task complete, add single item, append to a section): use update_spec with edit commands".to_string(),
+            "→ Commands available: set_task_status, upsert_task, append_to_section".to_string(),
         ],
         workflow_guide: vec![
             "Always wait for user intent before suggesting tools".to_string(),
@@ -104,9 +103,8 @@ fn create_workflows_help() -> HelpContent {
             "Use validate_content to check content quality before creating projects/specs".to_string(),
             "Ask clarifying questions when user intent is unclear".to_string(),
             "Let users drive the workflow - tools support user goals".to_string(),
-            "For targeted updates, use context patching instead of full file replacement".to_string(),
-            "Context patching requires 3-5 lines of surrounding context for reliable matching".to_string(),
-            "Always load current content before attempting context patches".to_string(),
+            "For targeted updates, use edit commands with precise selectors (task_text, section)".to_string(),
+            "Always load current content before editing; copy exact task text and headers".to_string(),
         ],
     }
 }
@@ -463,107 +461,45 @@ fn create_tool_capabilities_help() -> HelpContent {
     }
 }
 
-fn create_context_patching_help() -> HelpContent {
+fn create_edit_commands_help() -> HelpContent {
     HelpContent {
-        title: "Context-Based Patching for Targeted Updates".to_string(),
-        description: "Comprehensive guide for using context-based patching to make precise, targeted updates to specification files without full file replacement. Context patching uses surrounding text to identify exact locations for changes, dramatically reducing token usage and improving precision.".to_string(),
+        title: "Edit Commands for Deterministic Spec Updates".to_string(),
+        description: "Use update_spec with a 'commands' array to perform precise, idempotent edits "
+            .to_string()
+            + "with minimal parameters. Supported commands: set_task_status, upsert_task, "
+            + "append_to_section. Selectors: task_text (exact task text), section (header text, "
+            + "case-insensitive).",
         examples: vec![
-            "# Basic Context Patch Structure:".to_string(),
-            "{\"name\": \"update_spec\", \"arguments\": {".to_string(),
-            "  \"project_name\": \"PROJECT_NAME\",".to_string(),
-            "  \"spec_name\": \"SPEC_NAME\",".to_string(),
-            "  \"operation\": \"context_patch\",".to_string(),
-            "  \"context_patch\": \"{".to_string(),
-            "  \"file_type\": \"tasks|spec|notes\",".to_string(),
-            "  \"operation\": \"insert|replace|delete\",".to_string(),
-            "  \"before_context\": [\"line before target\", \"another before line\"],".to_string(),
-            "  \"after_context\": [\"line after target\", \"another after line\"],".to_string(),
-            "  \\\"content\\\": \\\"new content to insert/replace\\\",".to_string(),
-            "  \\\"section_context\\\": \\\"## Header Name (optional)\\\"".to_string(),
-            "}\"".to_string(),
-            "}}".to_string(),
+            "# Mark a task done".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", "
+                + "\"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"tasks\", \"command\": \"set_task_status\", "
+                + "\"selector\": {\"type\": \"task_text\", \"value\": \"Implement OAuth2 integration\"}, "
+                + "\"status\": \"done\"}]}}"),
             "".to_string(),
-            "# Example 1: Mark Task Complete".to_string(),
-            "# Current content: - [ ] Implement user authentication".to_string(),
-            "{\"name\": \"update_spec\", \"arguments\": {".to_string(),
-            "  \"project_name\": \"my-project\",".to_string(),
-            "  \"spec_name\": \"my-spec\",".to_string(),
-            "  \"operation\": \"context_patch\",".to_string(),
-            "  \"context_patch\": \"{\\\"file_type\\\":\\\"tasks\\\",\\\"operation\\\":\\\"replace\\\",\\\"before_context\\\":[\\\"## Phase 1\\\"],\\\"after_context\\\":[\\\"- [ ] Add password hashing\\\"],\\\"content\\\":\\\"- [x] Implement user authentication\\\"}\"".to_string(),
-            "}}".to_string(),
+            "# Upsert a task (no duplicates)".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"tasks\", \"command\": \"upsert_task\", "
+                + "\"selector\": {\"type\": \"task_text\", \"value\": \"Add password validation\"}, "
+                + "\"content\": \"- [ ] Add password validation\"}]}}"),
             "".to_string(),
-            "# Example 2: Insert New Requirement".to_string(),
-            "{\"name\": \"update_spec\", \"arguments\": {".to_string(),
-            "  \"project_name\": \"my-project\",".to_string(),
-            "  \"spec_name\": \"my-spec\",".to_string(),
-            "  \"operation\": \"context_patch\",".to_string(),
-            "  \"context_patch\": \"{\\\"file_type\\\":\\\"spec\\\",\\\"operation\\\":\\\"insert\\\",\\\"section_context\\\":\\\"## Requirements\\\",\\\"before_context\\\":[\\\"- Password hashing with bcrypt\\\"],\\\"after_context\\\":[\\\"- Session management\\\"],\\\"content\\\":\\\"- Two-factor authentication support\\\"}\"".to_string(),
-            "}}".to_string(),
-            "".to_string(),
-            "# Example 3: Delete Outdated Content".to_string(),
-            "{\"name\": \"update_spec\", \"arguments\": {".to_string(),
-            "  \"project_name\": \"my-project\",".to_string(),
-            "  \"spec_name\": \"my-spec\",".to_string(),
-            "  \"operation\": \"context_patch\",".to_string(),
-            "  \"context_patch\": \"{\\\"file_type\\\":\\\"notes\\\",\\\"operation\\\":\\\"delete\\\",\\\"before_context\\\":[\\\"## Outdated Approach\\\"],\\\"after_context\\\":[\\\"## Current Implementation\\\"],\\\"content\\\":\\\"\\\"}\"".to_string(),
-            "}}".to_string(),
-            "".to_string(),
-            "# Example 4: Complex Multi-line Context".to_string(),
-            "{\"name\": \"update_spec\", \"arguments\": {".to_string(),
-            "  \"project_name\": \"my-project\",".to_string(),
-            "  \"spec_name\": \"my-spec\",".to_string(),
-            "  \"operation\": \"context_patch\",".to_string(),
-            "  \"context_patch\": \"{\\\"file_type\\\":\\\"spec\\\",\\\"operation\\\":\\\"replace\\\",\\\"before_context\\\":[\\\"## Acceptance Criteria\\\",\\\"- [ ] User can register with email\\\",\\\"- [ ] Password validation works\\\"],\\\"after_context\\\":[\\\"- [ ] Session timeout handled\\\",\\\"## Implementation\\\"],\\\"content\\\":\\\"- [x] Password validation works\\\"}\"".to_string(),
-            "}}".to_string(),
+            "# Append to a section in spec.md".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"spec\", \"command\": \"append_to_section\", "
+                + "\"selector\": {\"type\": \"section\", \"value\": \"## Requirements\"}, "
+                + "\"content\": \"- Two-factor authentication support\"}]}}"),
         ],
         workflow_guide: vec![
-            "ALWAYS load current content first: {\"name\": \"load_spec\", \"arguments\": {\"project_name\": \"PROJECT_NAME\", \"spec_name\": \"SPEC_NAME\"}}".to_string(),
-            "Use 3-5 lines of context for reliable matching (more context = better accuracy)".to_string(),
-            "Include section_context when target appears multiple times in different sections".to_string(),
-            "For insert operations: before_context = line before insertion, after_context = line after insertion".to_string(),
-            "For replace operations: before_context = lines before target, after_context = lines after target".to_string(),
-            "For delete operations: before_context = lines before target, after_context = lines after target, content = \"\"".to_string(),
-            "Context matching is fuzzy (80% similarity) - minor formatting differences are handled".to_string(),
-            "If context match fails, try broader context or use section_context for disambiguation".to_string(),
-            "Escape JSON properly: use \\\" for quotes, \\n for newlines in content strings".to_string(),
-            "Context patching achieves 70-90% token reduction vs full file replacement".to_string(),
-            "".to_string(),
-            "# When to Use Each Operation Type:".to_string(),
-            "".to_string(),
-            "**Use context_patch when:**".to_string(),
-            "- Making small targeted changes (mark task complete, add single item, fix typo)".to_string(),
-            "- You know the exact surrounding context of the change".to_string(),
-            "- Want to minimize token usage and improve precision".to_string(),
-            "- Content has clear, unique surrounding text for reliable matching".to_string(),
-            "".to_string(),
-            "**Use replace when:**".to_string(),
-            "- Completely rewriting large sections or entire files".to_string(),
-            "- Making major structural changes to content".to_string(),
-            "- Context is unclear or content appears in multiple locations".to_string(),
-            "".to_string(),
-            "**Use append when:**".to_string(),
-            "- Adding new content to the end of existing files".to_string(),
-            "- Building up specifications iteratively".to_string(),
-            "- Want to preserve all existing content and add more".to_string(),
-            "".to_string(),
-            "# Troubleshooting Context Matching:".to_string(),
-            "".to_string(),
-            "**\"Context not found\" errors:**".to_string(),
-            "- Load current content to verify context still exists".to_string(),
-            "- Try broader context (fewer lines) or more specific context".to_string(),
-            "- Check for typos in before_context and after_context".to_string(),
-            "- Use section_context to limit search scope".to_string(),
-            "".to_string(),
-            "**\"Multiple matches\" errors:**".to_string(),
-            "- Add section_context to disambiguate (e.g., \"## Requirements\")".to_string(),
-            "- Use more specific before_context and after_context".to_string(),
-            "- Include more lines of context to make match unique".to_string(),
-            "".to_string(),
-            "**\"Invalid JSON\" errors:**".to_string(),
-            "- Escape quotes in content: \\\"quoted text\\\"".to_string(),
-            "- Use proper JSON array syntax: [\"line1\", \"line2\"]".to_string(),
-            "- Validate JSON structure before sending".to_string(),
-            "- Check for trailing commas or missing quotes".to_string(),
+            "Always load current content before editing; copy exact task text and section headers"
+                .to_string(),
+            "append_to_section is valid only for spec and notes (not tasks)".to_string(),
+            "Idempotent behavior: re-sending same commands is safe".to_string(),
+            "On ambiguity or no match, the tool returns candidate suggestions; re-issue with "
+                .to_string()
+                + "suggested selector",
         ],
     }
 }

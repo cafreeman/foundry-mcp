@@ -110,53 +110,27 @@ Each spec contains:
   - Includes: Project summary automatically for context
   - MCP Tool Call: `{"name": "load_spec", "arguments": {"project_name": "...", "spec_name": "..."}}`
 
-- **`update_spec`**: Updating spec files with three operation types for different use cases
+- **`update_spec`**: Edit spec files using intent-based commands with precise anchors and idempotent updates
 
-  - **File Types**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
-  - **Operations**: `replace`, `append`, or `context_patch` - REQUIRED
+  - **File Targets**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
+  - **Commands**: `set_task_status`, `upsert_task`, `append_to_section` only
+  - **Selectors**: `task_text` (exact checkbox text), `section` (case-insensitive header)
   - **Usage**:
 
     ```json
-    // Traditional operations - full content
-    {"name": "update_spec", "arguments": {"project_name": "project", "spec_name": "spec", "operation": "replace", "spec": "content"}}
-    {"name": "update_spec", "arguments": {"project_name": "project", "spec_name": "spec", "operation": "append", "tasks": "new task"}}
-
-    // Context-based patching - targeted updates
-    {
-      "name": "update_spec",
-      "arguments": {
-        "project_name": "project",
-        "spec_name": "spec",
-        "operation": "context_patch",
-        "context_patch": "{\"file_type\":\"tasks\",\"operation\":\"replace\",\"before_context\":[\"- [ ] Implement user auth\"],\"after_context\":[\"- [ ] Add password hashing\"],\"content\":\"- [x] Implement user auth\"}"
-      }
-    }
+    {"name":"update_spec","arguments":{"project_name":"project","spec_name":"spec","commands":[
+      {"target":"tasks","command":"set_task_status","selector":{"type":"task_text","value":"Implement OAuth2 integration"},"status":"done"},
+      {"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"Add password validation"},"content":"- [ ] Add password validation"},
+      {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Requirements"},"content":"- Two-factor authentication support"}
+    ]}}
     ```
-
-  - **Operation Types**:
-    - **`replace`**: Completely replaces file content with new content
-      - **Use when**: Major changes, complete rewrites, replacing outdated content
-      - **Risk**: Existing content is permanently lost
-      - **MCP Tool Call**: `{"name": "update_spec", "arguments": {"project_name": "...", "spec_name": "...", "operation": "replace", "spec": "complete new content"}}`
-    - **`append`**: Adds new content to the END of existing content only
-      - **Use when**: Adding new content to end of files, building up specifications iteratively
-      - **IMPORTANT**: Append only adds to the bottom - it cannot edit existing content or insert in the middle
-      - **Risk**: Low - existing content is preserved, but cannot modify existing sections
-      - **MCP Tool Call**: `{"name": "update_spec", "arguments": {"project_name": "...", "spec_name": "...", "operation": "append", "tasks": "new task content"}}`
-    - **`context_patch`**: Makes precise, targeted updates using surrounding text context
-      - **Use when**: Small targeted changes (mark task complete, add single item, fix specific content)
-      - **Benefits**: 70-90% token reduction, precise targeting, no line number precision needed
-      - **Prerequisites**: Ensure current content is in context (see Smart Content Loading below)
-      - **Requirements**: 3-5 lines of unique, specific surrounding text for reliable matching
-      - **JSON Format**: Requires JSON with file_type, operation (insert/replace/delete), before_context, after_context, content
-      - **MCP Tool Call**: `{"name": "update_spec", "arguments": {"project_name": "...", "spec_name": "...", "operation": "context_patch", "context_patch": "{\"file_type\":\"tasks\",\"operation\":\"replace\",\"before_context\":[\"- [ ] Task\"],\"after_context\":[\"- [ ] Next\"],\"content\":\"- [x] Task\"}"}}`
 
   ### Smart Content Loading Strategy
 
   **Load spec content when:**
   - Starting work on a spec you haven't recently loaded in this conversation
   - After making previous edits that changed the content state
-  - When context_patch matching fails (to verify exact current text)
+  - When selectors are ambiguous or failing (to verify exact current text)
   - Long conversations where content may have been edited elsewhere
 
   **Skip loading when:**
@@ -165,15 +139,12 @@ Each spec contains:
   - Using append operations (content position doesn't matter)
 
   **Recovery Pattern:**
-  If context_patch fails → reload current content → identify exact text → retry with precise context
+  If a selector is ambiguous or not found → reload current content → copy exact task text or section header → re-issue with suggested selector
 
   - **Best Practices**:
     - **Load strategically**: Use `load_spec` when you need current state, not reflexively
-    - Use `context_patch` for small targeted changes: Mark tasks complete, add single requirements, fix typos
-    - Use `append` for adding content to end: New tasks at bottom, progress updates, accumulating notes
-    - Use `replace` for major changes: Complete rewrites, editing existing content, requirement changes
-    - **Never use `append` to modify existing content** - it only adds to the end
-    - Context patching requires exact text matching with current content for reliability
+    - Use `edit_commands` for targeted updates; copy exact task text and headers
+    - `append_to_section` only for `spec` and `notes` (not `tasks`)
 
 #### Discovery & Validation
 
@@ -198,10 +169,10 @@ Each spec contains:
   - MCP Tool Call: `{"name": "validate_content", "arguments": {"content_type": "vision", "content": "..."}}`
 
 - **`get_foundry_help`**: Getting workflow guidance and examples
-  - Topics: `workflows`, `content-examples`, `project-structure`, `parameter-guidance`, `context-patching`
-  - Use when: Understanding best practices, troubleshooting, learning context patching
-  - **Essential**: Use `context-patching` topic for targeted update guidance and examples
-  - MCP Tool Call: `{"name": "get_foundry_help", "arguments": {"topic": "context-patching"}}`
+  - Topics: `workflows`, `content-examples`, `project-structure`, `parameter-guidance`, `edit-commands`
+  - Use when: Understanding best practices, troubleshooting, learning edit commands
+  - **Essential**: Use `edit-commands` topic for targeted update guidance and examples
+  - MCP Tool Call: `{"name": "get_foundry_help", "arguments": {"topic": "edit-commands"}}`
 
 ## Content Requirements & Boundaries
 
@@ -343,15 +314,15 @@ Each spec contains:
 }
 ```
 
-### Context Patching Failure Recovery
+### Selector Failure Recovery
 
-**When context_patch matching fails:**
+**When selectors are ambiguous or not found:**
 1. **Read Error Message**: Check suggestions for specific guidance
 2. **Load Current Content**: Use `load_spec` to see actual current state
 3. **Copy Exact Text**: Use precise text from loaded content (whitespace-sensitive)
 4. **Choose Better Context**: Select more unique, specific surrounding lines
 5. **Add Section Context**: Use section_context when content appears in multiple places
-6. **Retry with Precision**: Apply context_patch with refined, exact context
+6. **Retry with Precision**: Re-issue edit_commands with refined, exact selector
 7. **Strategic Fallback**: Use append for end additions, replace only for major changes
 
 **Common Failure Patterns & Solutions:**
@@ -399,38 +370,23 @@ mcp_foundry_load_project project-name  # Full vision + tech-stack + all specs
 // Create initial spec
 {"name": "create_spec", "arguments": {"project_name": "my-project", "feature_name": "user-auth", "spec": "...", "tasks": "...", "notes": "..."}}
 
-// OPTION 1: Context patching for targeted updates (PREFERRED for small changes)
-// Load current content only if you've made previous edits or don't have it in context
-{"name": "load_spec", "arguments": {"project_name": "my-project", "spec_name": "20240101_user_auth"}}  // If needed for current state
+// PREFERRED: Targeted updates with edit_commands (load content if needed)
+{"name": "load_spec", "arguments": {"project_name": "my-project", "spec_name": "20240101_user_auth"}}  // Only if you need current state
 
-// GOOD EXAMPLE: Mark task complete with specific, unique context
-{
-  "name": "update_spec",
-  "arguments": {
-    "project_name": "my-project",
-    "spec_name": "20240101_user_auth",
-    "operation": "context_patch",
-    "context_patch": "{\"file_type\":\"tasks\",\"operation\":\"replace\",\"section_context\":\"## Phase 1: Authentication\",\"before_context\":[\"## Phase 1: Authentication\",\"- [ ] Implement OAuth2 integration with Google APIs\"],\"after_context\":[\"- [ ] Add password strength validation rules\"],\"content\":\"- [x] Implement OAuth2 integration with Google APIs\"}"
-  }
-}
+// Mark task complete
+{"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"tasks","command":"set_task_status","selector":{"type":"task_text","value":"Implement OAuth2 integration"},"status":"done"}]}}
 
-// GOOD EXAMPLE: Insert new requirement with distinctive context
-{
-  "name": "update_spec",
-  "arguments": {
-    "project_name": "my-project",
-    "spec_name": "20240101_user_auth",
-    "operation": "context_patch",
-    "context_patch": "{\"file_type\":\"spec\",\"operation\":\"insert\",\"section_context\":\"## Security Requirements\",\"before_context\":[\"- Password hashing with bcrypt and salt\"],\"after_context\":[\"- Session timeout after 30 minutes of inactivity\"],\"content\":\"- Two-factor authentication with TOTP support\"}"
-  }
-}
+// Upsert a task (no duplicates)
+{"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"Add password validation"},"content":"- [ ] Add password validation"}]}}
 
-// OPTION 2: Traditional append for adding to end of files
-// Add new tasks to the bottom of task list (append only adds to end)
-{"name": "update_spec", "arguments": {"project_name": "my-project", "spec_name": "20240101_user_auth", "operation": "append", "tasks": "- [ ] New task added to bottom"}}
+// Append to a section in spec.md
+{"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Requirements"},"content":"- Two-factor authentication support"}]}}
 
-// Add implementation notes to the bottom (append only adds to end)
-{"name": "update_spec", "arguments": {"project_name": "my-project", "spec_name": "20240101_user_auth", "operation": "append", "notes": "## New Implementation Notes\nAdditional notes added to bottom of file."}}
+// Add new tasks (upsert prevents duplicates)
+{"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"New task added to bottom"},"content":"- [ ] New task added to bottom"}]}}
+
+// Add implementation notes to specific section
+{"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"notes","command":"append_to_section","selector":{"type":"section","value":"## Implementation Notes"},"content":"Additional notes appended to this section."}]}}
 ```
 
 ### 3. Follow Next Steps Guidance
@@ -466,8 +422,8 @@ mcp_foundry_load_project project-name  # Full vision + tech-stack + all specs
 
 #### For Existing Features:
 1. **Load Spec**: `mcp_foundry_load_spec my-app "payment"` (fuzzy matching)
-2. **Update Progress**: Use `mcp_foundry_update_spec` with `append` to add new tasks to bottom
-3. **Add Notes**: Document implementation decisions by appending to notes
+2. **Update Progress**: Use `mcp_foundry_update_spec` with `upsert_task` to add new tasks
+3. **Add Notes**: Document implementation decisions using `append_to_section` for notes
 4. **Review Status**: Load spec again to check progress and get workflow guidance
 
 #### For New Features:
@@ -479,8 +435,8 @@ mcp_foundry_load_project project-name  # Full vision + tech-stack + all specs
    ```json
    {"name": "create_spec", "arguments": {"project_name": "my-app", "feature_name": "payment-integration", "spec": "...", "tasks": "...", "notes": "..."}}
    ```
-3. **Update Progress**: Use `mcp_foundry_update_spec` with `append` to add new tasks to bottom
-4. **Add Notes**: Document implementation decisions by appending to notes
+3. **Update Progress**: Use `mcp_foundry_update_spec` with edit commands to add new tasks
+4. **Add Notes**: Document implementation decisions using `append_to_section` for notes
 
 ### Existing Codebase Analysis
 
@@ -558,23 +514,15 @@ mcp_foundry_create_spec my-project user-auth
 // Create new feature spec
 {"name": "create_spec", "arguments": {"project_name": "my-project", "feature_name": "user-auth", "spec": "...", "tasks": "...", "notes": "..."}}
 
-// PREFERRED: Context patching for targeted updates (load content if needed)
+// PREFERRED: Targeted updates with edit_commands (load content if needed)
 {"name": "load_spec", "arguments": {"project_name": "my-project", "spec_name": "20240101_user_auth"}}  // Only if you need current state
-{
-  "name": "update_spec",
-  "arguments": {
-    "project_name": "my-project",
-    "spec_name": "20240101_user_auth",
-    "operation": "context_patch",
-    "context_patch": "{\"file_type\":\"tasks\",\"operation\":\"replace\",\"section_context\":\"## Phase 1: Authentication\",\"before_context\":[\"## Phase 1: Authentication\",\"- [ ] Implement OAuth2 integration with Google APIs\"],\"after_context\":[\"- [ ] Add password strength validation rules\"],\"content\":\"- [x] Implement OAuth2 integration with Google APIs\"}"
-  }
-}
+{"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"tasks","command":"set_task_status","selector":{"type":"task_text","value":"Implement OAuth2 integration"},"status":"done"}]}}
 
-// Traditional: Add new tasks to bottom of task list (append only adds to end)
-{"name": "update_spec", "arguments": {"project_name": "my-project", "spec_name": "20240101_user_auth", "operation": "append", "tasks": "- [ ] New task at bottom"}}
+// Add new tasks (upsert prevents duplicates)
+{"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"New task at bottom"},"content":"- [ ] New task at bottom"}]}}
 
-// Get help (including context patching guidance)
-{"name": "get_foundry_help", "arguments": {"topic": "context-patching"}}
+// Get help (including edit-commands guidance)
+{"name": "get_foundry_help", "arguments": {"topic": "edit-commands"}}
 {"name": "get_foundry_help", "arguments": {"topic": "workflows"}}
 ```
 

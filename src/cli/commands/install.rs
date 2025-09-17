@@ -249,53 +249,57 @@ mod tests {
         assert_eq!(result.actions_taken[1], "Action 2");
     }
 
-    #[tokio::test]
-    async fn test_execute_with_explicit_binary_path() {
-        use tempfile::TempDir;
+    #[test]
+    fn test_execute_with_explicit_binary_path() {
+        use crate::test_utils::TestEnvironment;
 
-        let temp_dir = TempDir::new().unwrap();
-        let binary_path = temp_dir.path().join("foundry");
-        std::fs::write(&binary_path, b"test binary").unwrap();
+        let env = TestEnvironment::new().unwrap();
 
-        let args = InstallArgs {
-            target: "cursor".to_string(),
-            binary_path: Some(binary_path.to_string_lossy().to_string()),
-            json: false,
-        };
+        env.with_env_async(|| async {
+            let binary_path = env.create_mock_binary("foundry").unwrap();
 
-        // This test validates the CLI argument processing
-        assert_eq!(args.target, "cursor");
-        assert!(args.binary_path.is_some());
+            let args = InstallArgs {
+                target: "cursor".to_string(),
+                binary_path: Some(binary_path.to_string_lossy().to_string()),
+                json: false,
+            };
 
-        // Test target validation
-        assert!(validate_target(&args.target).is_ok());
+            // This test validates the CLI argument processing
+            assert_eq!(args.target, "cursor");
+            assert!(args.binary_path.is_some());
+
+            // Test target validation
+            assert!(validate_target(&args.target).is_ok());
+        });
     }
 
-    #[tokio::test]
-    async fn test_execute_response_structure() {
-        use tempfile::TempDir;
+    #[test]
+    fn test_execute_response_structure() {
+        use crate::test_utils::TestEnvironment;
 
-        let temp_dir = TempDir::new().unwrap();
-        let binary_path = temp_dir.path().join("foundry");
-        std::fs::write(&binary_path, b"test binary").unwrap();
+        let env = TestEnvironment::new().unwrap();
 
-        let _args = InstallArgs {
-            target: "cursor".to_string(),
-            binary_path: Some(binary_path.to_string_lossy().to_string()),
-            json: false,
-        };
+        env.with_env_async(|| async {
+            let binary_path = env.create_mock_binary("foundry").unwrap();
 
-        // We can't easily test the full execute function due to path dependencies,
-        // but we can test the response structure building
-        let mock_result = create_installation_result(
-            true,
-            "/test/config/path".to_string(),
-            vec!["Mock action".to_string()],
-        );
+            let _args = InstallArgs {
+                target: "cursor".to_string(),
+                binary_path: Some(binary_path.to_string_lossy().to_string()),
+                json: false,
+            };
 
-        assert!(mock_result.success);
-        assert_eq!(mock_result.config_path, "/test/config/path");
-        assert_eq!(mock_result.actions_taken.len(), 1);
+            // We can't easily test the full execute function due to path dependencies,
+            // but we can test the response structure building
+            let mock_result = create_installation_result(
+                true,
+                "/test/config/path".to_string(),
+                vec!["Mock action".to_string()],
+            );
+
+            assert!(mock_result.success);
+            assert_eq!(mock_result.config_path, "/test/config/path");
+            assert_eq!(mock_result.actions_taken.len(), 1);
+        });
     }
 
     #[test]
