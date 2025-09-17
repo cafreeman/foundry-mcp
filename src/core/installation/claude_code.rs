@@ -11,6 +11,7 @@ use crate::types::responses::EnvironmentStatus;
 use anyhow::{Context, Result};
 use std::fs;
 use tokio::process::Command;
+use tracing::warn;
 use which::which;
 
 /// Execute a claude command through the user's shell
@@ -52,7 +53,7 @@ async fn execute_claude_command(args: &[&str]) -> Result<std::process::Output> {
             return Ok(output);
         }
         Err(e) => {
-            eprintln!("Shell execution error: {}", e);
+            warn!("Shell execution error: {}", e);
         }
     }
 

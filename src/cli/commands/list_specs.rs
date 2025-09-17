@@ -108,89 +108,71 @@ mod tests {
     use super::*;
     use crate::test_utils::TestEnvironment;
     use crate::types::responses::ValidationStatus;
-    use crate::types::spec::{SpecConfig, SpecContentData};
 
-    #[tokio::test]
-    async fn test_execute_with_existing_project() {
-        let _env = TestEnvironment::new().unwrap();
+    #[test]
+    fn test_execute_with_existing_project() {
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test_list_specs_project";
 
-        // Create project first
-        let project_config = crate::types::project::ProjectConfig {
-            name: project_name.to_string(),
-            vision: "Test vision content".to_string(),
-            tech_stack: "Test tech stack".to_string(),
-            summary: "Test summary".to_string(),
-        };
-        crate::core::project::create_project(project_config).unwrap();
+        env.with_env_async(|| async {
+            env.create_test_project(project_name).await.unwrap();
+            env.create_test_spec(project_name, "test_feature", "Test specification")
+                .await
+                .unwrap();
 
-        // Create a test spec
-        let spec_config = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "test_feature".to_string(),
-            content: SpecContentData {
-                spec: "Test specification".to_string(),
-                notes: "Test notes".to_string(),
-                tasks: "- Test task".to_string(),
-            },
-        };
-        crate::core::spec::create_spec(spec_config).unwrap();
+            // Test list_specs command
+            let args = ListSpecsArgs {
+                project_name: project_name.to_string(),
+            };
 
-        // Test list_specs command
-        let args = ListSpecsArgs {
-            project_name: project_name.to_string(),
-        };
-
-        let result = execute(args).await.unwrap();
-        assert_eq!(result.data.project_name, project_name);
-        assert_eq!(result.data.total_count, 1);
-        assert_eq!(result.data.specs.len(), 1);
-        assert_eq!(result.data.specs[0].feature_name, "test_feature");
-        assert_eq!(result.validation_status, ValidationStatus::Complete);
+            let result = execute(args).await.unwrap();
+            assert_eq!(result.data.project_name, project_name);
+            assert_eq!(result.data.total_count, 1);
+            assert_eq!(result.data.specs.len(), 1);
+            assert_eq!(result.data.specs[0].feature_name, "test_feature");
+            assert_eq!(result.validation_status, ValidationStatus::Complete);
+        });
     }
 
-    #[tokio::test]
-    async fn test_execute_with_empty_project() {
-        let _env = TestEnvironment::new().unwrap();
+    #[test]
+    fn test_execute_with_empty_project() {
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test_empty_project";
 
-        // Create project first
-        let project_config = crate::types::project::ProjectConfig {
-            name: project_name.to_string(),
-            vision: "Test vision content".to_string(),
-            tech_stack: "Test tech stack".to_string(),
-            summary: "Test summary".to_string(),
-        };
-        crate::core::project::create_project(project_config).unwrap();
+        env.with_env_async(|| async {
+            env.create_test_project(project_name).await.unwrap();
 
-        // Test list_specs command
-        let args = ListSpecsArgs {
-            project_name: project_name.to_string(),
-        };
+            // Test list_specs command
+            let args = ListSpecsArgs {
+                project_name: project_name.to_string(),
+            };
 
-        let result = execute(args).await.unwrap();
-        assert_eq!(result.data.project_name, project_name);
-        assert_eq!(result.data.total_count, 0);
-        assert_eq!(result.data.specs.len(), 0);
-        assert_eq!(result.validation_status, ValidationStatus::Incomplete);
+            let result = execute(args).await.unwrap();
+            assert_eq!(result.data.project_name, project_name);
+            assert_eq!(result.data.total_count, 0);
+            assert_eq!(result.data.specs.len(), 0);
+            assert_eq!(result.validation_status, ValidationStatus::Incomplete);
+        });
     }
 
-    #[tokio::test]
-    async fn test_execute_with_nonexistent_project() {
-        let _env = TestEnvironment::new().unwrap();
+    #[test]
+    fn test_execute_with_nonexistent_project() {
+        let env = TestEnvironment::new().unwrap();
         let project_name = "nonexistent_project";
 
-        let args = ListSpecsArgs {
-            project_name: project_name.to_string(),
-        };
+        env.with_env_async(|| async {
+            let args = ListSpecsArgs {
+                project_name: project_name.to_string(),
+            };
 
-        let result = execute(args).await;
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("Project 'nonexistent_project' not found")
-        );
+            let result = execute(args).await;
+            assert!(result.is_err());
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Project 'nonexistent_project' not found")
+            );
+        });
     }
 }

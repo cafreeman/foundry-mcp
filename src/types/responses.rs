@@ -8,11 +8,13 @@ use serde::{Deserialize, Serialize};
 pub struct FoundryResponse<T> {
     /// Command-specific data payload
     pub data: T,
-    /// Suggested next actions for LLM consumption
-    pub next_steps: Vec<String>,
     /// Validation status of the operation
     pub validation_status: ValidationStatus,
-    /// Optional workflow guidance hints
+    /// Suggested next actions for LLM consumption (only included when relevant)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub next_steps: Vec<String>,
+    /// Optional workflow guidance hints (only included when relevant)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub workflow_hints: Vec<String>,
 }
 
@@ -34,6 +36,8 @@ pub struct CreateProjectResponse {
     pub project_name: String,
     pub created_at: String,
     pub project_path: String,
+    /// List of files created (only included if files were created)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files_created: Vec<String>,
 }
 
@@ -71,8 +75,10 @@ pub struct ProjectContext {
     pub vision: String,
     pub tech_stack: String,
     pub summary: String,
-    pub specs_available: Vec<String>,
     pub created_at: String,
+    /// List of available specs (only included if specs exist)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub specs_available: Vec<String>,
 }
 
 /// Response for create_spec command
@@ -82,6 +88,8 @@ pub struct CreateSpecResponse {
     pub spec_name: String,
     pub created_at: String,
     pub spec_path: String,
+    /// List of files created (only included if files were created)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files_created: Vec<String>,
 }
 
@@ -207,6 +215,8 @@ pub struct DeleteSpecResponse {
     pub project_name: String,
     pub spec_name: String,
     pub spec_path: String,
+    /// List of files deleted (only included if files were deleted)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files_deleted: Vec<String>,
 }
 
@@ -217,6 +227,8 @@ pub struct InstallResponse {
     pub binary_path: String,
     pub config_path: String,
     pub installation_status: InstallationStatus,
+    /// List of actions taken during installation (only included if actions were taken)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub actions_taken: Vec<String>,
 }
 
@@ -226,7 +238,11 @@ pub struct UninstallResponse {
     pub target: String,
     pub config_path: String,
     pub uninstallation_status: InstallationStatus,
+    /// List of actions taken during uninstallation (only included if actions were taken)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub actions_taken: Vec<String>,
+    /// List of files removed during uninstallation (only included if files were removed)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub files_removed: Vec<String>,
 }
 
@@ -261,5 +277,7 @@ pub struct EnvironmentStatus {
     pub binary_accessible: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config_content: Option<String>,
+    /// List of issues found (only included if there are issues)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub issues: Vec<String>,
 }

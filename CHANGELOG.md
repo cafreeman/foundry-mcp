@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - BREAKING: Remove context-based patching across CLI/MCP and replace with deterministic edit_commands
+
   - Removed `src/core/context_patch.rs` and all related types and dependencies (including rapidfuzz)
   - `update_spec` now supports only `operation: "edit_commands"` with commands array
   - New types in `src/types/edit_commands.rs` and `EditCommandsResponsePayload`
@@ -18,6 +19,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated templates (`claude_subagent.rs`, `cursor_rules.rs`) to show edit_commands usage
   - Updated CLI args and tool schemas to remove replace/append/context_patch pathways
   - Migration guidance: use set_task_status, upsert_task, append_to_section with task_text/section selectors
+
+- **Performance & Standards Alignment**: Comprehensive codebase modernization
+  - **Fuzzy Matching Optimization**: Replaced `rapidfuzz` with lightweight `strsim` for equivalent functionality with reduced dependencies
+  - **Logging Standardization**: Replaced `eprintln!` in core modules with `tracing::{warn, error}` for consistent logging
+  - **Timestamp Consistency**: Unified all `created_at` fields to RFC3339 format across project/spec listings
+  - **Functional Programming**: Refactored edit_engine and other hotspots to use iterator-based patterns over manual loops
+  - **Error Handling**: Removed unwrap/expect from non-test code, ensuring proper error propagation
+  - **Response Minimization**: Added `#[serde(skip_serializing_if)]` attributes to optional fields across all response structs
+  - **Test Modernization**: Migrated all tests to use `TestEnvironment` + `temp-env` pattern, removing `#[tokio::test]`
+
+### Added
+
+- **Comprehensive Test Coverage**: Added tests for fuzzy matching thresholds, RFC3339 timestamp validation, and logging hygiene
+- **Edge Case Validation**: Tests for fuzzy matching with empty strings, case sensitivity, and boundary conditions
 
 ## [0.4.0] - 2025-09-08
 

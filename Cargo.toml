@@ -47,6 +47,7 @@ rust-mcp-sdk = "0.6.0"
 rust-mcp-transport = "0.5.0"
 serde = "1.0.219"
 serde_json = "1.0.142"
+strsim = "0.11"
 thiserror = "2.0"
 tokio = { version = "1.47.1", features = ["sync"] }
 

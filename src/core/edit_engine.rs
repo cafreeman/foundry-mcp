@@ -78,7 +78,7 @@ impl EditEngine {
                         }) => {
                             tasks_content = content;
                             update_counts(
-                                &mut file_updates,
+                                file_updates.as_mut_slice(),
                                 EditCommandTarget::Tasks,
                                 applied,
                                 skipped,
@@ -111,7 +111,7 @@ impl EditEngine {
                         }) => {
                             tasks_content = content;
                             update_counts(
-                                &mut file_updates,
+                                file_updates.as_mut_slice(),
                                 EditCommandTarget::Tasks,
                                 applied,
                                 skipped,
@@ -163,7 +163,7 @@ impl EditEngine {
                             } else {
                                 EditCommandTarget::Notes
                             };
-                            update_counts(&mut file_updates, target, applied, skipped);
+                            update_counts(file_updates.as_mut_slice(), target, applied, skipped);
                             applied_total += applied;
                             skipped_total += skipped;
                         }
@@ -254,10 +254,10 @@ fn read_file_or_empty(path: &std::path::Path) -> Result<String> {
 }
 
 fn is_modified(path: &std::path::Path, new_content: &str) -> Result<bool> {
-    match filesystem::read_file(path) {
-        Ok(existing) => Ok(existing != new_content),
-        Err(_) => Ok(!new_content.is_empty()),
-    }
+    filesystem::read_file(path).map_or_else(
+        |_| Ok(!new_content.is_empty()),
+        |existing| Ok(existing != new_content),
+    )
 }
 
 fn normalize_task_text(line: &str) -> String {
@@ -265,13 +265,14 @@ fn normalize_task_text(line: &str) -> String {
     let text = text
         .strip_prefix("- [ ] ")
         .or_else(|| text.strip_prefix("- [x] "))
-        .unwrap_or(text);
-    let mut s = text.trim().to_string();
-    s = s.split_whitespace().collect::<Vec<_>>().join(" ");
-    if s.ends_with('.') {
-        let _ = s.pop();
-    }
-    s
+        .unwrap_or(text)
+        .trim();
+
+    let normalized = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    normalized
+        .strip_suffix('.')
+        .unwrap_or(&normalized)
+        .to_string()
 }
 
 fn set_task_status(
@@ -285,14 +286,17 @@ fn set_task_status(
     };
     let wanted_norm = normalize_task_text(task_text);
     let mut lines: Vec<String> = current.lines().map(|l| l.to_string()).collect();
-    let mut match_indices: Vec<usize> = Vec::new();
-    for (i, line) in lines.iter().enumerate() {
-        if line.trim_start().starts_with("- [") {
-            if normalize_task_text(line) == wanted_norm {
-                match_indices.push(i);
+    let match_indices: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter_map(|(i, line)| {
+            if line.trim_start().starts_with("- [") && normalize_task_text(line) == wanted_norm {
+                Some(i)
+            } else {
+                None
             }
-        }
-    }
+        })
+        .collect();
     if match_indices.is_empty() {
         return Err(EditAmbiguity {
             candidates: task_candidates(current),
@@ -327,13 +331,10 @@ fn upsert_task(
     new_task_line: &str,
 ) -> Result<EditOutcome, EditAmbiguity> {
     let wanted_norm = normalize_task_text(task_text);
-    let lines: Vec<String> = current.lines().map(|l| l.to_string()).collect();
-    let mut matches = 0usize;
-    for line in &lines {
-        if normalize_task_text(line) == wanted_norm {
-            matches += 1;
-        }
-    }
+    let matches = current
+        .lines()
+        .filter(|line| normalize_task_text(line) == wanted_norm)
+        .count();
     if matches > 1 {
         return Err(EditAmbiguity {
             candidates: task_candidates(current),
@@ -365,14 +366,17 @@ fn append_to_section(
 ) -> Result<EditOutcome, EditAmbiguity> {
     let wanted = header.trim().to_lowercase();
     let lines: Vec<&str> = current.lines().collect();
-    let mut header_indices: Vec<usize> = Vec::new();
-    for (i, l) in lines.iter().enumerate() {
-        if is_header_line(l) {
-            if l.trim().to_lowercase() == wanted {
-                header_indices.push(i);
+    let header_indices: Vec<usize> = lines
+        .iter()
+        .enumerate()
+        .filter_map(|(i, l)| {
+            if is_header_line(l) && l.trim().to_lowercase() == wanted {
+                Some(i)
+            } else {
+                None
             }
-        }
-    }
+        })
+        .collect();
     if header_indices.is_empty() {
         return Err(EditAmbiguity {
             candidates: header_candidates(current),
@@ -384,13 +388,13 @@ fn append_to_section(
         });
     }
     let start_idx = header_indices[0];
-    let mut end_idx = lines.len();
-    for i in (start_idx + 1)..lines.len() {
-        if is_header_line(lines[i]) {
-            end_idx = i;
-            break;
-        }
-    }
+    let mut end_idx = lines
+        .iter()
+        .enumerate()
+        .skip(start_idx + 1)
+        .find(|(_, line)| is_header_line(line))
+        .map(|(i, _)| i)
+        .unwrap_or(lines.len());
     let section_body = lines[(start_idx + 1)..end_idx].join("\n");
     if section_body.contains(content_to_append) {
         return Ok(EditOutcome {
@@ -445,24 +449,17 @@ fn task_candidates(current: &str) -> Vec<SelectorCandidate> {
 }
 
 fn update_counts(
-    file_updates: &mut Vec<FileUpdateSummary>,
+    file_updates: &mut [FileUpdateSummary],
     target: EditCommandTarget,
     applied: usize,
     skipped: usize,
 ) {
-    match target {
-        EditCommandTarget::Spec => {
-            file_updates[0].applied += applied;
-            file_updates[0].skipped_idempotent += skipped;
-        }
-        EditCommandTarget::Tasks => {
-            file_updates[1].applied += applied;
-            file_updates[1].skipped_idempotent += skipped;
-        }
-        EditCommandTarget::Notes => {
-            file_updates[2].applied += applied;
-            file_updates[2].skipped_idempotent += skipped;
-        }
+    if let Some(update) = file_updates
+        .iter_mut()
+        .find(|update| update.target == target)
+    {
+        update.applied += applied;
+        update.skipped_idempotent += skipped;
     }
 }
 

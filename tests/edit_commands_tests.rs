@@ -1,7 +1,7 @@
 //! Tests for update_spec with operation "edit_commands"
 
 use foundry_mcp::cli::args::UpdateSpecArgs;
-use foundry_mcp::cli::commands::{create_project, create_spec, load_spec, update_spec};
+use foundry_mcp::cli::commands::{create_project, create_spec, update_spec};
 use foundry_mcp::test_utils::TestEnvironment;
 
 fn commands_json(cmds: serde_json::Value) -> String {

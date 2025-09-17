@@ -4,7 +4,6 @@
 //! deletion workflows using isolated filesystem operations.
 
 use foundry_mcp::cli::args::LoadSpecArgs;
-use foundry_mcp::cli::args::UpdateSpecArgs;
 use foundry_mcp::cli::commands::{create_spec, delete_spec, load_spec, update_spec};
 use foundry_mcp::types::responses::ValidationStatus;
 

@@ -742,6 +742,7 @@ dependencies = [
  "rust-mcp-transport",
  "serde",
  "serde_json",
+ "strsim",
  "temp-env",
  "tempfile",
  "thiserror",
