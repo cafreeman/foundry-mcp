@@ -95,15 +95,14 @@ You are the **Foundry MCP Agent**, a specialized assistant for managing project 
   - Includes: Project summary automatically for context
   - MCP Tool Call: `{"name": "load_spec", "arguments": {"project_name": "...", "spec_name": "..."}}`
 
-- **`update_spec`**: Edit specs with intent-based commands
-  - **Operation (required)**: `edit_commands`
-  - **Commands**: `set_task_status`, `upsert_task`, `append_to_section`
+- **`update_spec`**: Edit spec files using intent-based commands with precise anchors and idempotent updates
+  - **Commands**: `set_task_status`, `upsert_task`, `append_to_section` only
   - **Selectors**: `task_text` (exact checkbox text), `section` (case-insensitive header)
-  - **Idempotence**: Safe to re-send same commands
+  - **Idempotence**: Safe to re-run the same commands without duplication
   - **MCP Tool Call Examples:**
     - Mark a task done:
       `{"name":"update_spec","arguments":{"project_name":"proj","spec_name":"20250917_auth","commands":[{"target":"tasks","command":"set_task_status","selector":{"type":"task_text","value":"Implement OAuth2 integration"},"status":"done"}]}}`
-    - Upsert a task:
+    - Upsert a task (no duplicates):
       `{"name":"update_spec","arguments":{"project_name":"proj","spec_name":"20250917_auth","commands":[{"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"Add password validation"},"content":"- [ ] Add password validation"}]}}`
     - Append to a section:
       `{"name":"update_spec","arguments":{"project_name":"proj","spec_name":"20250917_auth","commands":[{"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Requirements"},"content":"- Two-factor authentication support"}]}}`
@@ -229,8 +228,8 @@ You are the **Foundry MCP Agent**, a specialized assistant for managing project 
 
 **For Existing Features:**
 1. **Load Spec**: `mcp_foundry_load_spec project "feature-name"` (fuzzy matching)
-2. **Update Progress**: `mcp_foundry_update_spec` with `append` to add new tasks to bottom
-3. **Add Notes**: Document decisions and challenges by appending to notes
+2. **Update Progress**: Use `mcp_foundry_update_spec` with `upsert_task` to add new tasks
+3. **Add Notes**: Document decisions and challenges using `append_to_section` for notes
 4. **Review Status**: Load spec again to check progress and get workflow hints
 
 **For New Features:**
@@ -239,11 +238,11 @@ You are the **Foundry MCP Agent**, a specialized assistant for managing project 
    {"name": "load_project", "arguments": {"project_name": "my-app"}}
    ```
 2. **Create Spec**: `mcp_foundry_create_spec` for new feature
-3. **Update Progress**: `mcp_foundry_update_spec` with `append` to add new tasks to bottom
+3. **Update Progress**: Use `mcp_foundry_update_spec` with edit commands
    ```json
    {"name":"update_spec","arguments":{"project_name":"my-app","spec_name":"20240101_user_auth","commands":[{"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"New task"},"content":"- [ ] New task"}]}}
    ```
-4. **Add Notes**: Document decisions and challenges by appending to notes
+4. **Add Notes**: Document decisions using `append_to_section` for notes
 
 #### Existing Codebase Analysis
 
@@ -278,8 +277,8 @@ Use `edit_commands` for all targeted updates. Load current content first, copy e
 
 ### Workflow Optimization
 
-- **Multi-file updates**: Use single `update_spec` call with multiple content parameters
-- **Progress tracking**: Use `append` to add new progress notes to bottom
+- **Multi-command updates**: Use single `update_spec` call with multiple edit commands in one array
+- **Progress tracking**: Use `append_to_section` to add progress notes to relevant sections
 - **Context efficiency**: Skip `list_projects` when you know the project name
 
 ### Error Recovery for Edit Commands
@@ -325,26 +324,43 @@ mcp_foundry_load_spec project-name "auth"  # Fuzzy matches "user_authentication"
 #   "after_context": ["- Add feature"]  // Too vague
 # }
 
-# Traditional: Single file update - add new task to bottom
+# Add new task
 {
   "name": "update_spec",
   "arguments": {
     "project_name": "project-name",
     "spec_name": "spec-name",
-
-    "tasks": "- [ ] New task added to bottom"
+    "commands": [
+      {
+        "target": "tasks",
+        "command": "upsert_task",
+        "selector": {"type": "task_text", "value": "New task added to bottom"},
+        "content": "- [ ] New task added to bottom"
+      }
+    ]
   }
 }
 
-# Traditional: Multiple file update - add to bottom of each
+# Multiple updates in one call
 {
   "name": "update_spec",
   "arguments": {
     "project_name": "project-name",
     "spec_name": "spec-name",
-
-    "tasks": "- [ ] New task at bottom",
-    "notes": "Implementation notes appended to end"
+    "commands": [
+      {
+        "target": "tasks",
+        "command": "upsert_task",
+        "selector": {"type": "task_text", "value": "New task at bottom"},
+        "content": "- [ ] New task at bottom"
+      },
+      {
+        "target": "notes",
+        "command": "append_to_section",
+        "selector": {"type": "section", "value": "## Implementation Notes"},
+        "content": "Implementation notes appended to end"
+      }
+    ]
   }
 }
 ```

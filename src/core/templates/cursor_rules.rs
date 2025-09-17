@@ -110,11 +110,10 @@ Each spec contains:
   - Includes: Project summary automatically for context
   - MCP Tool Call: `{"name": "load_spec", "arguments": {"project_name": "...", "spec_name": "..."}}`
 
-- **`update_spec`**: Edit specs with intent-based commands
+- **`update_spec`**: Edit spec files using intent-based commands with precise anchors and idempotent updates
 
   - **File Targets**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
-  - **Operation**: `edit_commands` (required)
-  - **Commands**: `set_task_status`, `upsert_task`, `append_to_section`
+  - **Commands**: `set_task_status`, `upsert_task`, `append_to_section` only
   - **Selectors**: `task_text` (exact checkbox text), `section` (case-insensitive header)
   - **Usage**:
 
@@ -383,12 +382,11 @@ mcp_foundry_load_project project-name  # Full vision + tech-stack + all specs
 // Append to a section in spec.md
 {"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Requirements"},"content":"- Two-factor authentication support"}]}}
 
-// OPTION 2: Traditional append for adding to end of files
-// Add new tasks to the bottom of task list (append only adds to end)
+// Add new tasks (upsert prevents duplicates)
 {"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"New task added to bottom"},"content":"- [ ] New task added to bottom"}]}}
 
-// Add implementation notes to the bottom (append only adds to end)
-{"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"notes","command":"append_to_section","selector":{"type":"section","value":"## New Implementation Notes"},"content":"Additional notes added to bottom of file."}]}}
+// Add implementation notes to specific section
+{"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"notes","command":"append_to_section","selector":{"type":"section","value":"## Implementation Notes"},"content":"Additional notes appended to this section."}]}}
 ```
 
 ### 3. Follow Next Steps Guidance
@@ -424,8 +422,8 @@ mcp_foundry_load_project project-name  # Full vision + tech-stack + all specs
 
 #### For Existing Features:
 1. **Load Spec**: `mcp_foundry_load_spec my-app "payment"` (fuzzy matching)
-2. **Update Progress**: Use `mcp_foundry_update_spec` with `append` to add new tasks to bottom
-3. **Add Notes**: Document implementation decisions by appending to notes
+2. **Update Progress**: Use `mcp_foundry_update_spec` with `upsert_task` to add new tasks
+3. **Add Notes**: Document implementation decisions using `append_to_section` for notes
 4. **Review Status**: Load spec again to check progress and get workflow guidance
 
 #### For New Features:
@@ -437,8 +435,8 @@ mcp_foundry_load_project project-name  # Full vision + tech-stack + all specs
    ```json
    {"name": "create_spec", "arguments": {"project_name": "my-app", "feature_name": "payment-integration", "spec": "...", "tasks": "...", "notes": "..."}}
    ```
-3. **Update Progress**: Use `mcp_foundry_update_spec` with `append` to add new tasks to bottom
-4. **Add Notes**: Document implementation decisions by appending to notes
+3. **Update Progress**: Use `mcp_foundry_update_spec` with edit commands to add new tasks
+4. **Add Notes**: Document implementation decisions using `append_to_section` for notes
 
 ### Existing Codebase Analysis
 
@@ -520,7 +518,7 @@ mcp_foundry_create_spec my-project user-auth
 {"name": "load_spec", "arguments": {"project_name": "my-project", "spec_name": "20240101_user_auth"}}  // Only if you need current state
 {"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"tasks","command":"set_task_status","selector":{"type":"task_text","value":"Implement OAuth2 integration"},"status":"done"}]}}
 
-// Traditional: Add new tasks to bottom of task list (append only adds to end)
+// Add new tasks (upsert prevents duplicates)
 {"name":"update_spec","arguments":{"project_name":"my-project","spec_name":"20240101_user_auth","commands":[{"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"New task at bottom"},"content":"- [ ] New task at bottom"}]}}
 
 // Get help (including edit-commands guidance)

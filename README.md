@@ -78,7 +78,7 @@ Foundry provides 9 MCP tools that enable comprehensive project management for AI
 
 - **`create_spec`**: Create timestamped specification with task breakdown
 - **`load_spec`**: Load specification content with project context
-- **`update_spec`**: Edit spec files with deterministic edit commands (operation: `edit_commands`)
+- **`update_spec`**: Edit spec files using intent-based edit commands with precise anchors and idempotent updates
 - **`delete_spec`**: Delete existing specification and all its files
 
 ### Content & Workflow
@@ -133,10 +133,10 @@ Day 5: "Let's work on authentication"
 
 ### ✏️ **Deterministic Edit Commands**
 
-- **Precise updates**: Set task status, upsert tasks, append to sections reliably
-- **Idempotent**: Safe to re-run the same commands without duplication
-- **Simple selectors**: Use exact task text or section headers (case-insensitive)
-- **Actionable errors**: Candidate selector suggestions on ambiguity
+- **Intent-based commands**: `set_task_status`, `upsert_task`, `append_to_section` only
+- **Precise selectors**: `task_text` (exact checkbox text) and `section` (case-insensitive headers)
+- **Idempotent updates**: Safe to re-run commands without duplication or side effects
+- **Smart error recovery**: Candidate selector suggestions with exact match requirements
 
 ### 🤝 **Collaborative User Experience**
 
@@ -155,7 +155,7 @@ Once installed, AI assistants have access to these tools:
 - **`list_projects`** - List all available projects with metadata
 - **`create_spec`** - Create timestamped specification with task breakdown
 - **`load_spec`** - Load specification content with project context
-- **`update_spec`** - Edit spec files with `operation: "edit_commands"` and commands array
+- **`update_spec`** - Edit spec files using intent-based commands: `set_task_status`, `upsert_task`, `append_to_section`
 - **`delete_spec`** - Delete existing specification and all its files
 - **`validate_content`** - Validate content against schema requirements
 - **`get_foundry_help`** - Get workflow guidance and examples
