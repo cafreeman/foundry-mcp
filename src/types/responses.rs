@@ -238,11 +238,9 @@ pub struct UninstallResponse {
     pub target: String,
     pub config_path: String,
     pub uninstallation_status: InstallationStatus,
-    /// List of actions taken during uninstallation (only included if actions were taken)
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// List of actions taken during uninstallation
     pub actions_taken: Vec<String>,
-    /// List of files removed during uninstallation (only included if files were removed)
-    #[serde(skip_serializing_if = "Vec::is_empty")]
+    /// List of files removed during uninstallation
     pub files_removed: Vec<String>,
 }
 

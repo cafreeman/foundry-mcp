@@ -131,25 +131,43 @@ impl TestEnvironment {
                 "selector": {"type": "section", "value": "## Requirements"},
                 "content": content
             }),
-            "task-list" | "tasks" => serde_json::json!({
-                "target": "tasks",
-                "command": "upsert_task",
-                "selector": {"type": "task_text", "value": "Test task"},
-                "content": "- [ ] Test task"
-            }),
+            "task-list" | "tasks" => {
+                if spec_name.contains("lifecycle_feature") || spec_name.contains("lifecycle") {
+                    serde_json::json!([{
+                        "target": "tasks",
+                        "command": "upsert_task",
+                        "selector": {"type": "task_text", "value": "Initial setup complete"},
+                        "content": "- [x] Initial setup complete"
+                    }])
+                } else {
+                    serde_json::json!([{
+                        "target": "tasks",
+                        "command": "upsert_task",
+                        "selector": {"type": "task_text", "value": "Test task"},
+                        "content": "- [ ] Test task"
+                    }])
+                }
+            }
             "notes" => serde_json::json!({
                 "target": "notes",
                 "command": "append_to_section",
-                "selector": {"type": "section", "value": "## Notes"},
+                "selector": {"type": "section", "value": "## Security Considerations"},
                 "content": content
             }),
             _ => panic!("Invalid file_type: {}", file_type),
         };
 
+        // If tasks, we already created an array of commands; otherwise wrap single command in an array
+        let commands_json = if file_type == "task-list" || file_type == "tasks" {
+            command
+        } else {
+            serde_json::json!([command])
+        };
+
         UpdateSpecArgs {
             project_name: project_name.to_string(),
             spec_name: spec_name.to_string(),
-            commands: serde_json::to_string(&vec![command]).unwrap(),
+            commands: serde_json::to_string(&commands_json).unwrap(),
         }
     }
 

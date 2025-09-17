@@ -139,7 +139,7 @@ mod tests {
 
         env.with_env_async(|| async {
             // Create a test project
-            env.create_test_project("test_rfc3339_timestamps")
+            env.create_test_project("test-rfc3339-timestamps")
                 .await
                 .unwrap();
 
@@ -148,7 +148,7 @@ mod tests {
             assert_eq!(projects.len(), 1);
 
             let project = &projects[0];
-            assert_eq!(project.name, "test_rfc3339_timestamps");
+            assert_eq!(project.name, "test-rfc3339-timestamps");
 
             // Verify RFC3339 format (should contain timezone offset or 'Z')
             assert!(project.created_at.contains('+') || project.created_at.contains('Z'));
@@ -168,7 +168,7 @@ mod tests {
     #[test]
     fn test_load_project_rfc3339_timestamps() {
         let env = TestEnvironment::new().unwrap();
-        let project_name = "test_load_rfc3339";
+        let project_name = "test-load-rfc3339";
 
         env.with_env_async(|| async {
             // Create a test project

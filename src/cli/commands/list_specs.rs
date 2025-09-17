@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn test_execute_with_existing_project() {
         let env = TestEnvironment::new().unwrap();
-        let project_name = "test_list_specs_project";
+        let project_name = "test-list-specs-project";
 
         env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
@@ -137,7 +137,7 @@ mod tests {
     #[test]
     fn test_execute_with_empty_project() {
         let env = TestEnvironment::new().unwrap();
-        let project_name = "test_empty_project";
+        let project_name = "test-empty-project";
 
         env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
@@ -158,7 +158,7 @@ mod tests {
     #[test]
     fn test_execute_with_nonexistent_project() {
         let env = TestEnvironment::new().unwrap();
-        let project_name = "nonexistent_project";
+        let project_name = "nonexistent-project";
 
         env.with_env_async(|| async {
             let args = ListSpecsArgs {
@@ -171,7 +171,7 @@ mod tests {
                 result
                     .unwrap_err()
                     .to_string()
-                    .contains("Project 'nonexistent_project' not found")
+                    .contains("Project 'nonexistent-project' not found")
             );
         });
     }

@@ -658,10 +658,7 @@ pub fn get_notes_file_path(project_name: &str, spec_name: &str) -> Result<PathBu
 mod tests {
     use super::*;
     use crate::types::spec::{SpecConfig, SpecFileType, SpecFilter};
-    use std::fs;
     use std::sync::Mutex;
-    use temp_env;
-    use tempfile::TempDir;
 
     // Use a mutex to serialize tests that modify global environment
     static TEST_MUTEX: Mutex<()> = Mutex::new(());
@@ -674,222 +671,202 @@ mod tests {
         })
     }
 
-    fn setup_test_environment() -> (TempDir, String) {
-        let temp_dir = TempDir::new().unwrap();
-        let project_name = format!(
-            "test_project_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        );
-
-        // Create foundry directory structure in temp
-        let foundry_path = temp_dir.path().join(".foundry");
-        fs::create_dir_all(&foundry_path).unwrap();
-
-        // Create project structure
-        let project_path = foundry_path.join(&project_name);
-        fs::create_dir_all(&project_path).unwrap();
-        fs::create_dir_all(project_path.join("specs")).unwrap();
-
-        (temp_dir, project_name)
-    }
+    // removed legacy setup_test_environment in favor of TestEnvironment
 
     #[test]
     fn test_spec_filtering() {
+        use crate::test_utils::TestEnvironment;
         let _lock = acquire_test_lock();
-        let (temp_dir, project_name) = setup_test_environment();
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test-spec-filtering";
 
-        temp_env::with_var("HOME", Some(temp_dir.path()), || {
-            // Create a few test specs
-            let spec_configs = vec![
-                SpecConfig {
-                    project_name: project_name.clone(),
-                    feature_name: "user_auth".to_string(),
-                    content: SpecContentData {
-                        spec: "User authentication specification".to_string(),
-                        notes: "Authentication notes".to_string(),
-                        tasks: "- Implement login\n- Implement logout".to_string(),
-                    },
+        // Create a few test specs
+        let spec_configs = vec![
+            SpecConfig {
+                project_name: project_name.to_string(),
+                feature_name: "user_auth".to_string(),
+                content: SpecContentData {
+                    spec: "User authentication specification".to_string(),
+                    notes: "Authentication notes".to_string(),
+                    tasks: "- Implement login\n- Implement logout".to_string(),
                 },
-                SpecConfig {
-                    project_name: project_name.clone(),
-                    feature_name: "user_profile".to_string(),
-                    content: SpecContentData {
-                        spec: "User profile management".to_string(),
-                        notes: "Profile notes".to_string(),
-                        tasks: "- Profile CRUD\n- Avatar upload".to_string(),
-                    },
+            },
+            SpecConfig {
+                project_name: project_name.to_string(),
+                feature_name: "user_profile".to_string(),
+                content: SpecContentData {
+                    spec: "User profile management".to_string(),
+                    notes: "Profile notes".to_string(),
+                    tasks: "- Profile CRUD\n- Avatar upload".to_string(),
                 },
-            ];
+            },
+        ];
 
-            for config in spec_configs {
-                create_spec(config).unwrap();
-            }
+        for config in spec_configs {
+            create_spec(config).unwrap();
+        }
 
-            // Test filtering by feature name
-            let filter = SpecFilter {
-                feature_name_contains: Some("user".to_string()),
-                ..Default::default()
-            };
+        // Test filtering by feature name
+        let filter = SpecFilter {
+            feature_name_contains: Some("user".to_string()),
+            ..Default::default()
+        };
 
-            let filtered_specs = list_specs_filtered(&project_name, filter).unwrap();
-            assert_eq!(filtered_specs.len(), 2);
+        let filtered_specs = list_specs_filtered(project_name, filter).unwrap();
+        assert_eq!(filtered_specs.len(), 2);
 
-            // Test filtering with limit
-            let filter = SpecFilter {
-                limit: Some(1),
-                ..Default::default()
-            };
+        // Test filtering with limit
+        let filter = SpecFilter {
+            limit: Some(1),
+            ..Default::default()
+        };
 
-            let limited_specs = list_specs_filtered(&project_name, filter).unwrap();
-            assert_eq!(limited_specs.len(), 1);
-        });
+        let limited_specs = list_specs_filtered(project_name, filter).unwrap();
+        assert_eq!(limited_specs.len(), 1);
     }
 
     #[test]
     fn test_spec_existence_and_counting() {
+        use crate::test_utils::TestEnvironment;
         let _lock = acquire_test_lock();
-        let (temp_dir, project_name) = setup_test_environment();
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test-spec-existence";
 
-        temp_env::with_var("HOME", Some(temp_dir.path()), || {
-            // Test empty project
-            assert_eq!(count_specs(&project_name).unwrap(), 0);
-            assert!(!spec_exists(&project_name, "nonexistent_spec").unwrap());
+        // Test empty project
+        assert_eq!(count_specs(project_name).unwrap(), 0);
+        assert!(!spec_exists(project_name, "nonexistent_spec").unwrap());
 
-            // Create a spec
-            let config = SpecConfig {
-                project_name: project_name.clone(),
-                feature_name: "test_feature".to_string(),
-                content: SpecContentData {
-                    spec: "Test specification".to_string(),
-                    notes: "Test notes".to_string(),
-                    tasks: "- Test task".to_string(),
-                },
-            };
+        // Create a spec
+        let config = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "test_feature".to_string(),
+            content: SpecContentData {
+                spec: "Test specification".to_string(),
+                notes: "Test notes".to_string(),
+                tasks: "- Test task".to_string(),
+            },
+        };
 
-            let created_spec = create_spec(config).unwrap();
+        let created_spec = create_spec(config).unwrap();
 
-            // Test counting and existence
-            assert_eq!(count_specs(&project_name).unwrap(), 1);
-            assert!(spec_exists(&project_name, &created_spec.name).unwrap());
-        });
+        // Test counting and existence
+        assert_eq!(count_specs(project_name).unwrap(), 1);
+        assert!(spec_exists(project_name, &created_spec.name).unwrap());
     }
 
     #[test]
     fn test_spec_content_updates() {
+        use crate::test_utils::TestEnvironment;
         let _lock = acquire_test_lock();
-        let (temp_dir, project_name) = setup_test_environment();
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test-spec-content-updates";
 
-        temp_env::with_var("HOME", Some(temp_dir.path()), || {
-            // Create a spec
-            let config = SpecConfig {
-                project_name: project_name.clone(),
-                feature_name: "updatable_spec".to_string(),
-                content: SpecContentData {
-                    spec: "Original specification".to_string(),
-                    notes: "Original notes".to_string(),
-                    tasks: "- Original task".to_string(),
-                },
-            };
+        // Create a spec
+        let config = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "updatable_spec".to_string(),
+            content: SpecContentData {
+                spec: "Original specification".to_string(),
+                notes: "Original notes".to_string(),
+                tasks: "- Original task".to_string(),
+            },
+        };
 
-            let created_spec = create_spec(config).unwrap();
+        let created_spec = create_spec(config).unwrap();
 
-            // Update task list
-            let new_tasks = "- Updated task\n- New task\n- [ ] Completed task";
-            update_spec_content(
-                &project_name,
-                &created_spec.name,
-                SpecFileType::TaskList,
-                new_tasks,
-            )
-            .unwrap();
+        // Update task list
+        let new_tasks = "- Updated task\n- New task\n- [ ] Completed task";
+        update_spec_content(
+            project_name,
+            &created_spec.name,
+            SpecFileType::TaskList,
+            new_tasks,
+        )
+        .unwrap();
 
-            // Verify update
-            let loaded_spec = load_spec(&project_name, &created_spec.name).unwrap();
-            assert_eq!(loaded_spec.content.tasks, new_tasks);
-            assert_eq!(loaded_spec.content.spec, "Original specification");
-        });
+        // Verify update
+        let loaded_spec = load_spec(project_name, &created_spec.name).unwrap();
+        assert_eq!(loaded_spec.content.tasks, new_tasks);
+        assert_eq!(loaded_spec.content.spec, "Original specification");
     }
 
     #[test]
     fn test_spec_validation() {
+        use crate::test_utils::TestEnvironment;
         let _lock = acquire_test_lock();
-        let (temp_dir, project_name) = setup_test_environment();
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test-spec-validation";
 
-        temp_env::with_var("HOME", Some(temp_dir.path()), || {
-            // Create a spec
-            let config = SpecConfig {
-                project_name: project_name.clone(),
-                feature_name: "validation_test".to_string(),
-                content: SpecContentData {
-                    spec: "Valid specification content".to_string(),
-                    notes: "Valid notes".to_string(),
-                    tasks: "- Valid task".to_string(),
-                },
-            };
+        // Create a spec
+        let config = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "validation_test".to_string(),
+            content: SpecContentData {
+                spec: "Valid specification content".to_string(),
+                notes: "Valid notes".to_string(),
+                tasks: "- Valid task".to_string(),
+            },
+        };
 
-            let created_spec = create_spec(config).unwrap();
+        let created_spec = create_spec(config).unwrap();
 
-            // Validate the spec
-            let validation_result = validate_spec_files(&project_name, &created_spec.name).unwrap();
+        // Validate the spec
+        let validation_result = validate_spec_files(project_name, &created_spec.name).unwrap();
 
-            assert!(validation_result.is_valid());
-            assert!(validation_result.spec_file_exists);
-            assert!(validation_result.notes_file_exists);
-            assert!(validation_result.task_list_file_exists);
-            assert!(validation_result.content_validation.spec_valid);
-            assert!(validation_result.content_validation.notes_valid);
-            assert!(validation_result.content_validation.task_list_valid);
-            assert!(validation_result.validation_errors.is_empty());
-            assert_eq!(validation_result.summary(), "Spec is valid");
-        });
+        assert!(validation_result.is_valid());
+        assert!(validation_result.spec_file_exists);
+        assert!(validation_result.notes_file_exists);
+        assert!(validation_result.task_list_file_exists);
+        assert!(validation_result.content_validation.spec_valid);
+        assert!(validation_result.content_validation.notes_valid);
+        assert!(validation_result.content_validation.task_list_valid);
+        assert!(validation_result.validation_errors.is_empty());
+        assert_eq!(validation_result.summary(), "Spec is valid");
     }
 
     #[test]
     fn test_latest_spec_retrieval() {
+        use crate::test_utils::TestEnvironment;
         let _lock = acquire_test_lock();
-        let (temp_dir, project_name) = setup_test_environment();
+        let _env = TestEnvironment::new().unwrap();
+        let project_name = "test-latest-spec-retrieval";
 
-        temp_env::with_var("HOME", Some(temp_dir.path()), || {
-            // Initially no specs
-            assert!(get_latest_spec(&project_name).unwrap().is_none());
+        // Initially no specs
+        assert!(get_latest_spec(project_name).unwrap().is_none());
 
-            // Create first spec
-            let config1 = SpecConfig {
-                project_name: project_name.clone(),
-                feature_name: "first_spec".to_string(),
-                content: SpecContentData {
-                    spec: "First specification".to_string(),
-                    notes: "First notes".to_string(),
-                    tasks: "- First task".to_string(),
-                },
-            };
+        // Create first spec
+        let config1 = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "first_spec".to_string(),
+            content: SpecContentData {
+                spec: "First specification".to_string(),
+                notes: "First notes".to_string(),
+                tasks: "- First task".to_string(),
+            },
+        };
 
-            let _spec1 = create_spec(config1).unwrap();
+        let _spec1 = create_spec(config1).unwrap();
 
-            // Delay to ensure different timestamps (need at least 1 second difference)
-            std::thread::sleep(std::time::Duration::from_millis(1100));
+        // Delay to ensure different timestamps (need at least 1 second difference)
+        std::thread::sleep(std::time::Duration::from_millis(1100));
 
-            // Create second spec
-            let config2 = SpecConfig {
-                project_name: project_name.clone(),
-                feature_name: "second_spec".to_string(),
-                content: SpecContentData {
-                    spec: "Second specification".to_string(),
-                    notes: "Second notes".to_string(),
-                    tasks: "- Second task".to_string(),
-                },
-            };
+        // Create second spec
+        let config2 = SpecConfig {
+            project_name: project_name.to_string(),
+            feature_name: "second_spec".to_string(),
+            content: SpecContentData {
+                spec: "Second specification".to_string(),
+                notes: "Second notes".to_string(),
+                tasks: "- Second task".to_string(),
+            },
+        };
 
-            let spec2 = create_spec(config2).unwrap();
+        let spec2 = create_spec(config2).unwrap();
 
-            // Get latest spec (should be the second one)
-            let latest = get_latest_spec(&project_name).unwrap().unwrap();
-            assert_eq!(latest.name, spec2.name);
-            assert_eq!(latest.feature_name, "second_spec");
-        });
+        // Get latest spec (should be the second one)
+        let latest = get_latest_spec(project_name).unwrap().unwrap();
+        assert_eq!(latest.name, spec2.name);
+        assert_eq!(latest.feature_name, "second_spec");
     }
 
     #[test]
@@ -899,7 +876,7 @@ mod tests {
         let _env = TestEnvironment::new().unwrap();
 
         // Use a consistent project name for this test
-        let project_name = "test_directory_management_project";
+        let project_name = "test-directory-management-project";
 
         // Test directory creation
         let specs_dir = ensure_specs_directory(project_name).unwrap();
@@ -934,7 +911,7 @@ mod tests {
     fn test_fuzzy_matching_exact_spec_name() {
         use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
-        let project_name = "test_fuzzy_exact_spec";
+        let project_name = "test-fuzzy-exact-spec";
 
         // Create test specs
         let config1 = SpecConfig {
@@ -971,7 +948,7 @@ mod tests {
     fn test_fuzzy_matching_feature_name() {
         use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
-        let project_name = "test_fuzzy_feature";
+        let project_name = "test-fuzzy-feature";
 
         // Create test specs
         let config1 = SpecConfig {
@@ -1015,7 +992,7 @@ mod tests {
     fn test_fuzzy_matching_no_matches() {
         use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
-        let project_name = "test_fuzzy_no_matches";
+        let project_name = "test-fuzzy-no-matches";
 
         // Create test specs
         let config = SpecConfig {
@@ -1041,7 +1018,7 @@ mod tests {
     fn test_fuzzy_matching_empty_project() {
         use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
-        let project_name = "test_fuzzy_empty";
+        let project_name = "test-fuzzy-empty";
 
         // Test empty project
         let result = find_spec_match(project_name, "anything").unwrap();
@@ -1052,7 +1029,7 @@ mod tests {
     fn test_load_spec_with_fuzzy() {
         use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
-        let project_name = "test_load_fuzzy";
+        let project_name = "test-load-fuzzy";
 
         // Create test spec
         let config = SpecConfig {
@@ -1085,7 +1062,7 @@ mod tests {
     fn test_load_spec_with_fuzzy_no_matches() {
         use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
-        let project_name = "test_load_fuzzy_no_matches";
+        let project_name = "test-load-fuzzy-no-matches";
 
         // Create test spec
         let config = SpecConfig {
@@ -1257,7 +1234,7 @@ mod tests {
     fn test_fuzzy_matching_similarity_thresholds() {
         use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
-        let project_name = "test_similarity_thresholds";
+        let project_name = "test-similarity-thresholds";
 
         env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
@@ -1276,17 +1253,23 @@ mod tests {
 
             // Test exact match (similarity = 1.0)
             let result = find_spec_match(project_name, "user_auth").unwrap();
-            assert_eq!(
-                result,
-                SpecMatchStrategy::FeatureExact("20240917_120000_user_auth".to_string())
-            );
+            match result {
+                SpecMatchStrategy::FeatureExact(spec_name) => {
+                    assert!(spec_name.ends_with("_user_auth"));
+                    assert!(spec_name.starts_with("20")); // Valid year prefix
+                }
+                _ => panic!("Expected FeatureExact match"),
+            }
 
             // Test high similarity match (should match "user_auth" for "user_authentication" query)
             let result = find_spec_match(project_name, "user_authentication").unwrap();
-            assert_eq!(
-                result,
-                SpecMatchStrategy::FeatureExact("20240917_120000_user_authentication".to_string())
-            );
+            match result {
+                SpecMatchStrategy::FeatureExact(spec_name) => {
+                    assert!(spec_name.ends_with("_user_authentication"));
+                    assert!(spec_name.starts_with("20")); // Valid year prefix
+                }
+                _ => panic!("Expected FeatureExact match"),
+            }
 
             // Test fuzzy match with partial similarity
             let result = find_spec_match(project_name, "usr_auth").unwrap();
@@ -1310,7 +1293,7 @@ mod tests {
     fn test_fuzzy_matching_edge_cases() {
         use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
-        let project_name = "test_fuzzy_edge_cases";
+        let project_name = "test-fuzzy-edge-cases";
 
         env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
@@ -1337,10 +1320,13 @@ mod tests {
 
             // Test exact case match
             let result = find_spec_match(project_name, "test_feature").unwrap();
-            assert_eq!(
-                result,
-                SpecMatchStrategy::FeatureExact("20240917_120000_test_feature".to_string())
-            );
+            match result {
+                SpecMatchStrategy::FeatureExact(spec_name) => {
+                    assert!(spec_name.ends_with("_test_feature"));
+                    assert!(spec_name.starts_with("20")); // Valid year prefix
+                }
+                _ => panic!("Expected FeatureExact match"),
+            }
 
             // Test case mismatch (should not find exact match)
             let result = find_spec_match(project_name, "Test_Feature").unwrap();
@@ -1361,7 +1347,7 @@ mod tests {
         use crate::test_utils::TestEnvironment;
 
         let env = TestEnvironment::new().unwrap();
-        let project_name = "test_logging_hygiene";
+        let project_name = "test-logging-hygiene";
 
         env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
