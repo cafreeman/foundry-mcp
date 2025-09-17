@@ -1052,10 +1052,7 @@ mod tests {
         let (loaded_spec, match_strategy) =
             load_spec_with_fuzzy(project_name, &created_spec.name).unwrap();
         assert_eq!(loaded_spec.name, created_spec.name);
-        assert_eq!(
-            match_strategy,
-            SpecMatchStrategy::Exact(created_spec.name)
-        );
+        assert_eq!(match_strategy, SpecMatchStrategy::Exact(created_spec.name));
     }
 
     #[test]
