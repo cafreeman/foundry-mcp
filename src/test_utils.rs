@@ -99,8 +99,8 @@ impl TestEnvironment {
         CreateSpecArgs {
             project_name: project_name.to_string(),
             feature_name: feature_name.to_string(),
-            spec: "This specification defines a comprehensive feature implementation that includes detailed requirements, functional specifications, and behavioral expectations. The feature should integrate seamlessly with existing system architecture while providing robust error handling and user-friendly interfaces. Implementation should follow established patterns and include proper testing coverage.".to_string(),
-            notes: "Implementation notes include important considerations for security, performance, and maintainability. Special attention should be paid to error handling and edge cases. Consider using established libraries where appropriate and ensure compatibility with existing system components.".to_string(),
+            spec: "# Feature Name\n\n## Overview\nThis specification defines a comprehensive feature implementation that includes detailed requirements, functional specifications, and behavioral expectations.\n\n## Requirements\nThe feature should integrate seamlessly with existing system architecture while providing robust error handling and user-friendly interfaces. Implementation should follow established patterns and include proper testing coverage.".to_string(),
+            notes: "# Implementation Notes\n\n## Security Considerations\nImplementation notes include important considerations for security, performance, and maintainability.\n\n## Error Handling\nSpecial attention should be paid to error handling and edge cases.\n\n## Dependencies\nConsider using established libraries where appropriate and ensure compatibility with existing system components.".to_string(),
             tasks: "Create feature scaffolding and basic structure, Implement core functionality with proper error handling, Add comprehensive test coverage for all scenarios, Update documentation and user guides, Perform integration testing with existing features, Conduct code review and optimization".to_string(),
         }
     }
@@ -119,13 +119,16 @@ impl TestEnvironment {
         spec_name: &str,
         file_type: &str,
     ) -> UpdateSpecArgs {
-        let content = "Updated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.".to_string();
+        let content = match file_type {
+            "spec" => "\n## Requirements\nUpdated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.\n".to_string(),
+            _ => "Updated content for testing that meets the minimum length requirements and provides comprehensive information for the specification update.".to_string(),
+        };
 
         let command = match file_type {
             "spec" => serde_json::json!({
                 "target": "spec",
                 "command": "append_to_section",
-                "selector": {"type": "section", "value": "# Feature Name"},
+                "selector": {"type": "section", "value": "## Requirements"},
                 "content": content
             }),
             "task-list" | "tasks" => serde_json::json!({

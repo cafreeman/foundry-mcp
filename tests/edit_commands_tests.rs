@@ -138,8 +138,7 @@ fn test_append_to_spec_section() {
         let args = UpdateSpecArgs {
             project_name: "ec-append".to_string(),
             spec_name: spec_name.clone(),
-            operation: "edit_commands".to_string(),
-            commands: Some(commands_json(cmds)),
+            commands: commands_json(cmds),
         };
         let _ = update_spec::execute(args).await.unwrap();
 
@@ -159,8 +158,7 @@ fn test_append_to_spec_section() {
         let args2 = UpdateSpecArgs {
             project_name: "ec-append".to_string(),
             spec_name: spec_name.clone(),
-            operation: "edit_commands".to_string(),
-            commands: Some(commands_json(cmds2)),
+            commands: commands_json(cmds2),
         };
         let _ = update_spec::execute(args2).await.unwrap();
         let updated2 = std::fs::read_to_string(&spec_file).unwrap();

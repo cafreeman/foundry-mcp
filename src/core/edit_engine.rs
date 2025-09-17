@@ -225,10 +225,15 @@ impl EditEngine {
             )?;
         }
 
+        let active_file_updates: Vec<FileUpdateSummary> = file_updates
+            .into_iter()
+            .filter(|fu| fu.applied > 0 || fu.skipped_idempotent > 0)
+            .collect();
+
         Ok(EditCommandsResult {
             applied_count: applied_total,
             skipped_idempotent_count: skipped_total,
-            file_updates,
+            file_updates: active_file_updates,
             errors,
             next_steps: vec!["Load updated spec with load_spec to verify changes".to_string()],
             workflow_hints: vec![
