@@ -55,7 +55,6 @@ tracing-subscriber = "0.3.18"
 uuid = "1.18.0"
 dashmap = "6.1.0"
 tempfile = "3.10.1"
-rapidfuzz = "0.5.0"
 which = "6.0.0"
 
 [dev-dependencies]

@@ -110,46 +110,21 @@ Each spec contains:
   - Includes: Project summary automatically for context
   - MCP Tool Call: `{"name": "load_spec", "arguments": {"project_name": "...", "spec_name": "..."}}`
 
-- **`update_spec`**: Updating spec files with three operation types for different use cases
+- **`update_spec`**: Edit specs with intent-based commands
 
-  - **File Types**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
-  - **Operations**: `replace`, `append`, or `context_patch` - REQUIRED
+  - **File Targets**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
+  - **Operation**: `edit_commands` (required)
+  - **Commands**: `set_task_status`, `upsert_task`, `append_to_section`
+  - **Selectors**: `task_text` (exact checkbox text), `section` (case-insensitive header)
   - **Usage**:
 
     ```json
-    // Traditional operations - full content
-    {"name": "update_spec", "arguments": {"project_name": "project", "spec_name": "spec", "operation": "replace", "spec": "content"}}
-    {"name": "update_spec", "arguments": {"project_name": "project", "spec_name": "spec", "operation": "append", "tasks": "new task"}}
-
-    // Context-based patching - targeted updates
-    {
-      "name": "update_spec",
-      "arguments": {
-        "project_name": "project",
-        "spec_name": "spec",
-        "operation": "context_patch",
-        "context_patch": "{\"file_type\":\"tasks\",\"operation\":\"replace\",\"before_context\":[\"- [ ] Implement user auth\"],\"after_context\":[\"- [ ] Add password hashing\"],\"content\":\"- [x] Implement user auth\"}"
-      }
-    }
+    {"name":"update_spec","arguments":{"project_name":"project","spec_name":"spec","operation":"edit_commands","commands":[
+      {"target":"tasks","command":"set_task_status","selector":{"type":"task_text","value":"Implement OAuth2 integration"},"status":"done"},
+      {"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"Add password validation"},"content":"- [ ] Add password validation"},
+      {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Requirements"},"content":"- Two-factor authentication support"}
+    ]}}
     ```
-
-  - **Operation Types**:
-    - **`replace`**: Completely replaces file content with new content
-      - **Use when**: Major changes, complete rewrites, replacing outdated content
-      - **Risk**: Existing content is permanently lost
-      - **MCP Tool Call**: `{"name": "update_spec", "arguments": {"project_name": "...", "spec_name": "...", "operation": "replace", "spec": "complete new content"}}`
-    - **`append`**: Adds new content to the END of existing content only
-      - **Use when**: Adding new content to end of files, building up specifications iteratively
-      - **IMPORTANT**: Append only adds to the bottom - it cannot edit existing content or insert in the middle
-      - **Risk**: Low - existing content is preserved, but cannot modify existing sections
-      - **MCP Tool Call**: `{"name": "update_spec", "arguments": {"project_name": "...", "spec_name": "...", "operation": "append", "tasks": "new task content"}}`
-    - **`context_patch`**: Makes precise, targeted updates using surrounding text context
-      - **Use when**: Small targeted changes (mark task complete, add single item, fix specific content)
-      - **Benefits**: 70-90% token reduction, precise targeting, no line number precision needed
-      - **Prerequisites**: Ensure current content is in context (see Smart Content Loading below)
-      - **Requirements**: 3-5 lines of unique, specific surrounding text for reliable matching
-      - **JSON Format**: Requires JSON with file_type, operation (insert/replace/delete), before_context, after_context, content
-      - **MCP Tool Call**: `{"name": "update_spec", "arguments": {"project_name": "...", "spec_name": "...", "operation": "context_patch", "context_patch": "{\"file_type\":\"tasks\",\"operation\":\"replace\",\"before_context\":[\"- [ ] Task\"],\"after_context\":[\"- [ ] Next\"],\"content\":\"- [x] Task\"}"}}`
 
   ### Smart Content Loading Strategy
 
@@ -165,15 +140,12 @@ Each spec contains:
   - Using append operations (content position doesn't matter)
 
   **Recovery Pattern:**
-  If context_patch fails → reload current content → identify exact text → retry with precise context
+  If a selector is ambiguous or not found → reload current content → copy exact task text or section header → re-issue with suggested selector
 
   - **Best Practices**:
     - **Load strategically**: Use `load_spec` when you need current state, not reflexively
-    - Use `context_patch` for small targeted changes: Mark tasks complete, add single requirements, fix typos
-    - Use `append` for adding content to end: New tasks at bottom, progress updates, accumulating notes
-    - Use `replace` for major changes: Complete rewrites, editing existing content, requirement changes
-    - **Never use `append` to modify existing content** - it only adds to the end
-    - Context patching requires exact text matching with current content for reliability
+    - Use `edit_commands` for targeted updates; copy exact task text and headers
+    - `append_to_section` only for `spec` and `notes` (not `tasks`)
 
 #### Discovery & Validation
 

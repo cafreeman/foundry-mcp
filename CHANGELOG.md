@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- BREAKING: Remove context-based patching across CLI/MCP and replace with deterministic edit_commands
+  - Removed `src/core/context_patch.rs` and all related types and dependencies (including rapidfuzz)
+  - `update_spec` now supports only `operation: "edit_commands"` with commands array
+  - New types in `src/types/edit_commands.rs` and `EditCommandsResponsePayload`
+  - New core executor `src/core/edit_engine.rs` (deterministic, idempotent semantics)
+  - Updated MCP `get_foundry_help` to include `edit-commands` topic and examples
+  - Updated templates (`claude_subagent.rs`, `cursor_rules.rs`) to show edit_commands usage
+  - Updated CLI args and tool schemas to remove replace/append/context_patch pathways
+  - Migration guidance: use set_task_status, upsert_task, append_to_section with task_text/section selectors
+
 ## [0.4.0] - 2025-09-08
 
 ### Added

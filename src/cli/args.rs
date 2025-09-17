@@ -492,120 +492,12 @@ pub struct UpdateSpecArgs {
     /// Use 'foundry load-project PROJECT_NAME' to see available specs
     pub spec_name: String,
 
-    /// New content for spec.md (optional)
-    ///
-    /// **Complete Content Replacement (--operation replace)**:
-    /// - Entirely replaces the existing spec.md content
-    /// - Use for major requirement changes or complete rewrites
-    /// - Existing content is lost - ensure you have backups if needed
-    ///
-    /// **Content Addition (--operation append)**:
-    /// - Adds new content to the end of existing spec.md
-    /// - Preserves existing requirements and specifications
-    /// - Use for iterative spec development and additions
-    ///
-    /// **Markdown Formatting Guidelines:**
-    /// - Use # Feature Name as main header
-    /// - Use ## for major sections (## Overview, ## Requirements, ## Implementation)
-    /// - Include functional requirements, acceptance criteria, technical approach
-    /// - Use bullet points, numbered lists, and code blocks as needed
-    #[arg(long)]
-    pub spec: Option<String>,
-
-    /// New content for task-list.md (optional)
-    ///
-    /// **Complete Content Replacement (--operation replace)**:
-    /// - Entirely replaces the existing task-list.md content
-    /// - Use when completely restructuring the implementation plan
-    /// - Existing task history is lost
-    ///
-    /// **Content Addition (--operation append)**:
-    /// - Adds new tasks to the end of existing task-list.md
-    /// - Preserves existing task history and completion status
-    /// - Use for adding new tasks or marking existing tasks as complete
-    ///
-    /// **Markdown Checklist Format:**
-    /// - Use "## Phase Name" headers to group related tasks
-    /// - Use "- [ ] Task description" for uncompleted tasks
-    /// - Use "- [x] Task description" for completed tasks
-    /// - Include implementation details and dependencies
-    #[arg(long)]
-    pub tasks: Option<String>,
-
-    /// New content for notes.md (optional)
-    ///
-    /// **Complete Content Replacement (--operation replace)**:
-    /// - Entirely replaces the existing notes.md content
-    /// - Use when consolidating or restructuring design decisions
-    /// - Existing notes and rationale are lost
-    ///
-    /// **Content Addition (--operation append)**:
-    /// - Adds new notes to the end of existing notes.md
-    /// - Preserves existing design decisions and implementation notes
-    /// - Use for adding new insights, decisions, or implementation details
-    ///
-    /// **Markdown Formatting Guidelines:**
-    /// - Use ## headers for different categories (## Design Decisions, ## Implementation Notes)
-    /// - Document technical tradeoffs, constraints, and rationale
-    /// - Include code snippets, external references, and future considerations
-    /// - Keep notes conversational but technical
-    #[arg(long)]
-    pub notes: Option<String>,
-
-    /// Content replacement strategy (REQUIRED)
-    ///
-    /// **replace**: Completely replaces the target file content with new content
-    /// - Use when: Completely rewriting content, major changes, starting fresh
-    /// - Risk: Existing content is lost permanently
-    /// - Example: Major requirement changes, technical direction changes
-    ///
-    /// **append**: Adds new content to the end of existing file content
-    /// - Use when: Adding new content, iterative development, preserving history
-    /// - Risk: Low - existing content is preserved
-    /// - Example: Adding new tasks, accumulating notes, marking items complete
-    ///
-    /// Applies to ALL files being updated in this command.
+    /// Edit commands to apply (REQUIRED). Provide as JSON array via MCP.
     #[arg(long, required = true)]
-    pub operation: String,
-
-    /// Context-based patch data (JSON string, optional)
-    ///
-    /// **Context-Based Patching (--operation context_patch)**:
-    /// - Enables precise, targeted updates using surrounding text context
-    /// - Avoids need for line number precision or full file replacement
-    /// - Requires exact text matching with current content for reliability
-    /// - Choose unique, specific context lines (avoid generic words like "TODO")
-    /// - Example: {"file_type":"tasks","operation":"replace","section_context":"## Phase 1: Authentication","before_context":["## Phase 1: Authentication","- [ ] Implement OAuth2 integration with Google"],"after_context":["- [ ] Add password strength validation"],"content":"- [x] Implement OAuth2 integration with Google"}
-    ///
-    /// **Prerequisites for Success**:
-    /// - Ensure you have current content in context (reload with load_spec if you've made previous edits)
-    /// - Use exact text from current content for context selection
-    /// - Choose 3-5 lines of unique, distinctive text unlikely to appear elsewhere
-    /// - Use section_context for disambiguation when context appears in multiple sections
-    ///
-    /// **When to use context_patch**:
-    /// - Mark tasks complete, add single requirements, fix specific content
-    /// - Small targeted changes where you know unique surrounding context
-    /// - Updates that need precise positioning within existing structure
-    ///
-    /// **Recovery when context matching fails**:
-    /// - Reload current content to verify exact text
-    /// - Choose more specific, unique context lines
-    /// - Add section_context to disambiguate
-    /// - As last resort, use replace for major changes or append for additions
-    ///
-    /// **JSON Schema Requirements**:
-    /// - file_type: "spec", "tasks", or "notes"
-    /// - operation: "insert", "replace", or "delete"
-    /// - before_context: Array of strings (unique text from current content)
-    /// - after_context: Array of strings (unique text from current content)
-    /// - content: String content to insert/replace
-    /// - section_context: Optional header for disambiguation (e.g., "## Requirements")
-    #[arg(long)]
-    pub context_patch: Option<String>,
+    pub commands: String,
 }
 
-// Manual MCP tool implementation for UpdateSpecArgs (has optional fields)
+// Manual MCP tool implementation for UpdateSpecArgs (custom schema)
 impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
     fn tool_definition() -> rust_mcp_sdk::schema::Tool {
         let mut properties = std::collections::HashMap::new();
@@ -628,37 +520,17 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
         );
         properties.insert("spec_name".to_string(), spec_name_prop);
 
-        let mut spec_prop = serde_json::Map::new();
-        spec_prop.insert("type".to_string(), serde_json::json!("string"));
-        spec_prop.insert("description".to_string(), serde_json::json!("New content for spec.md (optional). Use with --operation replace to completely rewrite the spec, or --operation append to add new requirements while preserving existing content. Include functional requirements, acceptance criteria, and implementation approach."));
-        properties.insert("spec".to_string(), spec_prop);
-
-        let mut tasks_prop = serde_json::Map::new();
-        tasks_prop.insert("type".to_string(), serde_json::json!("string"));
-        tasks_prop.insert("description".to_string(), serde_json::json!("New content for task-list.md (optional). Use with --operation append to add new tasks or mark existing tasks complete while preserving history. Use --operation replace to completely restructure the implementation plan."));
-        properties.insert("tasks".to_string(), tasks_prop);
-
-        let mut notes_prop = serde_json::Map::new();
-        notes_prop.insert("type".to_string(), serde_json::json!("string"));
-        notes_prop.insert("description".to_string(), serde_json::json!("New content for notes.md (optional). Use with --operation append to accumulate design decisions and implementation notes over time. Use --operation replace to restructure or consolidate notes."));
-        properties.insert("notes".to_string(), notes_prop);
-
-        let mut operation_prop = serde_json::Map::new();
-        operation_prop.insert("type".to_string(), serde_json::json!("string"));
-        operation_prop.insert("description".to_string(), serde_json::json!("REQUIRED: Content replacement strategy - 'replace' (completely overwrite), 'append' (add to existing content), or 'context_patch' (targeted updates using surrounding text context). Applies to all files being updated. Use 'replace' for major changes, 'append' for iterative development, 'context_patch' for precise targeted updates."));
-        properties.insert("operation".to_string(), operation_prop);
-
-        let mut context_patch_prop = serde_json::Map::new();
-        context_patch_prop.insert("type".to_string(), serde_json::json!("string"));
-        context_patch_prop.insert("description".to_string(), serde_json::json!("Context-based patch data (JSON string, optional). Used with --operation context_patch for precise, targeted updates using surrounding text context. Requires exact text from current content for reliable matching. Choose unique, specific context lines. Example: {\"file_type\":\"tasks\",\"operation\":\"replace\",\"section_context\":\"## Phase 1: Authentication\",\"before_context\":[\"- [ ] Implement OAuth2 integration\"],\"after_context\":[\"- [ ] Add password validation\"],\"content\":\"- [x] Implement OAuth2 integration\"}. Recovery: If matching fails, reload content and use more specific context."));
-        properties.insert("context_patch".to_string(), context_patch_prop);
+        let mut commands_prop = serde_json::Map::new();
+        commands_prop.insert("type".to_string(), serde_json::json!("array"));
+        commands_prop.insert("description".to_string(), serde_json::json!("Array of edit commands to apply. Each command must include target (spec|tasks|notes), command (set_task_status|upsert_task|append_to_section), selector (task_text|section), and relevant fields (status|content)."));
+        properties.insert("commands".to_string(), commands_prop);
 
         rust_mcp_sdk::schema::Tool {
             name: "update_spec".to_string(),
-            description: Some("Update multiple spec files in a single operation with explicit control over content replacement strategy. You can update spec.md, task-list.md, and/or notes.md with replace or append operations. Essential for iterative development and progress tracking.".to_string()),
+            description: Some("Edit Foundry spec files using intent-based commands; precise anchors; idempotent updates. Provide a 'commands' array of edit operations.".to_string()),
             title: None,
             input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
-                vec!["project_name".to_string(), "spec_name".to_string(), "operation".to_string()], // Required fields
+                vec!["project_name".to_string(), "spec_name".to_string(), "commands".to_string()], // Required fields
                 Some(properties),
             ),
             annotations: None,
@@ -677,14 +549,11 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
                 .as_str()
                 .ok_or_else(|| anyhow::anyhow!("Missing spec_name parameter"))?
                 .to_string(),
-            spec: params["spec"].as_str().map(|s| s.to_string()),
-            tasks: params["tasks"].as_str().map(|s| s.to_string()),
-            notes: params["notes"].as_str().map(|s| s.to_string()),
-            operation: params["operation"]
-                .as_str()
-                .ok_or_else(|| anyhow::anyhow!("Missing operation parameter"))?
-                .to_string(),
-            context_patch: params["context_patch"].as_str().map(|s| s.to_string()),
+            commands: serde_json::to_string(
+                params["commands"]
+                    .as_array()
+                    .ok_or_else(|| anyhow::anyhow!("Missing commands array"))?,
+            )?,
         })
     }
 }

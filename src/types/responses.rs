@@ -190,6 +190,17 @@ pub struct FileUpdateResult {
     pub match_confidence: Option<f32>,
 }
 
+#[derive(Serialize, Debug, Clone)]
+pub struct EditCommandsResponsePayload {
+    pub applied_count: usize,
+    pub skipped_idempotent_count: usize,
+    pub file_updates: Vec<crate::types::edit_commands::FileUpdateSummary>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub errors: Option<Vec<crate::types::edit_commands::EditCommandError>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub preview_diff: Option<String>,
+}
+
 /// Response for delete_spec command
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeleteSpecResponse {
