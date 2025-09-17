@@ -938,10 +938,10 @@ mod tests {
 
         // Test exact spec name match
         let result = find_spec_match(project_name, &spec1.name).unwrap();
-        assert_eq!(result, SpecMatchStrategy::Exact(spec1.name.clone()));
+        assert_eq!(result, SpecMatchStrategy::Exact(spec1.name));
 
         let result = find_spec_match(project_name, &spec2.name).unwrap();
-        assert_eq!(result, SpecMatchStrategy::Exact(spec2.name.clone()));
+        assert_eq!(result, SpecMatchStrategy::Exact(spec2.name));
     }
 
     #[test]
@@ -982,10 +982,10 @@ mod tests {
 
         // Test feature name substring match
         let result = find_spec_match(project_name, "auth").unwrap();
-        assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(spec1.name.clone()));
+        assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(spec1.name));
 
         let result = find_spec_match(project_name, "payment").unwrap();
-        assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(spec2.name.clone()));
+        assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(spec2.name));
     }
 
     #[test]
@@ -1054,7 +1054,7 @@ mod tests {
         assert_eq!(loaded_spec.name, created_spec.name);
         assert_eq!(
             match_strategy,
-            SpecMatchStrategy::Exact(created_spec.name.clone())
+            SpecMatchStrategy::Exact(created_spec.name)
         );
     }
 
