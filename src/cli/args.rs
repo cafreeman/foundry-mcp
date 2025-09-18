@@ -522,6 +522,13 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
 
         let mut commands_prop = serde_json::Map::new();
         commands_prop.insert("type".to_string(), serde_json::json!("array"));
+        // Explicitly specify the item type to satisfy strict schema validators (e.g., Cursor GPT-5)
+        commands_prop.insert(
+            "items".to_string(),
+            serde_json::json!({
+                "type": "object"
+            }),
+        );
         commands_prop.insert("description".to_string(), serde_json::json!("Array of edit commands to apply. Each command must include target (spec|tasks|notes), command (set_task_status|upsert_task|append_to_section), selector (task_text|section), and relevant fields (status|content)."));
         properties.insert("commands".to_string(), commands_prop);
 

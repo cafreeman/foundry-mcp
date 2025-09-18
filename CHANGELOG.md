@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- MCP tool JSON schema compliance for strict validators (Cursor GPT-5)
+  - Added explicit `items` definition for the `commands` array in `update_spec` input schema
+  - Resolves GPT-5 model errors in Cursor when MCP servers are enabled
+
 ## [0.5.0] - 2025-09-17
 
 ### Changed

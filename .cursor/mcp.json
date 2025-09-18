@@ -2,19 +2,16 @@
   "mcpServers": {
     "codanna": {
       "command": "codanna",
-      "args": [
-        "serve",
-        "--watch"
-      ],
+      "args": ["serve", "--watch"],
       "env": null
     },
     "foundry": {
       "command": "foundry",
-      "args": [
-        "serve"
-      ],
+      "args": ["serve"],
       "env": {
-        "FOUNDRY_LOG_LEVEL": "info"
+        "NO_COLOR": "1",
+        "RUST_LOG_STYLE": "never",
+        "RUST_LOG": "error"
       }
     }
   }
