@@ -38,4 +38,5 @@ pub trait ClientTemplate {
 
 // Re-export template implementations
 pub mod claude_subagent;
+pub mod commands;
 pub mod cursor_rules;

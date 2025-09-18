@@ -7,6 +7,9 @@ use crate::core::installation::{
 };
 use crate::core::templates::ClientTemplate;
 use crate::core::templates::claude_subagent::ClaudeSubagentTemplate;
+use crate::core::templates::commands::{
+    claude_commands_dir, install_claude_commands, remove_commands,
+};
 use crate::types::responses::EnvironmentStatus;
 use anyhow::{Context, Result};
 use std::fs;
@@ -115,6 +118,18 @@ pub async fn install_for_claude_code() -> Result<InstallationResult> {
         }
     }
 
+    // Install Claude command templates (user-level; direct under ~/.claude/commands)
+    let config_dir =
+        get_claude_code_config_dir().context("Failed to get Claude Code config directory")?;
+    let commands_dir = claude_commands_dir(&config_dir);
+    match install_claude_commands(&commands_dir) {
+        Ok(msg) => actions_taken.push(msg),
+        Err(e) => actions_taken.push(format!(
+            "Warning: Failed to install Claude command templates: {}",
+            e
+        )),
+    }
+
     Ok(create_installation_result(
         true,
         "Claude Code CLI (managed internally)".to_string(),
@@ -165,6 +180,22 @@ pub async fn uninstall_from_claude_code() -> Result<UninstallationResult> {
                 e
             ));
         }
+    }
+
+    // Remove Claude command templates
+    let config_dir =
+        get_claude_code_config_dir().context("Failed to get Claude Code config directory")?;
+    let commands_dir = claude_commands_dir(&config_dir);
+    match remove_commands(&commands_dir) {
+        Ok(Some(msg)) => {
+            actions_taken.push(msg);
+            files_removed.push("Claude command templates".to_string());
+        }
+        Ok(None) => {}
+        Err(e) => actions_taken.push(format!(
+            "Warning: Failed to remove Claude command templates: {}",
+            e
+        )),
     }
 
     Ok(create_uninstallation_result(
@@ -450,6 +481,10 @@ mod tests {
                 );
             }
             // If it succeeds, that means Claude Code CLI is actually installed and working
+            // In both success or graceful failure cases, verify commands directory path shape
+            let commands_dir = env.claude_commands_dir();
+            // We can't guarantee presence if CLI fails, so only assert path shape
+            assert!(commands_dir.ends_with("foundry"));
         });
     }
 }

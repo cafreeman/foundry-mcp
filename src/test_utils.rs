@@ -430,6 +430,20 @@ impl TestEnvironment {
         self.cursor_rules_dir().join("foundry.mdc")
     }
 
+    /// Get Claude commands directory path within test environment
+    pub fn claude_commands_dir(&self) -> std::path::PathBuf {
+        self.temp_dir
+            .path()
+            .join(".claude")
+            .join("commands")
+            .join("foundry")
+    }
+
+    /// Get Cursor commands directory path within test environment
+    pub fn cursor_commands_dir(&self) -> std::path::PathBuf {
+        self.cursor_config_dir().join("commands").join("foundry")
+    }
+
     /// Create an invalid binary path for error testing
     pub fn invalid_binary_path(&self) -> String {
         "/definitely/does/not/exist/foundry".to_string()

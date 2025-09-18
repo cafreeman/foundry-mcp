@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Command templates redesigned for Claude and Cursor
+  - Cursor: no frontmatter; structured steps with explicit agent instructions (analyze/draft → confirm → call MCP)
+  - Claude: frontmatter retained; removed argument-hints; same collaborative workflow
+  - Simplified command names with `foundry_` prefix (e.g., `foundry_analyze_project`)
+- Installers now install client-specific command variants
+  - Cursor installs Cursor-style commands; Claude installs Claude-style commands
+
+### Removed
+
+- Anti-instruction text (e.g., “do not create/modify .cursor/commands”) from command bodies
+
+### Added
+
+- Clear “Instruction to Agent” sections in all commands directing LLM to gather info, collaborate with user, then invoke the appropriate Foundry MCP tool
+
 ## [0.5.1] - 2025-09-18
 
 ### Fixed

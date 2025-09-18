@@ -8,6 +8,9 @@ use crate::core::installation::{
     write_config_file,
 };
 use crate::core::templates::ClientTemplate;
+use crate::core::templates::commands::{
+    cursor_commands_dir, install_cursor_commands, remove_commands,
+};
 use crate::core::templates::cursor_rules::CursorRulesTemplate;
 use crate::types::responses::EnvironmentStatus;
 use anyhow::{Context, Result};
@@ -63,6 +66,20 @@ pub async fn install_for_cursor() -> Result<InstallationResult> {
                 e
             ));
         }
+    }
+
+    // Install Cursor command templates (project-level; direct under .cursor/commands)
+    let commands_dir = cursor_commands_dir(
+        config_path
+            .parent()
+            .expect("cursor config has a parent directory"),
+    );
+    match install_cursor_commands(&commands_dir) {
+        Ok(msg) => actions_taken.push(msg),
+        Err(e) => actions_taken.push(format!(
+            "Warning: Failed to install Cursor command templates: {}",
+            e
+        )),
     }
 
     Ok(create_installation_result(
@@ -126,6 +143,24 @@ pub async fn uninstall_from_cursor(remove_config: bool) -> Result<Uninstallation
                 e
             ));
         }
+    }
+
+    // Remove Cursor command templates
+    let commands_dir = cursor_commands_dir(
+        config_path
+            .parent()
+            .expect("cursor config has a parent directory"),
+    );
+    match remove_commands(&commands_dir) {
+        Ok(Some(msg)) => {
+            actions_taken.push(msg);
+            files_removed.push("Cursor command templates".to_string());
+        }
+        Ok(None) => {}
+        Err(e) => actions_taken.push(format!(
+            "Warning: Failed to remove Cursor command templates: {}",
+            e
+        )),
     }
 
     Ok(create_uninstallation_result(
@@ -327,6 +362,12 @@ mod tests {
             let config_content = std::fs::read_to_string(env.cursor_config_path()).unwrap();
             assert!(config_content.contains("\"command\": \"foundry\""));
             assert!(config_content.contains("mcpServers"));
+
+            // Verify commands directory exists and at least one command file is present
+            let cmds_dir = env.cursor_commands_dir();
+            assert!(cmds_dir.exists(), "Commands directory should exist");
+            let entries = std::fs::read_dir(&cmds_dir).unwrap();
+            assert!(entries.count() >= 1, "Should create command files");
         });
     }
 
