@@ -57,6 +57,7 @@ uuid = "1.18.0"
 dashmap = "6.1.0"
 tempfile = "3.10.1"
 which = "6.0.0"
+serde_yml = "0.0.12"
 
 [dev-dependencies]
 tempfile = "3.10.1"

@@ -13,6 +13,7 @@ pub mod types;
 pub mod utils;
 
 pub mod test_utils;
+pub mod yaml_editor;
 
 // Selective reexports from core modules (only what's needed for CLI functionality)
 pub use crate::core::filesystem::{create_dir_all, file_exists, read_file, write_file_atomic};

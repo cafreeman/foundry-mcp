@@ -12,6 +12,7 @@ pub mod handlers;
 pub mod macros;
 pub mod server;
 pub mod tools;
+pub mod yaml_operations;
 pub mod traits;
 
 pub use handlers::*;
