@@ -441,7 +441,7 @@ impl TestEnvironment {
 
     /// Get Cursor commands directory path within test environment
     pub fn cursor_commands_dir(&self) -> std::path::PathBuf {
-        self.cursor_config_dir().join("commands").join("foundry")
+        self.cursor_config_dir().join("commands")
     }
 
     /// Create an invalid binary path for error testing

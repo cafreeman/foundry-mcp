@@ -15,14 +15,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Simplified command names with `foundry_` prefix (e.g., `foundry_analyze_project`)
 - Installers now install client-specific command variants
   - Cursor installs Cursor-style commands; Claude installs Claude-style commands
+- **BREAKING**: Disabled CLI execution of MCP tools - MCP tools now only accessible via MCP server
+  - Removed `Commands::Mcp` enum and all MCP CLI subcommands
+  - CLI now focused on lifecycle operations: serve, install, uninstall, status
+  - All error messages and workflow hints updated to use MCP JSON format instead of CLI commands
+  - Removed "MCP vs CLI Tool Confusion" section from templates
 
 ### Removed
 
-- Anti-instruction text (e.g., “do not create/modify .cursor/commands”) from command bodies
+- Anti-instruction text (e.g., "do not create/modify .cursor/commands") from command bodies
+- CLI execution of MCP tools (`foundry mcp ...` commands)
+- Dead code: `McpCommands` enum, unused imports, unreachable code paths
 
 ### Added
 
-- Clear “Instruction to Agent” sections in all commands directing LLM to gather info, collaborate with user, then invoke the appropriate Foundry MCP tool
+- Clear "Instruction to Agent" sections in all commands directing LLM to gather info, collaborate with user, then invoke the appropriate Foundry MCP tool
 
 ## [0.5.1] - 2025-09-18
 

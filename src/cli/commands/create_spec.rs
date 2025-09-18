@@ -58,7 +58,7 @@ pub async fn execute(args: CreateSpecArgs) -> Result<FoundryResponse<CreateSpecR
 fn validate_project_exists(project_name: &str) -> Result<()> {
     if !project::project_exists(project_name)? {
         return Err(anyhow::anyhow!(
-            "Project '{}' not found. Use 'foundry list-projects' to see available projects.",
+            "Project '{}' not found. Use list_projects via MCP to see available projects: {{\"name\": \"list_projects\", \"arguments\": {{}}}}",
             project_name
         ));
     }
@@ -115,7 +115,7 @@ fn generate_next_steps(project_name: &str, spec_name: &str) -> Vec<String> {
         "Your specification content has been structured and is ready for implementation work"
             .to_string(),
         format!(
-            "You can load the full spec: foundry load_spec {} {} (to review your content), foundry load_project {} (to see project context), or begin implementation",
+            "Load spec: {{\"name\": \"load_spec\", \"arguments\": {{\"project_name\": \"{}\", \"spec_name\": \"{}\"}}}}; Load project: {{\"name\": \"load_project\", \"arguments\": {{\"project_name\": \"{}\"}}}}",
             project_name, spec_name, project_name
         ),
     ]
@@ -129,8 +129,8 @@ fn generate_workflow_hints(
         "📋 DOCUMENT PURPOSE: Your spec content serves as COMPLETE CONTEXT for future implementation".to_string(),
         "🎯 CONTEXT TEST: Could someone with no prior knowledge implement this feature using only your spec documents?".to_string(),
         "Your specification content has been structured with task-list.md for implementation tracking".to_string(),
-        "You can use foundry load_spec to review your full specification content and notes".to_string(),
-        "You can use foundry load_project to see project context before implementation".to_string(),
+        "Review spec: {\"name\": \"load_spec\", \"arguments\": {\"project_name\": \"<project>\", \"spec_name\": \"<spec>\"}}".to_string(),
+        "Load project: {\"name\": \"load_project\", \"arguments\": {\"project_name\": \"<project>\"}}".to_string(),
     ];
 
     // Add validation-specific hints
@@ -146,10 +146,7 @@ fn generate_workflow_hints(
         ));
     }
 
-    hints.push(
-        "You can use foundry get_foundry_help decision-points to understand tool options"
-            .to_string(),
-    );
+    hints.push("Tool selection guidance: {\"name\": \"get_foundry_help\", \"arguments\": {\"topic\": \"decision-points\"}}".to_string());
 
     hints
 }
@@ -233,6 +230,6 @@ mod tests {
         assert!(result.is_err());
         let error_message = result.unwrap_err().to_string();
         assert!(error_message.contains("not found"));
-        assert!(error_message.contains("list-projects"));
+        assert!(error_message.contains("list_projects"));
     }
 }

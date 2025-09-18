@@ -83,10 +83,7 @@ pub async fn execute(
             ));
         }
 
-        steps.push(
-            "Use this content with 'foundry create_project' or 'foundry analyze_project'"
-                .to_string(),
-        );
+        steps.push("Use this content via MCP: {\"name\": \"create_project\", \"arguments\": {\"project_name\": \"<name>\", \"vision\": \"...\", \"tech_stack\": \"...\", \"summary\": \"...\"}} or {\"name\": \"analyze_project\", \"arguments\": {\"project_name\": \"<name>\", \"vision\": \"...\", \"tech_stack\": \"...\", \"summary\": \"...\"}}".to_string());
         steps
     } else {
         let error_count = validation_result.errors.len();

@@ -90,7 +90,7 @@ pub async fn execute(args: AnalyzeProjectArgs) -> Result<FoundryResponse<Analyze
         .with_context(|| format!("Failed to check if project '{}' exists", args.project_name))?
     {
         return Err(anyhow::anyhow!(
-            "Project '{}' already exists. Use 'foundry list_projects' to see existing projects, or choose a different name.",
+            "Project '{}' already exists. Use MCP to discover existing projects: {{\"name\": \"list_projects\", \"arguments\": {{}}}} or choose a different name.",
             args.project_name
         ));
     }
@@ -202,21 +202,17 @@ pub async fn execute(args: AnalyzeProjectArgs) -> Result<FoundryResponse<Analyze
         ),
         "Your analyzed content has been structured and is ready for development work".to_string(),
         format!(
-            "You can create specifications: foundry create_spec {} (if you have a specific feature), foundry load_project {} (to see full context), or continue codebase analysis",
+            "Create a spec: {{\"name\": \"create_spec\", \"arguments\": {{\"project_name\": \"{}\", \"feature_name\": \"<feature>\", \"spec\": \"...\", \"tasks\": \"...\", \"notes\": \"...\"}}}}; Load project: {{\"name\": \"load_project\", \"arguments\": {{\"project_name\": \"{}\"}}}}; Or continue codebase analysis",
             args.project_name, args.project_name
         ),
     ];
 
-    let mut workflow_hints = vec![
+    let mut workflow_hints: Vec<String> = vec![
         "Project structure created based on your codebase analysis".to_string(),
-        "You can use foundry create_spec when you identify a specific feature to work on"
-            .to_string(),
-        "You can use foundry load_project to see full project context and any existing specs"
-            .to_string(),
-        "You can continue using codebase_search, grep_search, read_file for deeper analysis"
-            .to_string(),
-        "You can use foundry get_foundry_help decision-points to understand tool selection"
-            .to_string(),
+        format!("Create a spec when you identify a feature: {{\"name\": \"create_spec\", \"arguments\": {{\"project_name\": \"{}\", \"feature_name\": \"<feature>\", \"spec\": \"...\", \"tasks\": \"...\", \"notes\": \"...\"}}}}", args.project_name),
+        format!("Load full project context: {{\"name\": \"load_project\", \"arguments\": {{\"project_name\": \"{}\"}}}}", args.project_name),
+        "You can continue using codebase_search, grep_search, read_file for deeper analysis".to_string(),
+        "Tool selection guidance: {\"name\": \"get_foundry_help\", \"arguments\": {\"topic\": \"decision-points\"}}".to_string(),
     ];
 
     // Add suggestions from content validation

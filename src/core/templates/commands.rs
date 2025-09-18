@@ -5,7 +5,6 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 /// We place commands directly under the client's commands directory
-
 /// Common set of command files we install for Claude (frontmatter) (filename -> content)
 fn claude_command_files() -> Vec<(&'static str, &'static str)> {
     vec![

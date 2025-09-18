@@ -103,7 +103,10 @@ fn build_response(
     let next_steps = vec![
         format!("Project '{}' created successfully", created_project.name),
         "Project structure is ready for development".to_string(),
-        "Available next steps: foundry create_spec (if you have a specific feature), foundry load_project (to see context), or foundry list_projects (to explore other projects)".to_string(),
+        format!(
+            "Next → create a spec: {{\"name\": \"create_spec\", \"arguments\": {{\"project_name\": \"{}\", \"feature_name\": \"<feature>\", \"spec\": \"...\", \"tasks\": \"...\", \"notes\": \"...\"}}}}; load project: {{\"name\": \"load_project\", \"arguments\": {{\"project_name\": \"{}\"}}}}; list projects: {{\"name\": \"list_projects\", \"arguments\": {{}}}}",
+            created_project.name, created_project.name
+        ),
     ];
 
     let workflow_hints = if !suggestions.is_empty() {
@@ -118,10 +121,9 @@ fn build_response(
             "📋 DOCUMENT PURPOSE: Your content serves as COMPLETE CONTEXT for future implementation".to_string(),
             "🎯 CONTEXT TEST: Could someone with no prior knowledge implement this using only your documents?".to_string(),
             "Consider what you want to work on next".to_string(),
-            "foundry create_spec: Use when you have a specific feature to implement".to_string(),
-            "foundry load_project: Use to see full project context and available specs".to_string(),
-            "foundry get_foundry_help decision-points: Use to understand tool selection"
-                .to_string(),
+            format!("Create a spec: {{\"name\": \"create_spec\", \"arguments\": {{\"project_name\": \"{}\", \"feature_name\": \"<feature>\", \"spec\": \"...\", \"tasks\": \"...\", \"notes\": \"...\"}}}}", created_project.name),
+            format!("Load project: {{\"name\": \"load_project\", \"arguments\": {{\"project_name\": \"{}\"}}}}", created_project.name),
+            "Tool selection guidance: {\"name\": \"get_foundry_help\", \"arguments\": {\"topic\": \"decision-points\"}}".to_string(),
         ]
     };
 
