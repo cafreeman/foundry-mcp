@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2025-09-19
+
 ### Enhanced
 
 - **Command Template Modernization**: Updated all Claude Code and Cursor command templates with 2024-2025 best practices
@@ -283,7 +285,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON serialization with serde
 - Workspace support for internal macro crate
 
-[Unreleased]: https://github.com/cafreeman/foundry-mcp/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/cafreeman/foundry-mcp/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/cafreeman/foundry-mcp/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cafreeman/foundry-mcp/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/cafreeman/foundry-mcp/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/cafreeman/foundry-mcp/compare/v0.4.0...v0.5.0
