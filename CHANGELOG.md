@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Enhanced
+
+- **Command Template Modernization**: Updated all Claude Code and Cursor command templates with 2024-2025 best practices
+  - **Enhanced Context Gathering**: Added systematic repository analysis and project discovery phases to all commands
+  - **Comprehensive Error Recovery**: Implemented specific error handling patterns for MCP failures, validation issues, and user interaction challenges
+  - **Workflow Continuity**: Added explicit guidance linking commands together for seamless development workflows
+  - **Argument Hints**: Added `argument-hint` frontmatter to all Claude commands for better user guidance
+  - **Specific Tool Permissions**: Updated `allowed-tools` to specify exact MCP tools (e.g., `mcp__foundry__create_project`) instead of generic `mcp__foundry`
+  - **Advanced Analysis Features**: Enhanced Cursor templates with development insights, pattern recognition, and strategic guidance
+  - **Quality Validation**: Added content completeness checks and quality validation throughout all workflows
+  - **Professional Structure**: Organized all templates with clear phases, error patterns, and success criteria matching industry standards
+
 ## [0.6.0] - 2025-09-18
 
 ### Changed
