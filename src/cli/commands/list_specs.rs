@@ -36,10 +36,10 @@ pub async fn execute(args: ListSpecsArgs) -> Result<FoundryResponse<ListSpecsRes
             "No specifications found for this project - ready for specification creation"
                 .to_string(),
             format!(
-                "You can create your first specification: foundry create-spec {} <feature_name>",
+                "You can create your first specification: mcp_foundry_create_spec {} <feature_name>",
                 args.project_name
             ),
-            "You can use 'foundry load-project' to see full project context".to_string(),
+            "You can use 'mcp_foundry_load_project' to see full project context".to_string(),
         ];
 
         let workflow_hints = vec![
@@ -58,7 +58,7 @@ pub async fn execute(args: ListSpecsArgs) -> Result<FoundryResponse<ListSpecsRes
         let mut next_steps = vec![
             format!("Found {} specification(s) in project", spec_count),
             format!(
-                "You can load a specific spec: foundry load-spec {} <spec_name>",
+                "You can load a specific spec: mcp_foundry_load_spec {} <spec_name>",
                 args.project_name
             ),
         ];
@@ -71,7 +71,7 @@ pub async fn execute(args: ListSpecsArgs) -> Result<FoundryResponse<ListSpecsRes
         }
 
         next_steps.push(format!(
-            "You can create a new spec: foundry create-spec {} <feature_name>",
+            "You can create a new spec: mcp_foundry_create_spec {} <feature_name>",
             args.project_name
         ));
 
@@ -96,7 +96,7 @@ pub async fn execute(args: ListSpecsArgs) -> Result<FoundryResponse<ListSpecsRes
 fn validate_project_exists(project_name: &str) -> Result<()> {
     if !project::project_exists(project_name)? {
         return Err(anyhow::anyhow!(
-            "Project '{}' not found. Use 'foundry list-projects' to see available projects.",
+            "Project '{}' not found. Use 'mcp_foundry_list_projects' to see available projects.",
             project_name
         ));
     }

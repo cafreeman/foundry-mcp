@@ -120,7 +120,7 @@ fn test_load_spec_list_empty_project() {
             response
                 .next_steps
                 .iter()
-                .any(|step| step.contains("create-spec"))
+                .any(|step| step.contains("mcp_foundry_create_spec"))
         );
     });
 }
@@ -188,7 +188,7 @@ fn test_load_spec_list_with_specs() {
             response
                 .next_steps
                 .iter()
-                .any(|step| step.contains("load-spec"))
+                .any(|step| step.contains("mcp_foundry_load_spec"))
         );
     });
 }
@@ -287,7 +287,7 @@ fn test_load_spec_missing_project() {
 
         let error_msg = result.unwrap_err().to_string();
         assert!(error_msg.contains("not found"));
-        assert!(error_msg.contains("list-projects"));
+        assert!(error_msg.contains("mcp_foundry_list_projects"));
     });
 }
 

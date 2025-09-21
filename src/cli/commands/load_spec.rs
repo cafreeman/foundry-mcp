@@ -106,7 +106,7 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
 fn validate_project_exists(project_name: &str) -> Result<()> {
     if !project::project_exists(project_name)? {
         return Err(anyhow::anyhow!(
-            "Project '{}' not found. Use 'foundry list-projects' to see available projects.",
+            "Project '{}' not found. Use 'mcp_foundry_list_projects' to see available projects.",
             project_name
         ));
     }
@@ -130,10 +130,10 @@ fn generate_listing_next_steps(project_name: &str, available_specs: &[SpecInfo])
             "No specifications found for this project - ready for specification creation"
                 .to_string(),
             format!(
-                "You can create your first specification: foundry create-spec {} <feature_name>",
+                "You can create your first specification: mcp_foundry_create_spec {} <feature_name>",
                 project_name
             ),
-            "You can use 'foundry load-project' to see full project context".to_string(),
+            "You can use 'mcp_foundry_load_project' to see full project context".to_string(),
         ]
     } else {
         let mut steps = vec![
@@ -142,7 +142,7 @@ fn generate_listing_next_steps(project_name: &str, available_specs: &[SpecInfo])
                 available_specs.len()
             ),
             format!(
-                "You can load a specific spec: foundry load-spec {} <spec_name>",
+                "You can load a specific spec: mcp_foundry_load_spec {} <spec_name>",
                 project_name
             ),
         ];
@@ -155,7 +155,7 @@ fn generate_listing_next_steps(project_name: &str, available_specs: &[SpecInfo])
         }
 
         steps.push(format!(
-            "You can create a new spec: foundry create-spec {} <feature_name>",
+            "You can create a new spec: mcp_foundry_create_spec {} <feature_name>",
             project_name
         ));
 
@@ -171,10 +171,13 @@ fn generate_spec_next_steps(project_name: &str, spec_name: &str) -> Vec<String> 
             .to_string(),
         "You can use the project summary for additional context".to_string(),
         format!(
-            "You can create a new spec: foundry create-spec {} <feature_name>",
+            "You can create a new spec: mcp_foundry_create_spec {} <feature_name>",
             project_name
         ),
-        format!("You can list all specs: foundry load-spec {}", project_name),
+        format!(
+            "You can list all specs: mcp_foundry_load_spec {}",
+            project_name
+        ),
     ]
 }
 

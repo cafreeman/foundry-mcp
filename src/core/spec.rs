@@ -542,7 +542,7 @@ pub fn load_spec_with_fuzzy(project_name: &str, query: &str) -> Result<(Spec, Sp
             let available_specs = list_specs(project_name)?;
             if available_specs.is_empty() {
                 Err(anyhow::anyhow!(
-                    "No specs found in project '{}'. This project doesn't have any specifications yet.\n\nTo create your first spec, use:\n  foundry create-spec {} <feature_name>\n\nFor example:\n  foundry create-spec {} user_authentication",
+                    "No specs found in project '{}'. This project doesn't have any specifications yet.\n\nTo create your first spec, use:\n  mcp_foundry_create_spec {} <feature_name>\n\nFor example:\n  mcp_foundry_create_spec {} user_authentication",
                     project_name,
                     project_name,
                     project_name
@@ -1174,7 +1174,7 @@ mod tests {
             assert!(result.is_err());
             let error = result.unwrap_err();
             assert!(error.to_string().contains("No specs found in project"));
-            assert!(error.to_string().contains("create-spec"));
+            assert!(error.to_string().contains("mcp_foundry_create_spec"));
         });
     }
 

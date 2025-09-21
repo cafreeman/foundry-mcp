@@ -40,7 +40,7 @@ pub async fn execute(args: LoadProjectArgs) -> Result<FoundryResponse<LoadProjec
 fn validate_project_exists(project_name: &str) -> Result<()> {
     if !project::project_exists(project_name)? {
         return Err(anyhow::anyhow!(
-            "Project '{}' not found. Use 'foundry list-projects' to see available projects.",
+            "Project '{}' not found. Use 'mcp_foundry_list_projects' to see available projects.",
             project_name
         ));
     }
@@ -107,7 +107,7 @@ fn generate_next_steps(project_name: &str, specs_available: &[String]) -> Vec<St
         vec![
             "Project context loaded successfully - ready for specification creation".to_string(),
             format!(
-                "You can create your first specification: foundry create-spec {} <feature_name>",
+                "You can create your first specification: mcp_foundry_create_spec {} <feature_name>",
                 project_name
             ),
             "Your loaded project context provides comprehensive background for development decisions".to_string(),
@@ -119,11 +119,11 @@ fn generate_next_steps(project_name: &str, specs_available: &[String]) -> Vec<St
                 specs_available.len()
             ),
             format!(
-                "You can load a specific spec: foundry load-spec {} <spec_name>",
+                "You can load a specific spec: mcp_foundry_load_spec {} <spec_name>",
                 project_name
             ),
             format!(
-                "You can create a new spec: foundry create-spec {} <feature_name>",
+                "You can create a new spec: mcp_foundry_create_spec {} <feature_name>",
                 project_name
             ),
         ]
@@ -184,7 +184,7 @@ mod tests {
         assert!(result.is_err());
         let error_message = result.unwrap_err().to_string();
         assert!(error_message.contains("not found"));
-        assert!(error_message.contains("list-projects"));
+        assert!(error_message.contains("mcp_foundry_list_projects"));
     }
 
     #[test]
@@ -195,7 +195,7 @@ mod tests {
 
         assert_eq!(steps.len(), 3);
         assert!(steps[0].contains("ready for specification creation"));
-        assert!(steps[1].contains("foundry create-spec"));
+        assert!(steps[1].contains("mcp_foundry_create_spec"));
         assert!(steps[1].contains(project_name));
         assert!(steps[2].contains("comprehensive background"));
     }
@@ -211,9 +211,9 @@ mod tests {
 
         assert_eq!(steps.len(), 3);
         assert!(steps[0].contains("loaded with 2 specification"));
-        assert!(steps[1].contains("foundry load-spec"));
+        assert!(steps[1].contains("mcp_foundry_load_spec"));
         assert!(steps[1].contains(project_name));
-        assert!(steps[2].contains("foundry create-spec"));
+        assert!(steps[2].contains("mcp_foundry_create_spec"));
         assert!(steps[2].contains(project_name));
     }
 

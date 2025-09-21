@@ -178,7 +178,7 @@ pub struct CreateSpecArgs {
     /// Project name to create spec for
     ///
     /// Must be an existing project in ~/.foundry/
-    /// Use 'foundry list-projects' to see available projects
+    /// Use 'mcp_foundry_list_projects' to see available projects
     pub project_name: String,
 
     /// Feature name in snake_case (e.g., user_authentication)
@@ -281,7 +281,7 @@ pub struct LoadSpecArgs {
     /// Project name to load spec from
     ///
     /// Must be an existing project in ~/.foundry/
-    /// Use 'foundry list-projects' to see available projects
+    /// Use 'mcp_foundry_list_projects' to see available projects
     pub project_name: String,
 
     /// Specific spec name (if not provided, lists available specs)
@@ -347,7 +347,7 @@ pub struct LoadProjectArgs {
     ///
     /// Returns complete project context: vision, tech-stack, summary, and available specs
     /// Essential for resuming work on existing projects
-    /// Use 'foundry list-projects' to see available project names
+    /// Use 'mcp_foundry_list_projects' to see available project names
     pub project_name: String,
 }
 
@@ -483,13 +483,13 @@ pub struct UpdateSpecArgs {
     /// Project name containing the spec to update
     ///
     /// Must be an existing project in ~/.foundry/
-    /// Use 'foundry list-projects' to see available projects
+    /// Use 'mcp_foundry_list_projects' to see available projects
     pub project_name: String,
 
     /// Spec name to update (YYYYMMDD_HHMMSS_feature_name format)
     ///
     /// Must be an existing spec within the project
-    /// Use 'foundry load-project PROJECT_NAME' to see available specs
+    /// Use 'mcp_foundry_load_project PROJECT_NAME' to see available specs
     pub spec_name: String,
 
     /// Edit commands to apply (REQUIRED). Provide as JSON array via MCP.
@@ -571,13 +571,13 @@ pub struct DeleteSpecArgs {
     /// Project name containing the spec to delete
     ///
     /// Must be an existing project in ~/.foundry/
-    /// Use 'foundry list-projects' to see available projects
+    /// Use 'mcp_foundry_list_projects' to see available projects
     pub project_name: String,
 
     /// Spec name to delete (YYYYMMDD_HHMMSS_feature_name format)
     ///
     /// Must be an existing spec within the project
-    /// Use 'foundry load-project PROJECT_NAME' to see available specs
+    /// Use 'mcp_foundry_load_project PROJECT_NAME' to see available specs
     /// **Warning: This will permanently delete all spec files**
     pub spec_name: String,
 

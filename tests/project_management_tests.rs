@@ -89,7 +89,7 @@ fn test_load_project_empty() {
             response
                 .next_steps
                 .iter()
-                .any(|step| step.contains("create-spec"))
+                .any(|step| step.contains("mcp_foundry_create_spec"))
         );
 
         // Verify project content was loaded
@@ -153,7 +153,7 @@ fn test_load_project_with_specs() {
             response
                 .next_steps
                 .iter()
-                .any(|step| step.contains("load-spec"))
+                .any(|step| step.contains("mcp_foundry_load_spec"))
         );
     });
 }
@@ -177,8 +177,8 @@ fn test_error_missing_project() {
             "Error should mention project not found"
         );
         assert!(
-            error_msg.contains("list-projects"),
-            "Error should suggest list-projects command"
+            error_msg.contains("mcp_foundry_list_projects"),
+            "Error should suggest mcp_foundry_list_projects command"
         );
     });
 }
