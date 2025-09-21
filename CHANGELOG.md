@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Enhanced
+
+- **Command Template Documentation**: Improved update_spec command templates with comprehensive edit commands guidance
+  - Added explicit note that `commands` parameter is required (MCP array; CLI passes JSON string)
+  - Documented selector normalization rules for tasks (ignores checkbox prefix, collapses whitespace, ignores trailing periods)
+  - Added section header matching guidance (case-insensitive, exact header text with hashes)
+  - Documented idempotence behavior for all edit commands (repeat-safe operations)
+  - Added guidance about selector candidate suggestions on command failures
+  - Enhanced both Claude and Cursor command templates with consistent documentation
+
 ### Fixed
 
 - **CLI Command Reference Consistency**: Updated all remaining references to old CLI commands to use MCP tool names

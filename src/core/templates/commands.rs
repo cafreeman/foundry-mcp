@@ -654,6 +654,11 @@ Goal: Apply precise, targeted updates to specification documents using idempoten
 - **Spec/Notes:** Only use `append_to_section` for spec.md and notes.md content
 - **Text Matching:** Selectors must match existing content exactly (including whitespace and formatting)
 
+**Selector normalization & idempotence**:
+- **Tasks selector normalization:** Matching ignores checkbox prefix, collapses internal whitespace, and ignores trailing periods. Either of these values works: `Implement OAuth2 integration` or `- [ ] Implement OAuth2 integration`.
+- **Section headers:** Case-insensitive match on the full header string including hashes (surrounding whitespace trimmed). Use exact header text like `## Requirements`.
+- **Idempotence:** All commands are repeat-safe. When no change is needed, the tool reports a skipped/idempotent outcome.
+
 ## Update Workflow
 
 **Step 1: Current State Analysis**
@@ -699,12 +704,15 @@ Execute single update_spec call with complete commands array:
 {"name":"update_spec","arguments":{"project_name":"$1","spec_name":"$2","commands":[/* array of edit commands */]}}
 ```
 
+Note: `commands` is required and must be a JSON array when using MCP tools. When using the CLI directly, pass the same array as a JSON string argument.
+
 ## Error Recovery Patterns
 
 **Selector Failures:**
 - **Text not found:** Re-load spec, copy exact text including whitespace, retry with precise selector
 - **Ambiguous matches:** Use longer text snippets for unique identification
 - **Section missing:** Guide user to add section first or choose different target section
+- **Candidate suggestions:** On failure, the tool returns selector candidates with short previews; copy one suggestion into your next attempt.
 
 **Command Validation Errors:**
 - **Invalid command structure:** Review command format and fix JSON syntax issues
@@ -1461,6 +1469,11 @@ Perform precise, idempotent updates to specification documents using intelligent
 - **Spec/Notes Files:** Only use `append_to_section` for adding content to spec.md and notes.md
 - **Exact Text Matching:** Selectors must match existing content precisely including whitespace
 
+**Selector normalization & idempotence**:
+- **Tasks selector normalization:** Matching ignores checkbox prefix, collapses internal whitespace, and ignores trailing periods. Either of these values works: `Implement OAuth2 integration` or `- [ ] Implement OAuth2 integration`.
+- **Section headers:** Case-insensitive match on the full header string including hashes (surrounding whitespace trimmed). Use exact header text like `## Requirements`.
+- **Idempotence:** Commands are repeat-safe; unchanged operations may be reported as skipped/idempotent.
+
 ## Comprehensive Update Workflow
 
 ### Step 1: Current State Analysis & Content Review
@@ -1529,6 +1542,8 @@ Based on user intent, choose appropriate command patterns:
 {"name":"update_spec","arguments":{"project_name":"$1","spec_name":"$2","commands":[/* array of validated edit commands */]}}
 ```
 
+Note: `commands` is required and must be a JSON array when using MCP tools. When using the CLI directly, pass the same array as a JSON string argument.
+
 ## Error Recovery & Problem Resolution
 
 ### Command Execution Issues
@@ -1536,6 +1551,7 @@ Based on user intent, choose appropriate command patterns:
 - **Text Not Found:** Re-load current specification content, copy exact text including whitespace, retry with precise selector
 - **Ambiguous Matches:** Use longer text snippets with surrounding context for unique identification
 - **Section Missing:** Guide user to add target section first or suggest alternative existing section
+- **Candidate Suggestions:** On failure, the tool returns selector candidates with previews; copy one suggestion into your next attempt.
 
 **Command Structure Problems:**
 - **Invalid JSON Format:** Review command syntax and fix structural issues with proper escaping
