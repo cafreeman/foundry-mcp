@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **CLI Command Reference Consistency**: Updated all remaining references to old CLI commands to use MCP tool names
+  - Updated help text in `list_projects.rs` to reference `mcp_foundry_*` tools instead of `foundry mcp *` commands
+  - Updated documentation in `args.rs` to use MCP tool names in parameter descriptions
+  - Updated error messages across all command files to reference MCP tools instead of CLI commands
+  - Updated workflow hints and next steps to use consistent MCP tool naming
+  - Updated test assertions to match MCP tool names
+  - Ensures complete consistency with MCP-only architecture introduced in v0.6.0
+
 ## [0.6.1] - 2025-09-19
 
 ### Enhanced

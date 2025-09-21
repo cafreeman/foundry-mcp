@@ -16,7 +16,7 @@ pub async fn execute(args: DeleteSpecArgs) -> Result<FoundryResponse<DeleteSpecR
     // Validate spec exists
     if !spec::spec_exists(&args.project_name, &args.spec_name)? {
         return Err(anyhow::anyhow!(
-            "Spec '{}' not found in project '{}'. Use 'foundry load-project {}' to see available specs.",
+            "Spec '{}' not found in project '{}'. Use 'mcp_foundry_load_project {}' to see available specs.",
             args.spec_name,
             args.project_name,
             args.project_name
@@ -80,7 +80,7 @@ fn validate_args(args: &DeleteSpecArgs) -> Result<()> {
 fn validate_project_exists(project_name: &str) -> Result<()> {
     if !project::project_exists(project_name)? {
         return Err(anyhow::anyhow!(
-            "Project '{}' not found. Use 'foundry list-projects' to see available projects.",
+            "Project '{}' not found. Use 'mcp_foundry_list_projects' to see available projects.",
             project_name
         ));
     }
@@ -135,11 +135,11 @@ fn generate_next_steps(args: &DeleteSpecArgs) -> Vec<String> {
         ),
         "All spec files have been permanently removed".to_string(),
         format!(
-            "You can view remaining specs: foundry load-project {}",
+            "You can view remaining specs: mcp_foundry_load_project {}",
             args.project_name
         ),
         format!(
-            "You can create a new spec: foundry create-spec {} <feature_name>",
+            "You can create a new spec: mcp_foundry_create_spec {} <feature_name>",
             args.project_name
         ),
         "Deletion cannot be undone - you might consider backing up important specs before deletion"
@@ -153,7 +153,7 @@ fn generate_workflow_hints(args: &DeleteSpecArgs) -> Vec<String> {
         format!("Deleted spec: {}", args.spec_name),
         "This action cannot be undone".to_string(),
         "All associated files (spec.md, task-list.md, notes.md) have been removed".to_string(),
-        "You can use 'foundry list-projects' to see project status after deletion".to_string(),
+        "You can use 'mcp_foundry_list_projects' to see project status after deletion".to_string(),
         "You might consider archiving completed specs rather than deleting for future reference"
             .to_string(),
         "You can create new specs to continue feature development".to_string(),

@@ -36,10 +36,10 @@ pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProj
         (
             vec![
                 "No projects found in foundry directory - ready for project creation".to_string(),
-                "You can create your first project with: foundry mcp create-project".to_string(),
+                "You can create your first project with: mcp_foundry_create_project".to_string(),
             ],
             vec![
-                "You can use 'foundry mcp get-foundry-help workflows' for getting started guidance"
+                "You can use 'mcp_foundry_get_foundry_help workflows' for getting started guidance"
                     .to_string(),
                 "Projects are stored in ~/.foundry/ directory for easy access".to_string(),
             ],
@@ -49,14 +49,14 @@ pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProj
         (
             vec![
                 format_count(project_count, "project", "projects"),
-                "You can use 'foundry mcp create-spec <project_name> <feature_name>' to add specifications"
+                "You can use 'mcp_foundry_create_spec <project_name> <feature_name>' to add specifications"
                     .to_string(),
-                "You can use 'foundry mcp load-spec <project_name>' to view existing specifications"
+                "You can use 'mcp_foundry_load_spec <project_name>' to view existing specifications"
                     .to_string(),
             ],
             vec![
                 "Each project can contain multiple timestamped specifications for organized development".to_string(),
-                "You can use 'foundry mcp analyze-project' to add project analysis to existing codebases"
+                "You can use 'mcp_foundry_analyze_project' to add project analysis to existing codebases"
                     .to_string(),
             ],
         )
