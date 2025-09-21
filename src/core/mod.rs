@@ -1,7 +1,9 @@
 //! Core business logic modules
 
+pub mod backends;
 pub mod edit_engine;
 pub mod filesystem;
+pub mod foundry;
 pub mod installation;
 pub mod ops;
 pub mod project;

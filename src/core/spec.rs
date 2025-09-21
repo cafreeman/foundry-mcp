@@ -1,167 +1,53 @@
 //! Spec management core logic
+//!
+//! This module now delegates to the backend abstraction instead of direct I/O.
+//! The functions here maintain backward compatibility while using the Foundry façade.
 
 use anyhow::{Context, Result};
-use chrono::{Datelike, Timelike, Utc};
-use std::fs;
 use std::path::PathBuf;
-use tracing::warn;
 
-use crate::core::filesystem;
+use crate::core::foundry::get_default_foundry;
 use crate::types::spec::{
-    ContentValidationStatus, Spec, SpecConfig, SpecContentData, SpecFileType, SpecFilter,
-    SpecMetadata, SpecValidationResult,
+    ContentValidationStatus, Spec, SpecConfig, SpecFileType, SpecFilter, SpecMetadata,
+    SpecValidationResult,
 };
-use crate::utils::timestamp;
+
+// Import SpecContentData only for tests
+#[cfg(test)]
+use crate::types::spec::SpecContentData;
+
+/// Helper function to run async operations in sync context
+fn run_async<F, R>(f: F) -> Result<R>
+where
+    F: std::future::Future<Output = Result<R>>,
+{
+    // Use tokio runtime to block on futures
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .context("Failed to create tokio runtime")?;
+    rt.block_on(f)
+}
 
 /// Generate timestamped spec name
 pub fn generate_spec_name(feature_name: &str) -> String {
-    let now = Utc::now();
-    format!(
-        "{:04}{:02}{:02}_{:02}{:02}{:02}_{}",
-        now.year(),
-        now.month(),
-        now.day(),
-        now.hour(),
-        now.minute(),
-        now.second(),
-        feature_name
-    )
+    crate::core::foundry::Foundry::<crate::core::backends::filesystem::FilesystemBackend>::generate_spec_name(feature_name)
 }
 
 /// Create a new spec
 pub fn create_spec(config: SpecConfig) -> Result<Spec> {
-    let foundry_dir = filesystem::foundry_dir()?;
-    let project_path = foundry_dir.join(&config.project_name);
-    let specs_dir = project_path.join("specs");
-    let spec_name = generate_spec_name(&config.feature_name);
-    let spec_path = specs_dir.join(&spec_name);
-    let created_at = Utc::now().to_rfc3339();
-
-    // Ensure specs directory exists
-    filesystem::create_dir_all(&spec_path)?;
-
-    // Write spec files
-    filesystem::write_file_atomic(spec_path.join("spec.md"), &config.content.spec)?;
-    filesystem::write_file_atomic(spec_path.join("notes.md"), &config.content.notes)?;
-
-    filesystem::write_file_atomic(spec_path.join("task-list.md"), &config.content.tasks)?;
-
-    Ok(Spec {
-        name: spec_name,
-        created_at,
-        path: spec_path,
-        project_name: config.project_name,
-        content: config.content,
-    })
+    let foundry = get_default_foundry()?;
+    run_async(foundry.create_spec(config))
 }
 
 /// Validate spec directory name format
 pub fn validate_spec_name(spec_name: &str) -> Result<()> {
-    if timestamp::parse_spec_timestamp(spec_name).is_none() {
-        return Err(anyhow::anyhow!(
-            "Invalid spec name format. Expected: YYYYMMDD_HHMMSS_feature_name, got: {}",
-            spec_name
-        ));
-    }
-
-    // Validate feature name part
-    if let Some(feature_name) = timestamp::extract_feature_name(spec_name) {
-        if feature_name.is_empty() {
-            return Err(anyhow::anyhow!(
-                "Spec name must include a feature name after the timestamp"
-            ));
-        }
-
-        // Validate feature name follows snake_case convention
-        if !feature_name
-            .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
-            || feature_name.starts_with('_')
-            || feature_name.ends_with('_')
-            || feature_name.contains("__")
-        {
-            return Err(anyhow::anyhow!(
-                "Feature name must be in snake_case format: {}",
-                feature_name
-            ));
-        }
-    } else {
-        return Err(anyhow::anyhow!(
-            "Could not extract feature name from spec name: {}",
-            spec_name
-        ));
-    }
-
-    Ok(())
+    crate::core::foundry::Foundry::<crate::core::backends::filesystem::FilesystemBackend>::validate_spec_name(spec_name)
 }
 /// List specs for a project with enhanced validation
 pub fn list_specs(project_name: &str) -> Result<Vec<SpecMetadata>> {
-    let foundry_dir = filesystem::foundry_dir()?;
-    let specs_dir = foundry_dir.join(project_name).join("specs");
-
-    if !specs_dir.exists() {
-        return Ok(Vec::new());
-    }
-
-    let mut specs = Vec::new();
-    let mut malformed_count = 0;
-
-    for entry in fs::read_dir(specs_dir)? {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(e) => {
-                warn!("Failed to read directory entry: {}", e);
-                continue;
-            }
-        };
-
-        if let Ok(file_type) = entry.file_type() {
-            if file_type.is_dir() {
-                let spec_name = entry.file_name().to_string_lossy().to_string();
-
-                // Use enhanced timestamp parsing with better error handling
-                match (
-                    timestamp::parse_spec_timestamp(&spec_name),
-                    timestamp::extract_feature_name(&spec_name),
-                ) {
-                    (Some(timestamp_str), Some(feature_name)) => {
-                        // Convert timestamp to ISO format for consistent storage
-                        let created_at = timestamp::spec_timestamp_to_iso(&timestamp_str)
-                            .unwrap_or_else(|_| timestamp::iso_timestamp());
-
-                        specs.push(SpecMetadata {
-                            name: spec_name.clone(),
-                            created_at,
-                            feature_name,
-                            project_name: project_name.to_string(),
-                        });
-                    }
-                    _ => {
-                        malformed_count += 1;
-                        warn!("Skipping malformed spec directory: '{}'", spec_name);
-                    }
-                }
-            }
-        } else {
-            warn!(
-                "Failed to determine file type for entry: {:?}",
-                entry.path()
-            );
-        }
-    }
-
-    // Log summary of malformed specs if any were found
-    if malformed_count > 0 {
-        warn!(
-            "Skipped {} malformed spec directories in project '{}'",
-            malformed_count, project_name
-        );
-    }
-
-    // Sort by creation time (newest first)
-    specs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
-
-    Ok(specs)
+    let foundry = get_default_foundry()?;
+    run_async(foundry.list_specs(project_name))
 }
 
 /// List specs with filtering capabilities
@@ -208,22 +94,23 @@ pub fn list_specs_filtered(project_name: &str, filter: SpecFilter) -> Result<Vec
 
 /// Get the most recent spec for a project
 pub fn get_latest_spec(project_name: &str) -> Result<Option<SpecMetadata>> {
-    let specs = list_specs(project_name)?;
-    Ok(specs.into_iter().next()) // Already sorted by creation time (newest first)
+    let foundry = get_default_foundry()?;
+    run_async(foundry.get_latest_spec(project_name))
 }
 
 /// Count total specs for a project
 pub fn count_specs(project_name: &str) -> Result<usize> {
-    let specs = list_specs(project_name)?;
-    Ok(specs.len())
+    let foundry = get_default_foundry()?;
+    run_async(foundry.count_specs(project_name))
 }
 
 /// Check if a spec exists
 pub fn spec_exists(project_name: &str, spec_name: &str) -> Result<bool> {
-    let foundry_dir = filesystem::foundry_dir()?;
-    let spec_path = foundry_dir.join(project_name).join("specs").join(spec_name);
-
-    Ok(spec_path.exists() && spec_path.is_dir())
+    run_async(async {
+        // Access the backend through the foundry instance
+        let backend = crate::core::backends::filesystem::FilesystemBackend::new();
+        backend.spec_exists(project_name, spec_name).await
+    })
 }
 
 /// Update spec content (for task list updates)
@@ -233,47 +120,26 @@ pub fn update_spec_content(
     file_type: SpecFileType,
     new_content: &str,
 ) -> Result<()> {
-    // Validate spec exists
-    validate_spec_name(spec_name)?;
-    if !spec_exists(project_name, spec_name)? {
-        return Err(anyhow::anyhow!(
-            "Spec '{}' not found in project '{}'",
-            spec_name,
-            project_name
-        ));
-    }
-
-    let foundry_dir = filesystem::foundry_dir()?;
-    let spec_path = foundry_dir.join(project_name).join("specs").join(spec_name);
-
-    let file_path = match file_type {
-        SpecFileType::Spec => spec_path.join("spec.md"),
-        SpecFileType::Notes => spec_path.join("notes.md"),
-        SpecFileType::TaskList => spec_path.join("task-list.md"),
-    };
-
-    filesystem::write_file_atomic(&file_path, new_content)
-        .with_context(|| format!("Failed to update {:?} for spec '{}'", file_type, spec_name))?;
-
-    Ok(())
+    let foundry = get_default_foundry()?;
+    run_async(foundry.update_spec_content(project_name, spec_name, file_type, new_content))
 }
 
 /// Get spec directory path
 pub fn get_spec_path(project_name: &str, spec_name: &str) -> Result<PathBuf> {
-    let foundry_dir = filesystem::foundry_dir()?;
+    let foundry_dir = crate::core::filesystem::foundry_dir()?;
     Ok(foundry_dir.join(project_name).join("specs").join(spec_name))
 }
 
 /// Get specs directory path for a project
 pub fn get_specs_directory(project_name: &str) -> Result<PathBuf> {
-    let foundry_dir = filesystem::foundry_dir()?;
+    let foundry_dir = crate::core::filesystem::foundry_dir()?;
     Ok(foundry_dir.join(project_name).join("specs"))
 }
 
 /// Ensure specs directory exists for a project
 pub fn ensure_specs_directory(project_name: &str) -> Result<PathBuf> {
     let specs_dir = get_specs_directory(project_name)?;
-    filesystem::create_dir_all(&specs_dir).with_context(|| {
+    crate::core::filesystem::create_dir_all(&specs_dir).with_context(|| {
         format!(
             "Failed to create specs directory for project '{}'",
             project_name
@@ -284,26 +150,8 @@ pub fn ensure_specs_directory(project_name: &str) -> Result<PathBuf> {
 
 /// Delete a spec (with confirmation)
 pub fn delete_spec(project_name: &str, spec_name: &str) -> Result<()> {
-    validate_spec_name(spec_name)?;
-
-    let spec_path = get_spec_path(project_name, spec_name)?;
-
-    if !spec_path.exists() {
-        return Err(anyhow::anyhow!(
-            "Spec '{}' not found in project '{}'",
-            spec_name,
-            project_name
-        ));
-    }
-
-    std::fs::remove_dir_all(&spec_path).with_context(|| {
-        format!(
-            "Failed to delete spec '{}' from project '{}'",
-            spec_name, project_name
-        )
-    })?;
-
-    Ok(())
+    let foundry = get_default_foundry()?;
+    run_async(foundry.delete_spec(project_name, spec_name))
 }
 
 /// Validate spec content files exist and are readable
@@ -338,7 +186,7 @@ pub fn validate_spec_files(project_name: &str, spec_name: &str) -> Result<SpecVa
 
     // Validate file contents if they exist
     if result.spec_file_exists {
-        match filesystem::read_file(&spec_file) {
+        match crate::core::filesystem::read_file(&spec_file) {
             Ok(content) => {
                 result.content_validation.spec_valid = !content.trim().is_empty();
                 if !result.content_validation.spec_valid {
@@ -360,7 +208,7 @@ pub fn validate_spec_files(project_name: &str, spec_name: &str) -> Result<SpecVa
     }
 
     if result.notes_file_exists {
-        match filesystem::read_file(&notes_file) {
+        match crate::core::filesystem::read_file(&notes_file) {
             Ok(content) => {
                 result.content_validation.notes_valid = !content.trim().is_empty();
             }
@@ -373,7 +221,7 @@ pub fn validate_spec_files(project_name: &str, spec_name: &str) -> Result<SpecVa
     }
 
     if result.task_list_file_exists {
-        match filesystem::read_file(&task_list_file) {
+        match crate::core::filesystem::read_file(&task_list_file) {
             Ok(content) => {
                 result.content_validation.task_list_valid = !content.trim().is_empty();
             }
@@ -407,93 +255,8 @@ pub enum SpecMatchStrategy {
 
 /// Find the best matching spec using fuzzy matching
 pub fn find_spec_match(project_name: &str, query: &str) -> Result<SpecMatchStrategy> {
-    // Validate inputs
-    if query.trim().is_empty() {
-        return Err(anyhow::anyhow!("Query cannot be empty"));
-    }
-
-    if project_name.trim().is_empty() {
-        return Err(anyhow::anyhow!("Project name cannot be empty"));
-    }
-
-    let available_specs = list_specs(project_name)?;
-
-    if available_specs.is_empty() {
-        return Ok(SpecMatchStrategy::None);
-    }
-
-    // Try exact spec name match first (highest priority)
-    if let Some(exact_match) = available_specs.iter().find(|s| s.name == query) {
-        return Ok(SpecMatchStrategy::Exact(exact_match.name.clone()));
-    }
-
-    // Try exact feature name match
-    if let Some(feature_match) = available_specs.iter().find(|s| s.feature_name == query) {
-        return Ok(SpecMatchStrategy::FeatureExact(feature_match.name.clone()));
-    }
-
-    // Try feature name substring match (case-insensitive)
-    let query_lower = query.to_lowercase();
-    let substring_matches: Vec<&SpecMetadata> = available_specs
-        .iter()
-        .filter(|s| s.feature_name.to_lowercase().contains(&query_lower))
-        .collect();
-
-    if substring_matches.len() == 1 {
-        return Ok(SpecMatchStrategy::FeatureFuzzy(
-            substring_matches[0].name.clone(),
-        ));
-    } else if substring_matches.len() > 1 {
-        // Multiple substring matches - return for disambiguation
-        let mut names: Vec<String> = substring_matches
-            .into_iter()
-            .map(|s| s.name.clone())
-            .collect();
-        names.sort();
-        return Ok(SpecMatchStrategy::Multiple(names));
-    }
-
-    // Try fuzzy matching on feature names
-    let feature_matches: Vec<(String, f32)> = available_specs
-        .iter()
-        .map(|s| {
-            let similarity = strsim::normalized_levenshtein(query, &s.feature_name) as f32;
-            (s.name.clone(), similarity)
-        })
-        .filter(|(_, confidence)| *confidence > 0.8) // High confidence threshold
-        .collect();
-
-    if feature_matches.len() == 1 {
-        return Ok(SpecMatchStrategy::FeatureFuzzy(
-            feature_matches[0].0.clone(),
-        ));
-    } else if feature_matches.len() > 1 {
-        // Multiple feature matches - return for disambiguation
-        let mut names: Vec<String> = feature_matches.into_iter().map(|(name, _)| name).collect();
-        names.sort();
-        return Ok(SpecMatchStrategy::Multiple(names));
-    }
-
-    // Try fuzzy matching on spec names
-    let name_matches: Vec<(String, f32)> = available_specs
-        .iter()
-        .map(|s| {
-            let similarity = strsim::normalized_levenshtein(query, &s.name) as f32;
-            (s.name.clone(), similarity)
-        })
-        .filter(|(_, confidence)| *confidence > 0.8) // High confidence threshold
-        .collect();
-
-    if name_matches.len() == 1 {
-        return Ok(SpecMatchStrategy::NameFuzzy(name_matches[0].0.clone()));
-    } else if name_matches.len() > 1 {
-        // Multiple name matches - return for disambiguation
-        let mut names: Vec<String> = name_matches.into_iter().map(|(name, _)| name).collect();
-        names.sort();
-        return Ok(SpecMatchStrategy::Multiple(names));
-    }
-
-    Ok(SpecMatchStrategy::None)
+    let foundry = get_default_foundry()?;
+    run_async(foundry.find_spec_match(project_name, query))
 }
 
 /// Load a spec with fuzzy matching support and comprehensive error handling
@@ -580,60 +343,8 @@ pub fn load_spec_with_fuzzy(project_name: &str, query: &str) -> Result<(Spec, Sp
 
 /// Load a specific spec with validation
 pub fn load_spec(project_name: &str, spec_name: &str) -> Result<Spec> {
-    // Validate spec name format first
-    validate_spec_name(spec_name).with_context(|| format!("Invalid spec name: {}", spec_name))?;
-
-    let foundry_dir = filesystem::foundry_dir()?;
-    let spec_path = foundry_dir.join(project_name).join("specs").join(spec_name);
-
-    if !spec_path.exists() {
-        return Err(anyhow::anyhow!(
-            "Spec '{}' not found in project '{}'",
-            spec_name,
-            project_name
-        ));
-    }
-
-    // Read spec files
-    let spec_content = filesystem::read_file(spec_path.join("spec.md"))?;
-    let notes = filesystem::read_file(spec_path.join("notes.md"))?;
-    let task_list = filesystem::read_file(spec_path.join("task-list.md"))?;
-
-    // Get creation time from spec name timestamp (more reliable than filesystem metadata)
-    let created_at = timestamp::parse_spec_timestamp(spec_name).map_or_else(
-        || {
-            // Fallback to filesystem metadata if timestamp parsing fails
-            fs::metadata(&spec_path)
-                .and_then(|metadata| metadata.created())
-                .map_err(anyhow::Error::from)
-                .and_then(|time| {
-                    time.duration_since(std::time::UNIX_EPOCH)
-                        .map_err(anyhow::Error::from)
-                })
-                .map(|duration| {
-                    chrono::DateTime::from_timestamp(duration.as_secs() as i64, 0)
-                        .unwrap_or_else(chrono::Utc::now)
-                        .to_rfc3339()
-                })
-                .unwrap_or_else(|_| timestamp::iso_timestamp())
-        },
-        |timestamp_str| {
-            timestamp::spec_timestamp_to_iso(&timestamp_str)
-                .unwrap_or_else(|_| timestamp::iso_timestamp())
-        },
-    );
-
-    Ok(Spec {
-        name: spec_name.to_string(),
-        created_at,
-        path: spec_path,
-        project_name: project_name.to_string(),
-        content: SpecContentData {
-            spec: spec_content,
-            notes,
-            tasks: task_list,
-        },
-    })
+    let foundry = get_default_foundry()?;
+    run_async(foundry.load_spec(project_name, spec_name))
 }
 
 /// Get the file path for a spec.md file
@@ -1215,7 +926,7 @@ mod tests {
                 .unwrap();
 
             // Create a malformed spec directory (invalid name format)
-            let foundry_dir = filesystem::foundry_dir().unwrap();
+            let foundry_dir = crate::core::filesystem::foundry_dir().unwrap();
             let specs_dir = foundry_dir.join(project_name).join("specs");
             let malformed_dir = specs_dir.join("invalid_spec_name");
             std::fs::create_dir_all(&malformed_dir).unwrap();
