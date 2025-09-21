@@ -457,13 +457,6 @@ mcp_foundry_load_project project-name  # Full vision + tech-stack + all specs
 - **File locked**: Close files in other applications
 - **Solution**: Check file permissions and close conflicting applications
 
-### MCP vs CLI Tool Confusion
-
-- **MCP Tools**: Available through AI assistant interface (all core Foundry functionality)
-- **CLI Tools**: Use terminal/command line (delete-spec, install/uninstall/status commands)
-- **Most tools work through both interfaces**: create-project, update-spec, load-project, etc.
-- **When to use CLI**: For installation management, status checking, deletion operations
-
 ## Tips for Effective Usage
 
 1. **Choose Right Workflow**: Use direct spec loading for focused work, project loading for comprehensive analysis
