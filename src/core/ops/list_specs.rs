@@ -13,7 +13,7 @@ pub struct Input {
 
 pub async fn run(input: Input) -> Result<FoundryResponse<ListSpecsResponse>> {
     let foundry = foundry::get_default_foundry()?;
-    
+
     validate_project_exists(&foundry, &input.project_name).await?;
 
     let specs = foundry

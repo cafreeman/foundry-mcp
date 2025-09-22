@@ -65,7 +65,7 @@ pub trait SpecContentStore: Send + Sync {
         spec_name: &str,
         file_type: SpecFileType,
     ) -> Result<String>;
-    
+
     async fn write_spec_file(
         &self,
         project_name: &str,
@@ -73,7 +73,7 @@ pub trait SpecContentStore: Send + Sync {
         file_type: SpecFileType,
         content: &str,
     ) -> Result<()>;
-    
+
     async fn is_file_modified(
         &self,
         project_name: &str,
@@ -83,8 +83,14 @@ pub trait SpecContentStore: Send + Sync {
     ) -> Result<bool>;
 }
 
-// Re-export filesystem backend (will be implemented in Phase 1)
+// Re-export filesystem backend
 pub mod filesystem;
+
+// Re-export memory backend for testing
+pub mod memory;
+
+// Backend testing infrastructure
+mod tests;
 
 // Re-export factory functions
 pub use crate::core::foundry::get_default_foundry;

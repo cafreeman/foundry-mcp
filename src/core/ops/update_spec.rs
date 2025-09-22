@@ -15,7 +15,7 @@ pub struct Input {
 
 pub async fn run(input: Input) -> Result<FoundryResponse<EditCommandsResponsePayload>> {
     let foundry = foundry::get_default_foundry()?;
-    
+
     validate_args(&input)?;
     validate_project_exists(&foundry, &input.project_name).await?;
 
@@ -32,7 +32,9 @@ pub async fn run(input: Input) -> Result<FoundryResponse<EditCommandsResponsePay
     let commands: Vec<EditCommand> = serde_json::from_str(&input.commands_json)
         .map_err(|e| anyhow::anyhow!("Invalid commands JSON: {}", e))?;
 
-    let result = foundry.apply_edit_commands(&input.project_name, &input.spec_name, &commands).await?;
+    let result = foundry
+        .apply_edit_commands(&input.project_name, &input.spec_name, &commands)
+        .await?;
 
     let response_data = EditCommandsResponsePayload {
         applied_count: result.applied_count,

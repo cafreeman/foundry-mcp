@@ -434,7 +434,7 @@ mod tests {
 
     #[test]
     fn test_is_claude_code_available() {
-        use crate::test_utils::TestEnvironment;
+        use crate::test_environment::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
 
         env.with_env_async(|| async {
@@ -446,7 +446,7 @@ mod tests {
 
     #[test]
     fn test_get_claude_code_status() {
-        use crate::test_utils::TestEnvironment;
+        use crate::test_environment::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
 
         env.with_env_async(|| async {
@@ -463,7 +463,7 @@ mod tests {
 
     #[test]
     fn test_install_for_claude_code() {
-        use crate::test_utils::TestEnvironment;
+        use crate::test_environment::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
 
         env.with_env_async(|| async {

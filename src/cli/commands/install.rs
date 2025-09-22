@@ -251,7 +251,7 @@ mod tests {
 
     #[test]
     fn test_execute_with_explicit_binary_path() {
-        use crate::test_utils::TestEnvironment;
+        use crate::test_environment::TestEnvironment;
 
         let env = TestEnvironment::new().unwrap();
 
@@ -275,7 +275,7 @@ mod tests {
 
     #[test]
     fn test_execute_response_structure() {
-        use crate::test_utils::TestEnvironment;
+        use crate::test_environment::TestEnvironment;
 
         let env = TestEnvironment::new().unwrap();
 

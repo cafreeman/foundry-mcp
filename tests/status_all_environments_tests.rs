@@ -5,8 +5,8 @@
 
 use anyhow::Result;
 
-// Import TestEnvironment from the main crate
-use foundry_mcp::test_utils::TestEnvironment;
+mod common;
+use common::TestEnvironment;
 
 /// Test status command for all environments
 #[test]

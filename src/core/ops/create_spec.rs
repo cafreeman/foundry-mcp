@@ -20,7 +20,7 @@ pub struct Input {
 /// Execute the create_spec operation and return a structured response
 pub async fn run(input: Input) -> Result<FoundryResponse<CreateSpecResponse>> {
     let foundry = foundry::get_default_foundry()?;
-    
+
     // Validate project exists
     validate_project_exists(&foundry, &input.project_name).await?;
 

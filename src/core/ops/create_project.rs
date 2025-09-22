@@ -17,7 +17,7 @@ pub struct Input {
 
 pub async fn run(input: Input) -> Result<FoundryResponse<CreateProjectResponse>> {
     let foundry = foundry::get_default_foundry()?;
-    
+
     validate_project_preconditions(&foundry, &input.project_name).await?;
 
     let suggestions = process_content_validation(&input)?;

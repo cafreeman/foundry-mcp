@@ -50,6 +50,12 @@ impl FilesystemBackend {
     }
 }
 
+impl Default for FilesystemBackend {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl FoundryBackend for FilesystemBackend {
     async fn create_project(&self, config: ProjectConfig) -> Result<Project> {

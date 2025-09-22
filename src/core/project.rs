@@ -55,7 +55,7 @@ pub fn load_project(project_name: &str) -> Result<Project> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::TestEnvironment;
+    use crate::test_environment::TestEnvironment;
 
     #[test]
     fn test_list_projects_rfc3339_timestamps() {

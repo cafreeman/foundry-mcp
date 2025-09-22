@@ -14,19 +14,22 @@ pub struct Input {
 
 pub async fn run(input: Input) -> Result<FoundryResponse<DeleteSpecResponse>> {
     let foundry = foundry::get_default_foundry()?;
-    
+
     validate_args(&input)?;
     validate_project_exists(&foundry, &input.project_name).await?;
 
     // Check if spec exists by trying to load it
-    let response_data = match foundry.load_spec(&input.project_name, &input.spec_name).await {
+    let response_data = match foundry
+        .load_spec(&input.project_name, &input.spec_name)
+        .await
+    {
         Ok(spec) => {
             let files_to_delete = vec![
                 format!("{}/spec.md", spec.name),
                 format!("{}/task-list.md", spec.name),
                 format!("{}/notes.md", spec.name),
             ];
-            
+
             if input.confirm.to_lowercase() != "true" {
                 return Err(anyhow::anyhow!(
                     "Deletion not confirmed. Set --confirm true to proceed with deleting spec '{}' and all its files. Got: '{}'",
@@ -35,13 +38,18 @@ pub async fn run(input: Input) -> Result<FoundryResponse<DeleteSpecResponse>> {
                 ));
             }
 
-            foundry.delete_spec(&input.project_name, &input.spec_name).await
+            foundry
+                .delete_spec(&input.project_name, &input.spec_name)
+                .await
                 .with_context(|| format!("Failed to delete spec '{}'", input.spec_name))?;
 
             DeleteSpecResponse {
                 project_name: input.project_name.clone(),
                 spec_name: input.spec_name.clone(),
-                spec_path: format!("~/.foundry/{}/specs/{}", input.project_name, input.spec_name),
+                spec_path: format!(
+                    "~/.foundry/{}/specs/{}",
+                    input.project_name, input.spec_name
+                ),
                 files_deleted: files_to_delete,
             }
         }
@@ -91,7 +99,6 @@ async fn validate_project_exists(
     }
     Ok(())
 }
-
 
 fn generate_next_steps(input: &Input) -> Vec<String> {
     vec![

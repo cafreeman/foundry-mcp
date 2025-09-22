@@ -3,8 +3,10 @@
 //! These tests verify the full project creation and loading workflows using
 //! isolated filesystem operations following CLI testing best practices.
 
+mod common;
+
+use common::TestEnvironment;
 use foundry_mcp::core::ops::{create_project, create_spec, load_project};
-use foundry_mcp::test_utils::TestEnvironment;
 use foundry_mcp::types::responses::ValidationStatus;
 
 /// Test the complete project creation workflow
@@ -268,9 +270,9 @@ fn test_end_to_end_workflow() {
         let _spec_response = create_spec::run(create_spec::Input {
             project_name: spec_args.project_name,
             feature_name: spec_args.feature_name,
-            spec: spec_args.spec,
-            notes: spec_args.notes,
-            tasks: spec_args.tasks,
+            spec: spec_args.content.spec,
+            notes: spec_args.content.notes,
+            tasks: spec_args.content.tasks,
         })
         .await
         .unwrap();
