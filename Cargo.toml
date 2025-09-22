@@ -14,10 +14,7 @@ documentation = "https://docs.rs/foundry-mcp"
 readme = "README.md"
 keywords = ["mcp", "ai", "project-management", "cli", "coding-assistant"]
 categories = ["command-line-utilities", "development-tools"]
-exclude = [
-    ".cursor/",
-    ".cargo/",
-]
+exclude = [".cursor/", ".cargo/"]
 
 [[bin]]
 name = "foundry"
@@ -40,9 +37,13 @@ serde_json = "1.0.142"
 strsim = "0.11"
 thiserror = "2.0"
 tokio = { version = "1.47.1", features = ["sync", "time", "macros"] }
-
-# Phase A: Linear GraphQL transport deps
-reqwest = { version = "0.12", features = ["json", "gzip", "brotli", "deflate", "rustls-tls"] }
+reqwest = { version = "0.12", features = [
+    "json",
+    "gzip",
+    "brotli",
+    "deflate",
+    "rustls-tls",
+] }
 cynic = { version = "3", features = ["http-reqwest"] }
 url = "2.5"
 backoff = { version = "0.4", features = ["tokio"] }
@@ -59,7 +60,7 @@ futures = "0.3.31"
 assert_fs = "1.1"
 predicates = "3.0"
 temp-env = "0.3.6"
-# Snapshot and HTTP mocking for Phase A tests
+comrak = "0.22"
 insta = { version = "1.39", features = ["json"] }
 httpmock = "0.7"
 

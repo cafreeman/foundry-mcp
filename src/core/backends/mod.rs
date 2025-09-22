@@ -95,6 +95,10 @@ pub mod filesystem;
 // Re-export memory backend for testing
 pub mod memory;
 
+// Experimental Linear backend
+// Temporarily not exported to avoid compiling unfinished backend code
+// pub mod linear;
+
 // Backend testing infrastructure
 mod tests;
 

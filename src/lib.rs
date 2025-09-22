@@ -43,3 +43,30 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub fn foundry_dir() -> anyhow::Result<std::path::PathBuf> {
     crate::core::filesystem::foundry_dir()
 }
+
+// Compile Linear Phase D reconciliation logic and its unit tests without enabling the full backend
+#[cfg(test)]
+mod linear_reconcile {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/core/backends/linear/reconcile.rs"
+    ));
+}
+
+// Compile task parser and unit tests in test builds
+#[cfg(test)]
+mod linear_task_parser {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/core/backends/linear/task_parser.rs"
+    ));
+}
+
+// Compile Phase D orchestrator tests
+#[cfg(test)]
+mod linear_phase_d {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/core/backends/linear/phase_d.rs"
+    ));
+}
