@@ -1,4 +1,4 @@
-//! Integration tests for Foundry CLI argument parsing and validation
+//! Integration tests for Foundry lifecycle command argument parsing and validation
 //!
 //! These tests verify that CLI arguments are properly parsed and validated
 //! using Clap's built-in testing utilities.

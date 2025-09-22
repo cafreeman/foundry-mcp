@@ -3,6 +3,7 @@
 pub mod edit_engine;
 pub mod filesystem;
 pub mod installation;
+pub mod ops;
 pub mod project;
 pub mod spec;
 pub mod templates;

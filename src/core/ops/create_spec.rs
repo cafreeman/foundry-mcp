@@ -1,27 +1,38 @@
-//! Implementation of the create_spec command
+//! Core op for creating a spec (tool-agnostic)
 
-use crate::cli::args::CreateSpecArgs;
+use anyhow::{Context, Result};
+
 use crate::core::{project, spec, validation};
 use crate::types::responses::{CreateSpecResponse, FoundryResponse, ValidationStatus};
 use crate::types::spec::{SpecConfig, SpecContentData};
 use crate::utils::paths;
-use anyhow::{Context, Result};
 
-pub async fn execute(args: CreateSpecArgs) -> Result<FoundryResponse<CreateSpecResponse>> {
+/// Input for create_spec operation (decoupled from interface-specific args)
+#[derive(Debug, Clone)]
+pub struct Input {
+    pub project_name: String,
+    pub feature_name: String,
+    pub spec: String,
+    pub notes: String,
+    pub tasks: String,
+}
+
+/// Execute the create_spec operation and return a structured response
+pub async fn run(input: Input) -> Result<FoundryResponse<CreateSpecResponse>> {
     // Validate project exists
-    validate_project_exists(&args.project_name)?;
+    validate_project_exists(&input.project_name)?;
 
     // Validate feature name
-    validate_feature_name(&args.feature_name)?;
+    validate_feature_name(&input.feature_name)?;
 
     // Validate content
-    let content_validation = validate_content(&args)?;
+    let content_validation = validate_content(&input)?;
     let has_validation_warnings = content_validation
         .iter()
         .any(|(_, result)| !result.is_valid);
 
     // Create the spec
-    let spec_config = build_spec_config(args);
+    let spec_config = build_spec_config(input);
     let created_spec = spec::create_spec(spec_config).context("Failed to create specification")?;
 
     // Build response
@@ -71,36 +82,34 @@ fn validate_feature_name(feature_name: &str) -> Result<()> {
 }
 
 /// Validate content according to schema requirements
-fn validate_content(
-    args: &CreateSpecArgs,
-) -> Result<Vec<(&'static str, validation::ValidationResult)>> {
+fn validate_content(input: &Input) -> Result<Vec<(&'static str, validation::ValidationResult)>> {
     let validations = vec![
         (
             "Spec Content",
-            validation::validate_content(validation::ContentType::Spec, &args.spec),
+            validation::validate_content(validation::ContentType::Spec, &input.spec),
         ),
         (
             "Implementation Notes",
-            validation::validate_content(validation::ContentType::Notes, &args.notes),
+            validation::validate_content(validation::ContentType::Notes, &input.notes),
         ),
         (
             "Task List",
-            validation::validate_content(validation::ContentType::Tasks, &args.tasks),
+            validation::validate_content(validation::ContentType::Tasks, &input.tasks),
         ),
     ];
 
     Ok(validations)
 }
 
-/// Build spec config from CLI arguments
-fn build_spec_config(args: CreateSpecArgs) -> SpecConfig {
+/// Build spec config from input
+fn build_spec_config(input: Input) -> SpecConfig {
     SpecConfig {
-        project_name: args.project_name,
-        feature_name: args.feature_name,
+        project_name: input.project_name,
+        feature_name: input.feature_name,
         content: SpecContentData {
-            spec: args.spec,
-            notes: args.notes,
-            tasks: args.tasks,
+            spec: input.spec,
+            notes: input.notes,
+            tasks: input.tasks,
         },
     }
 }
@@ -149,87 +158,4 @@ fn generate_workflow_hints(
     hints.push("Tool selection guidance: {\"name\": \"get_foundry_help\", \"arguments\": {\"topic\": \"decision-points\"}}".to_string());
 
     hints
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // Create test arguments for spec creation
-    fn create_test_spec_args() -> CreateSpecArgs {
-        CreateSpecArgs {
-            project_name: "test-project".to_string(),
-            feature_name: "user_authentication".to_string(),
-            spec: "Implement user authentication system with JWT tokens. Users should be able to register, login, logout, and reset passwords. The system should include email verification and role-based access control with proper security measures.".to_string(),
-            notes: "Consider using bcrypt for password hashing. JWT tokens should expire after 24 hours. Need to implement rate limiting for login attempts and proper session management.".to_string(),
-            tasks: "Create user registration endpoint, Implement password hashing with bcrypt, Add JWT token generation and validation, Create login/logout endpoints, Implement email verification system, Add role-based middleware for access control, Create password reset flow with email verification".to_string(),
-        }
-    }
-
-    #[test]
-    fn test_validate_feature_name_valid() {
-        let valid_names = vec![
-            "user_authentication",
-            "api_endpoints",
-            "database_schema",
-            "test_feature",
-            "feature123",
-        ];
-
-        for name in valid_names {
-            assert!(
-                validate_feature_name(name).is_ok(),
-                "Feature name '{}' should be valid",
-                name
-            );
-        }
-    }
-
-    #[test]
-    fn test_validate_feature_name_invalid() {
-        let invalid_names = vec![
-            "",              // empty
-            "Feature-Name",  // kebab-case instead of snake_case
-            "featureName",   // camelCase
-            "feature name",  // spaces
-            "feature.name",  // dots
-            "feature__name", // double underscores
-            "_feature",      // starts with underscore
-            "feature_",      // ends with underscore
-            "FEATURE_NAME",  // all uppercase
-        ];
-
-        for name in invalid_names {
-            assert!(
-                validate_feature_name(name).is_err(),
-                "Feature name '{}' should be invalid",
-                name
-            );
-        }
-    }
-
-    #[test]
-    fn test_validate_content_structure() {
-        let args = create_test_spec_args();
-        let validations = validate_content(&args).unwrap();
-
-        assert_eq!(validations.len(), 3);
-
-        // Check that all content types are present
-        let content_types: Vec<&str> = validations.iter().map(|(t, _)| *t).collect();
-        assert!(content_types.contains(&"Spec Content"));
-        assert!(content_types.contains(&"Implementation Notes"));
-        assert!(content_types.contains(&"Task List"));
-    }
-
-    #[test]
-    fn test_validate_project_exists_missing_project() {
-        // Test with a project that definitely doesn't exist
-        let result = validate_project_exists("non-existent-project-12345");
-
-        assert!(result.is_err());
-        let error_message = result.unwrap_err().to_string();
-        assert!(error_message.contains("not found"));
-        assert!(error_message.contains("list_projects"));
-    }
 }

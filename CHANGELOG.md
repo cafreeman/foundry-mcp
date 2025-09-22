@@ -26,6 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated workflow hints and next steps to use consistent MCP tool naming
   - Updated test assertions to match MCP tool names
   - Ensures complete consistency with MCP-only architecture introduced in v0.6.0
+  - Updated workflow hint in `src/core/ops/load_project.rs` to reference `mcp_foundry_get_foundry_help`
+  - Updated guidance in `src/cli/commands/get_foundry_help.rs` to reference `mcp_foundry_validate_content`
+  - Verified no remaining `foundry <tool>` references via repo-wide search
 
 ## [0.6.1] - 2025-09-19
 

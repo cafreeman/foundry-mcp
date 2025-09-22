@@ -46,7 +46,7 @@ pub async fn execute(args: GetFoundryHelpArgs) -> Result<FoundryResponse<GetFoun
     })
 }
 
-fn create_overview_help() -> HelpContent {
+pub fn create_overview_help() -> HelpContent {
     HelpContent {
         title: "Foundry - Project Management for AI Coding Assistants".to_string(),
         description: "Foundry is a CLI tool that manages project structure in ~/.foundry/ to help LLMs maintain context about software projects through structured specifications. Foundry is content-agnostic - LLMs provide ALL content as arguments, Foundry manages file structure.".to_string(),
@@ -66,7 +66,7 @@ fn create_overview_help() -> HelpContent {
     }
 }
 
-fn create_workflows_help() -> HelpContent {
+pub fn create_workflows_help() -> HelpContent {
     HelpContent {
         title: "User-Driven Foundry Usage Patterns".to_string(),
         description: "Guidance for using Foundry tools based on user intent and project context, emphasizing user-driven decisions rather than automated sequences.".to_string(),
@@ -109,7 +109,7 @@ fn create_workflows_help() -> HelpContent {
     }
 }
 
-fn create_content_examples_help() -> HelpContent {
+pub fn create_content_examples_help() -> HelpContent {
     HelpContent {
         title: "Content Examples and Markdown Formatting Guidelines".to_string(),
         description: "Comprehensive formatting standards, content templates, and markdown structure guidelines for all foundry content types.".to_string(),
@@ -294,12 +294,12 @@ fn create_content_examples_help() -> HelpContent {
             "Include specific examples, version numbers, and concrete implementation details".to_string(),
             "Write in present tense with active voice for clarity and consistency".to_string(),
             "Reference external documentation with proper links where applicable".to_string(),
-            "Use 'foundry validate_content' to verify formatting and content quality".to_string(),
+            "Use 'mcp_foundry_validate_content' to verify formatting and content quality".to_string(),
         ],
     }
 }
 
-fn create_project_structure_help() -> HelpContent {
+pub fn create_project_structure_help() -> HelpContent {
     HelpContent {
         title: "Foundry Project Structure".to_string(),
         description: "Understanding the file organization and directory structure that Foundry creates and manages.".to_string(),
@@ -330,7 +330,7 @@ fn create_project_structure_help() -> HelpContent {
     }
 }
 
-fn create_parameter_guidance_help() -> HelpContent {
+pub fn create_parameter_guidance_help() -> HelpContent {
     HelpContent {
         title: "Parameter Guidelines and Schemas".to_string(),
         description: "Detailed guidance on parameter requirements, formats, and validation rules for all Foundry commands.".to_string(),
@@ -369,7 +369,7 @@ fn create_parameter_guidance_help() -> HelpContent {
     }
 }
 
-fn create_decision_points_help() -> HelpContent {
+pub fn create_decision_points_help() -> HelpContent {
     HelpContent {
         title: "Decision Points and Tool Selection".to_string(),
         description: "Guidance for choosing the right Foundry tools based on user intent and context. Emphasizes user-driven decisions over automated sequences.".to_string(),
@@ -409,7 +409,7 @@ fn create_decision_points_help() -> HelpContent {
     }
 }
 
-fn create_tool_capabilities_help() -> HelpContent {
+pub fn create_tool_capabilities_help() -> HelpContent {
     HelpContent {
         title: "Tool Capabilities and Appropriate Usage".to_string(),
         description: "Understanding when each Foundry tool is appropriate and what user input is required for effective usage.".to_string(),
@@ -461,7 +461,7 @@ fn create_tool_capabilities_help() -> HelpContent {
     }
 }
 
-fn create_edit_commands_help() -> HelpContent {
+pub fn create_edit_commands_help() -> HelpContent {
     HelpContent {
         title: "Edit Commands for Deterministic Spec Updates".to_string(),
         description: "Use update_spec with a 'commands' array to perform precise, idempotent edits "

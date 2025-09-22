@@ -1,82 +1,76 @@
-//! Implementation of the delete_spec command
+//! Core op for deleting a spec (tool-agnostic)
 
-use crate::cli::args::DeleteSpecArgs;
-use crate::core::{project, spec};
-use crate::types::responses::{DeleteSpecResponse, FoundryResponse, ValidationStatus};
 use anyhow::{Context, Result};
 use std::fs;
 
-pub async fn execute(args: DeleteSpecArgs) -> Result<FoundryResponse<DeleteSpecResponse>> {
-    // Validate inputs
-    validate_args(&args)?;
+use crate::core::{project, spec};
+use crate::types::responses::{DeleteSpecResponse, FoundryResponse, ValidationStatus};
 
-    // Validate project exists
-    validate_project_exists(&args.project_name)?;
+#[derive(Debug, Clone)]
+pub struct Input {
+    pub project_name: String,
+    pub spec_name: String,
+    pub confirm: String,
+}
 
-    // Validate spec exists
-    if !spec::spec_exists(&args.project_name, &args.spec_name)? {
+pub async fn run(input: Input) -> Result<FoundryResponse<DeleteSpecResponse>> {
+    validate_args(&input)?;
+    validate_project_exists(&input.project_name)?;
+
+    if !spec::spec_exists(&input.project_name, &input.spec_name)? {
         return Err(anyhow::anyhow!(
             "Spec '{}' not found in project '{}'. Use 'mcp_foundry_load_project {}' to see available specs.",
-            args.spec_name,
-            args.project_name,
-            args.project_name
+            input.spec_name,
+            input.project_name,
+            input.project_name
         ));
     }
 
-    // Get spec path and files before deletion for response
-    let spec_path = spec::get_spec_path(&args.project_name, &args.spec_name)?;
+    let spec_path = spec::get_spec_path(&input.project_name, &input.spec_name)?;
     let files_to_delete = get_spec_files(&spec_path)?;
 
-    // Validate confirmation
-    if args.confirm.to_lowercase() != "true" {
+    if input.confirm.to_lowercase() != "true" {
         return Err(anyhow::anyhow!(
             "Deletion not confirmed. Set --confirm true to proceed with deleting spec '{}' and all its files. Got: '{}'",
-            args.spec_name,
-            args.confirm
+            input.spec_name,
+            input.confirm
         ));
     }
 
-    // Delete the spec
-    spec::delete_spec(&args.project_name, &args.spec_name)
-        .with_context(|| format!("Failed to delete spec '{}'", args.spec_name))?;
+    spec::delete_spec(&input.project_name, &input.spec_name)
+        .with_context(|| format!("Failed to delete spec '{}'", input.spec_name))?;
 
     let response_data = DeleteSpecResponse {
-        project_name: args.project_name.clone(),
-        spec_name: args.spec_name.clone(),
+        project_name: input.project_name.clone(),
+        spec_name: input.spec_name.clone(),
         spec_path: spec_path.to_string_lossy().to_string(),
         files_deleted: files_to_delete,
     };
 
     Ok(FoundryResponse {
         data: response_data,
-        next_steps: generate_next_steps(&args),
+        next_steps: generate_next_steps(&input),
         validation_status: ValidationStatus::Complete,
-        workflow_hints: generate_workflow_hints(&args),
+        workflow_hints: generate_workflow_hints(&input),
     })
 }
 
-/// Validate command arguments
-fn validate_args(args: &DeleteSpecArgs) -> Result<()> {
-    if args.project_name.trim().is_empty() {
+fn validate_args(input: &Input) -> Result<()> {
+    if input.project_name.trim().is_empty() {
         return Err(anyhow::anyhow!("Project name cannot be empty"));
     }
-
-    if args.spec_name.trim().is_empty() {
+    if input.spec_name.trim().is_empty() {
         return Err(anyhow::anyhow!("Spec name cannot be empty"));
     }
-
-    // Validate spec name format (basic check)
-    if !args.spec_name.contains('_') {
+    if !input.spec_name.contains('_') {
         return Err(anyhow::anyhow!(
             "Invalid spec name format '{}'. Expected format: YYYYMMDD_HHMMSS_feature_name",
-            args.spec_name
+            input.spec_name
         ));
     }
-
     Ok(())
 }
 
-/// Validate that project exists
 fn validate_project_exists(project_name: &str) -> Result<()> {
     if !project::project_exists(project_name)? {
         return Err(anyhow::anyhow!(
@@ -87,70 +81,58 @@ fn validate_project_exists(project_name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Get list of files that will be deleted from a spec directory
 fn get_spec_files(spec_path: &std::path::Path) -> Result<Vec<String>> {
     let mut files = Vec::new();
-
     if !spec_path.exists() {
         return Ok(files);
     }
-
-    // Check for standard spec files
     let expected_files = ["spec.md", "task-list.md", "notes.md"];
-
     for file_name in &expected_files {
         let file_path = spec_path.join(file_name);
         if file_path.exists() {
             files.push(file_path.to_string_lossy().to_string());
         }
     }
-
-    // Also check for any other files in the spec directory
     if let Ok(entries) = fs::read_dir(spec_path) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.is_file() {
                 let file_name = path
                     .file_name()
-                    .and_then(|name| name.to_str())
+                    .and_then(|n| n.to_str())
                     .unwrap_or("unknown");
-
-                // Only add if not already in our expected files list
                 if !expected_files.contains(&file_name) {
                     files.push(path.to_string_lossy().to_string());
                 }
             }
         }
     }
-
     Ok(files)
 }
 
-/// Generate next steps for the response
-fn generate_next_steps(args: &DeleteSpecArgs) -> Vec<String> {
+fn generate_next_steps(input: &Input) -> Vec<String> {
     vec![
         format!(
             "Successfully deleted spec '{}' from project '{}'",
-            args.spec_name, args.project_name
+            input.spec_name, input.project_name
         ),
         "All spec files have been permanently removed".to_string(),
         format!(
             "You can view remaining specs: mcp_foundry_load_project {}",
-            args.project_name
+            input.project_name
         ),
         format!(
             "You can create a new spec: mcp_foundry_create_spec {} <feature_name>",
-            args.project_name
+            input.project_name
         ),
         "Deletion cannot be undone - you might consider backing up important specs before deletion"
             .to_string(),
     ]
 }
 
-/// Generate workflow hints for the response
-fn generate_workflow_hints(args: &DeleteSpecArgs) -> Vec<String> {
+fn generate_workflow_hints(input: &Input) -> Vec<String> {
     vec![
-        format!("Deleted spec: {}", args.spec_name),
+        format!("Deleted spec: {}", input.spec_name),
         "This action cannot be undone".to_string(),
         "All associated files (spec.md, task-list.md, notes.md) have been removed".to_string(),
         "You can use 'mcp_foundry_list_projects' to see project status after deletion".to_string(),

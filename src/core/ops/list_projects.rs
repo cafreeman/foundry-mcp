@@ -1,18 +1,19 @@
-//! Implementation of the list_projects command
+//! Core op for listing projects (tool-agnostic)
 
-use crate::cli::args::ListProjectsArgs;
+use anyhow::{Context, Result};
+
 use crate::core::project;
 use crate::types::responses::{FoundryResponse, ListProjectsResponse, ProjectInfo};
 use crate::utils::formatting::format_count;
 use crate::utils::response::build_success_response;
-use anyhow::{Context, Result};
 
-pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProjectsResponse>> {
-    // Get all projects from the foundry directory
+#[derive(Debug, Clone)]
+pub struct Input;
+
+pub async fn run(_input: Input) -> Result<FoundryResponse<ListProjectsResponse>> {
     let project_metadata_list =
         project::list_projects().context("Failed to list projects from foundry directory")?;
 
-    // Convert to response format
     let projects: Vec<ProjectInfo> = project_metadata_list
         .into_iter()
         .map(|metadata| {
@@ -31,7 +32,6 @@ pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProj
 
     let response_data = ListProjectsResponse { projects };
 
-    // Generate appropriate response based on project count
     let (next_steps, workflow_hints) = if response_data.projects.is_empty() {
         (
             vec![
@@ -49,15 +49,12 @@ pub async fn execute(_args: ListProjectsArgs) -> Result<FoundryResponse<ListProj
         (
             vec![
                 format_count(project_count, "project", "projects"),
-                "You can use 'mcp_foundry_create_spec <project_name> <feature_name>' to add specifications"
-                    .to_string(),
-                "You can use 'mcp_foundry_load_spec <project_name>' to view existing specifications"
-                    .to_string(),
+                "You can use 'mcp_foundry_create_spec <project_name> <feature_name>' to add specifications".to_string(),
+                "You can use 'mcp_foundry_load_spec <project_name>' to view existing specifications".to_string(),
             ],
             vec![
                 "Each project can contain multiple timestamped specifications for organized development".to_string(),
-                "You can use 'mcp_foundry_analyze_project' to add project analysis to existing codebases"
-                    .to_string(),
+                "You can use 'mcp_foundry_analyze_project' to add project analysis to existing codebases".to_string(),
             ],
         )
     };

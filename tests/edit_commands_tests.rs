@@ -1,7 +1,7 @@
 //! Tests for update_spec with operation "edit_commands"
 
 use foundry_mcp::cli::args::UpdateSpecArgs;
-use foundry_mcp::cli::commands::{create_project, create_spec, update_spec};
+use foundry_mcp::core::ops::{create_project, create_spec, update_spec};
 use foundry_mcp::test_utils::TestEnvironment;
 
 fn commands_json(cmds: serde_json::Value) -> String {
@@ -14,10 +14,24 @@ fn test_set_task_status_done() {
     env.with_env_async(|| async {
         // Setup project and spec
         let project_args = env.create_project_args("ec-project");
-        create_project::execute(project_args).await.unwrap();
-        let spec_resp = create_spec::execute(env.create_spec_args("ec-project", "feature"))
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+        let spec_args = env.create_spec_args("ec-project", "feature");
+        let spec_resp = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_resp.data.spec_name;
 
         // Seed a known task list
@@ -49,7 +63,13 @@ fn test_set_task_status_done() {
             commands: commands_json(cmds),
         };
 
-        let resp = update_spec::execute(args).await.unwrap();
+        let resp = update_spec::run(update_spec::Input {
+            project_name: args.project_name,
+            spec_name: args.spec_name,
+            commands_json: args.commands,
+        })
+        .await
+        .unwrap();
         assert_eq!(
             resp.data.applied_count + resp.data.skipped_idempotent_count,
             1
@@ -67,10 +87,24 @@ fn test_upsert_task_idempotent() {
     env.with_env_async(|| async {
         // Setup
         let project_args = env.create_project_args("ec-upsert");
-        create_project::execute(project_args).await.unwrap();
-        let spec_resp = create_spec::execute(env.create_spec_args("ec-upsert", "feature"))
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+        let spec_args = env.create_spec_args("ec-upsert", "feature");
+        let spec_resp = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_resp.data.spec_name;
 
         // Upsert a task twice
@@ -89,7 +123,13 @@ fn test_upsert_task_idempotent() {
                 spec_name: spec_name.clone(),
                 commands: commands_json(cmd.clone()),
             };
-            let _ = update_spec::execute(args).await.unwrap();
+            let _ = update_spec::run(update_spec::Input {
+                project_name: args.project_name,
+                spec_name: args.spec_name,
+                commands_json: args.commands,
+            })
+            .await
+            .unwrap();
         }
 
         // Verify only one instance exists
@@ -111,10 +151,24 @@ fn test_append_to_spec_section() {
     env.with_env_async(|| async {
         // Setup
         let project_args = env.create_project_args("ec-append");
-        create_project::execute(project_args).await.unwrap();
-        let spec_resp = create_spec::execute(env.create_spec_args("ec-append", "feature"))
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+        let spec_args = env.create_spec_args("ec-append", "feature");
+        let spec_resp = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_resp.data.spec_name;
 
         // Seed spec section
@@ -140,7 +194,13 @@ fn test_append_to_spec_section() {
             spec_name: spec_name.clone(),
             commands: commands_json(cmds),
         };
-        let _ = update_spec::execute(args).await.unwrap();
+        let _ = update_spec::run(update_spec::Input {
+            project_name: args.project_name,
+            spec_name: args.spec_name,
+            commands_json: args.commands,
+        })
+        .await
+        .unwrap();
 
         // Verify append and idempotence
         let updated = std::fs::read_to_string(&spec_file).unwrap();
@@ -160,7 +220,13 @@ fn test_append_to_spec_section() {
             spec_name: spec_name.clone(),
             commands: commands_json(cmds2),
         };
-        let _ = update_spec::execute(args2).await.unwrap();
+        let _ = update_spec::run(update_spec::Input {
+            project_name: args2.project_name,
+            spec_name: args2.spec_name,
+            commands_json: args2.commands,
+        })
+        .await
+        .unwrap();
         let updated2 = std::fs::read_to_string(&spec_file).unwrap();
         assert_eq!(updated2.matches("- Item B").count(), 1);
     });

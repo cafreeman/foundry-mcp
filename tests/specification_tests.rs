@@ -1,10 +1,10 @@
-//! Integration tests for Foundry CLI specification management commands
+//! Integration tests for Foundry specification management tools
 //!
 //! These tests verify the full specification creation, loading, updating, and
 //! deletion workflows using isolated filesystem operations.
 
 use foundry_mcp::cli::args::LoadSpecArgs;
-use foundry_mcp::cli::commands::{create_spec, delete_spec, load_spec, update_spec};
+use foundry_mcp::core::ops::{create_project, create_spec, delete_spec, load_spec, update_spec};
 use foundry_mcp::types::edit_commands::EditCommandTarget;
 use foundry_mcp::types::responses::ValidationStatus;
 
@@ -19,13 +19,26 @@ fn test_create_spec_full_workflow() {
     env.with_env_async(|| async {
         // First create a project
         let project_args = env.create_project_args("test-spec-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         // Then create a spec
         let spec_args = env.create_spec_args("test-spec-project", "user_authentication");
-        let response = create_spec::execute(spec_args).await.unwrap();
+        let response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
 
         // Verify response
         assert_eq!(response.data.project_name, "test-spec-project");
@@ -63,7 +76,14 @@ fn test_error_spec_missing_project() {
     env.with_env_async(|| async {
         // Try to create spec in non-existent project
         let spec_args = env.create_spec_args("missing-project", "some_feature");
-        let result = create_spec::execute(spec_args).await;
+        let result = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await;
 
         assert!(result.is_err(), "Should fail for missing project");
         let error_msg = result.unwrap_err().to_string();
@@ -83,9 +103,14 @@ fn test_load_spec_list_empty_project() {
 
         // Create project first
         let project_args = env.create_project_args(project_name);
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         // Load specs (should be empty)
         let load_args = LoadSpecArgs {
@@ -93,7 +118,12 @@ fn test_load_spec_list_empty_project() {
             spec_name: None,
         };
 
-        let response = load_spec::execute(load_args).await.unwrap();
+        let response = load_spec::run(load_spec::Input {
+            project_name: load_args.project_name,
+            spec_name: load_args.spec_name,
+        })
+        .await
+        .unwrap();
 
         // Verify response structure
         assert_eq!(response.data.project_name, project_name);
@@ -134,16 +164,37 @@ fn test_load_spec_list_with_specs() {
 
         // Create project
         let project_args = env.create_project_args(project_name);
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         // Create two specs
         let spec1_args = env.create_spec_args(project_name, "auth_system");
-        create_spec::execute(spec1_args).await.unwrap();
+        create_spec::run(create_spec::Input {
+            project_name: spec1_args.project_name,
+            feature_name: spec1_args.feature_name,
+            spec: spec1_args.spec,
+            notes: spec1_args.notes,
+            tasks: spec1_args.tasks,
+        })
+        .await
+        .unwrap();
 
         let spec2_args = env.create_spec_args(project_name, "user_profile");
-        create_spec::execute(spec2_args).await.unwrap();
+        create_spec::run(create_spec::Input {
+            project_name: spec2_args.project_name,
+            feature_name: spec2_args.feature_name,
+            spec: spec2_args.spec,
+            notes: spec2_args.notes,
+            tasks: spec2_args.tasks,
+        })
+        .await
+        .unwrap();
 
         // Load specs list
         let load_args = LoadSpecArgs {
@@ -151,7 +202,12 @@ fn test_load_spec_list_with_specs() {
             spec_name: None,
         };
 
-        let response = load_spec::execute(load_args).await.unwrap();
+        let response = load_spec::run(load_spec::Input {
+            project_name: load_args.project_name,
+            spec_name: load_args.spec_name,
+        })
+        .await
+        .unwrap();
 
         // Verify response structure
         assert_eq!(response.data.project_name, project_name);
@@ -203,11 +259,11 @@ fn test_load_spec_specific_spec() {
 
         // Create project
         let project_args = env.create_project_args(project_name);
-        foundry_mcp::cli::commands::create_project::execute(project_args).await.unwrap();
+        create_project::run(create_project::Input { project_name: project_args.project_name, vision: project_args.vision, tech_stack: project_args.tech_stack, summary: project_args.summary }).await.unwrap();
 
         // Create a spec
         let spec_args = env.create_spec_args(project_name, "payment_system");
-        let spec_response = create_spec::execute(spec_args).await.unwrap();
+        let spec_response = create_spec::run(create_spec::Input { project_name: spec_args.project_name, feature_name: spec_args.feature_name, spec: spec_args.spec, notes: spec_args.notes, tasks: spec_args.tasks }).await.unwrap();
         let spec_name = spec_response.data.spec_name;
 
         // Load the specific spec
@@ -216,7 +272,7 @@ fn test_load_spec_specific_spec() {
         spec_name: Some(spec_name.clone()),
         };
 
-        let response = load_spec::execute(load_args).await.unwrap();
+        let response = load_spec::run(load_spec::Input { project_name: load_args.project_name, spec_name: load_args.spec_name }).await.unwrap();
 
         // Verify response structure
         assert_eq!(response.data.project_name, project_name);
@@ -282,7 +338,11 @@ fn test_load_spec_missing_project() {
             spec_name: None,
         };
 
-        let result = load_spec::execute(load_args).await;
+        let result = load_spec::run(load_spec::Input {
+            project_name: load_args.project_name,
+            spec_name: load_args.spec_name,
+        })
+        .await;
         assert!(result.is_err());
 
         let error_msg = result.unwrap_err().to_string();
@@ -300,9 +360,14 @@ fn test_load_spec_missing_spec() {
 
         // Create project but no specs
         let project_args = env.create_project_args(project_name);
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         // Try to load non-existent spec
         let load_args = LoadSpecArgs {
@@ -310,7 +375,11 @@ fn test_load_spec_missing_spec() {
             spec_name: Some("20240101_120000_nonexistent".to_string()),
         };
 
-        let result = load_spec::execute(load_args).await;
+        let result = load_spec::run(load_spec::Input {
+            project_name: load_args.project_name,
+            spec_name: load_args.spec_name,
+        })
+        .await;
         assert!(result.is_err());
 
         let error_msg = result.unwrap_err().to_string();
@@ -327,9 +396,14 @@ fn test_load_spec_invalid_spec_name() {
 
         // Create project
         let project_args = env.create_project_args(project_name);
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         // Try to load spec with invalid name format
         let load_args = LoadSpecArgs {
@@ -337,7 +411,11 @@ fn test_load_spec_invalid_spec_name() {
             spec_name: Some("invalid-spec-name".to_string()),
         };
 
-        let result = load_spec::execute(load_args).await;
+        let result = load_spec::run(load_spec::Input {
+            project_name: load_args.project_name,
+            spec_name: load_args.spec_name,
+        })
+        .await;
         assert!(result.is_err());
 
         let error_msg = result.unwrap_err().to_string();
@@ -354,16 +432,26 @@ fn test_load_spec_end_to_end_workflow() {
 
         // Step 1: Create project
         let project_args = env.create_project_args(project_name);
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         // Step 2: List specs (should be empty)
         let list_args = LoadSpecArgs {
             project_name: project_name.to_string(),
             spec_name: None,
         };
-        let list_response = load_spec::execute(list_args).await.unwrap();
+        let list_response = load_spec::run(load_spec::Input {
+            project_name: list_args.project_name,
+            spec_name: list_args.spec_name,
+        })
+        .await
+        .unwrap();
         assert!(list_response.data.available_specs.is_empty());
         assert!(matches!(
             list_response.validation_status,
@@ -372,7 +460,15 @@ fn test_load_spec_end_to_end_workflow() {
 
         // Step 3: Create spec
         let spec_args = env.create_spec_args(project_name, "notification_system");
-        let spec_response = create_spec::execute(spec_args).await.unwrap();
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_response.data.spec_name;
 
         // Step 4: List specs (should have one)
@@ -380,7 +476,12 @@ fn test_load_spec_end_to_end_workflow() {
             project_name: project_name.to_string(),
             spec_name: None,
         };
-        let list_response2 = load_spec::execute(list_args2).await.unwrap();
+        let list_response2 = load_spec::run(load_spec::Input {
+            project_name: list_args2.project_name,
+            spec_name: list_args2.spec_name,
+        })
+        .await
+        .unwrap();
         assert_eq!(list_response2.data.available_specs.len(), 1);
         assert!(matches!(
             list_response2.validation_status,
@@ -392,7 +493,12 @@ fn test_load_spec_end_to_end_workflow() {
             project_name: project_name.to_string(),
             spec_name: Some(spec_name.clone()),
         };
-        let load_response = load_spec::execute(load_args).await.unwrap();
+        let load_response = load_spec::run(load_spec::Input {
+            project_name: load_args.project_name,
+            spec_name: load_args.spec_name,
+        })
+        .await
+        .unwrap();
         assert_eq!(load_response.data.spec_name, Some(spec_name));
         assert!(load_response.data.spec_content.is_some());
         assert!(matches!(
@@ -421,17 +527,36 @@ fn test_update_spec_replace() {
     env.with_env_async(|| async {
         // Setup: Create project and spec
         let project_args = env.create_project_args("update-test-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         let spec_args = env.create_spec_args("update-test-project", "update_feature");
-        let spec_response = create_spec::execute(spec_args).await.unwrap();
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_response.data.spec_name;
 
         // Test replace operation on spec.md
         let update_args = env.update_spec_args_single("update-test-project", &spec_name, "spec");
-        let response = update_spec::execute(update_args).await.unwrap();
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands,
+        })
+        .await
+        .unwrap();
 
         // Verify response
         assert_eq!(response.data.applied_count, 1);
@@ -478,17 +603,36 @@ fn test_update_spec_append() {
     env.with_env_async(|| async {
         // Setup: Create project and spec
         let project_args = env.create_project_args("append-test-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         let spec_args = env.create_spec_args("append-test-project", "append_feature");
-        let spec_response = create_spec::execute(spec_args).await.unwrap();
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_response.data.spec_name;
 
         // Test append operation on notes.md
         let update_args = env.update_spec_args_single("append-test-project", &spec_name, "notes");
-        let response = update_spec::execute(update_args).await.unwrap();
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands,
+        })
+        .await
+        .unwrap();
 
         // Verify response
         assert_eq!(response.data.applied_count, 1);
@@ -521,18 +665,37 @@ fn test_update_spec_task_list() {
     env.with_env_async(|| async {
         // Setup
         let project_args = env.create_project_args("task-test-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         let spec_args = env.create_spec_args("task-test-project", "task_feature");
-        let spec_response = create_spec::execute(spec_args).await.unwrap();
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_response.data.spec_name;
 
         // Update task list with new tasks using edit_commands
         let update_args = env.update_spec_args_single("task-test-project", &spec_name, "tasks");
 
-        let response = update_spec::execute(update_args).await.unwrap();
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands,
+        })
+        .await
+        .unwrap();
 
         // Verify task-list file was updated
         let foundry_dir = env.foundry_dir();
@@ -562,23 +725,46 @@ fn test_update_spec_error_handling() {
     env.with_env_async(|| async {
         // Test nonexistent project
         let update_args = env.update_spec_args_single("nonexistent-project", "fake-spec", "spec");
-        let result = update_spec::execute(update_args).await;
+        let result = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands,
+        })
+        .await;
         assert!(result.is_err());
 
         // Setup valid project and spec for further tests
         let project_args = env.create_project_args("error-test-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         let spec_args = env.create_spec_args("error-test-project", "error_feature");
-        let spec_response = create_spec::execute(spec_args).await.unwrap();
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let _spec_name = spec_response.data.spec_name;
 
         // Test nonexistent spec
         let update_args =
             env.update_spec_args_single("error-test-project", "nonexistent-spec", "spec");
-        let result = update_spec::execute(update_args).await;
+        let result = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands,
+        })
+        .await;
         assert!(result.is_err());
     });
 }
@@ -590,12 +776,25 @@ fn test_delete_spec_success() {
     env.with_env_async(|| async {
         // Setup: Create project and spec
         let project_args = env.create_project_args("delete-test-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         let spec_args = env.create_spec_args("delete-test-project", "delete_feature");
-        let spec_response = create_spec::execute(spec_args).await.unwrap();
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_response.data.spec_name;
 
         // Verify spec exists before deletion
@@ -611,7 +810,13 @@ fn test_delete_spec_success() {
 
         // Delete the spec
         let delete_args = env.delete_spec_args("delete-test-project", &spec_name);
-        let response = delete_spec::execute(delete_args).await.unwrap();
+        let response = delete_spec::run(delete_spec::Input {
+            project_name: delete_args.project_name,
+            spec_name: delete_args.spec_name,
+            confirm: delete_args.confirm,
+        })
+        .await
+        .unwrap();
 
         // Verify response
         assert_eq!(response.data.project_name, "delete-test-project");
@@ -644,28 +849,56 @@ fn test_delete_spec_error_handling() {
     env.with_env_async(|| async {
         // Test nonexistent project
         let delete_args = env.delete_spec_args("nonexistent-project", "fake-spec");
-        let result = delete_spec::execute(delete_args).await;
+        let result = delete_spec::run(delete_spec::Input {
+            project_name: delete_args.project_name,
+            spec_name: delete_args.spec_name,
+            confirm: delete_args.confirm,
+        })
+        .await;
         assert!(result.is_err());
 
         // Setup valid project for further tests
         let project_args = env.create_project_args("delete-error-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         // Test nonexistent spec
         let delete_args = env.delete_spec_args("delete-error-project", "nonexistent-spec");
-        let result = delete_spec::execute(delete_args).await;
+        let result = delete_spec::run(delete_spec::Input {
+            project_name: delete_args.project_name,
+            spec_name: delete_args.spec_name,
+            confirm: delete_args.confirm,
+        })
+        .await;
         assert!(result.is_err());
 
         // Test lack of confirmation
         let spec_args = env.create_spec_args("delete-error-project", "confirm_feature");
-        let spec_response = create_spec::execute(spec_args).await.unwrap();
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_response.data.spec_name;
 
         let mut delete_args = env.delete_spec_args("delete-error-project", &spec_name);
         delete_args.confirm = "false".to_string();
-        let result = delete_spec::execute(delete_args).await;
+        let result = delete_spec::run(delete_spec::Input {
+            project_name: delete_args.project_name,
+            spec_name: delete_args.spec_name,
+            confirm: delete_args.confirm,
+        })
+        .await;
         assert!(result.is_err());
 
         // Verify spec still exists after failed deletion attempt
@@ -685,17 +918,36 @@ fn test_spec_lifecycle_workflow() {
     env.with_env_async(|| async {
         // Setup: Create project and spec
         let project_args = env.create_project_args("lifecycle-project");
-        foundry_mcp::cli::commands::create_project::execute(project_args)
-            .await
-            .unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         let spec_args = env.create_spec_args("lifecycle-project", "lifecycle_feature");
-        let spec_response = create_spec::execute(spec_args).await.unwrap();
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         let spec_name = spec_response.data.spec_name;
 
         // Phase 1: Update spec with replace
         let update_args = env.update_spec_args_single("lifecycle-project", &spec_name, "spec");
-        let update_response = update_spec::execute(update_args).await.unwrap();
+        let update_response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands,
+        })
+        .await
+        .unwrap();
         assert_eq!(
             update_response.validation_status,
             ValidationStatus::Complete
@@ -703,7 +955,13 @@ fn test_spec_lifecycle_workflow() {
 
         // Phase 2: Append to notes
         let append_args = env.update_spec_args_single("lifecycle-project", &spec_name, "notes");
-        let append_response = update_spec::execute(append_args).await.unwrap();
+        let append_response = update_spec::run(update_spec::Input {
+            project_name: append_args.project_name,
+            spec_name: append_args.spec_name,
+            commands_json: append_args.commands,
+        })
+        .await
+        .unwrap();
         assert_eq!(append_response.data.applied_count, 1);
         assert_eq!(
             append_response.data.file_updates[0].target,
@@ -712,7 +970,13 @@ fn test_spec_lifecycle_workflow() {
 
         // Phase 3: Update task list
         let task_args = env.update_spec_args_single("lifecycle-project", &spec_name, "tasks");
-        let task_response = update_spec::execute(task_args).await.unwrap();
+        let task_response = update_spec::run(update_spec::Input {
+            project_name: task_args.project_name,
+            spec_name: task_args.spec_name,
+            commands_json: task_args.commands,
+        })
+        .await
+        .unwrap();
         assert_eq!(task_response.data.applied_count, 1);
         assert_eq!(task_response.data.file_updates.len(), 1);
 
@@ -721,7 +985,12 @@ fn test_spec_lifecycle_workflow() {
             project_name: "lifecycle-project".to_string(),
             spec_name: Some(spec_name.clone()),
         };
-        let load_response = load_spec::execute(load_args).await.unwrap();
+        let load_response = load_spec::run(load_spec::Input {
+            project_name: load_args.project_name,
+            spec_name: load_args.spec_name,
+        })
+        .await
+        .unwrap();
 
         let spec_content = load_response.data.spec_content.unwrap();
         assert!(
@@ -740,7 +1009,13 @@ fn test_spec_lifecycle_workflow() {
 
         // Phase 5: Delete spec to complete lifecycle
         let delete_args = env.delete_spec_args("lifecycle-project", &spec_name);
-        let delete_response = delete_spec::execute(delete_args).await.unwrap();
+        let delete_response = delete_spec::run(delete_spec::Input {
+            project_name: delete_args.project_name,
+            spec_name: delete_args.spec_name,
+            confirm: delete_args.confirm,
+        })
+        .await
+        .unwrap();
         assert_eq!(
             delete_response.validation_status,
             ValidationStatus::Complete
