@@ -1,10 +1,68 @@
 use anyhow::Result;
 
+use super::config::LinearConfig;
 use super::graphql::LinearGraphQl;
+use super::helpers::humanize_title;
 
 // Pull in the registered schema named "linear"
 #[cynic::schema("linear")]
 mod schema {}
+
+// ---- Teams ----
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "Team")]
+struct TeamLite {
+    id: cynic::Id,
+    name: String,
+    key: String,
+}
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "TeamConnection")]
+struct TeamConnectionLite {
+    nodes: Vec<TeamLite>,
+}
+
+#[derive(cynic::QueryVariables, Debug, Clone)]
+struct FindTeamsVars {
+    first: Option<i32>,
+}
+
+#[derive(cynic::QueryBuilder, Debug, Clone)]
+#[cynic(graphql_type = "Query", variables = "FindTeamsVars")]
+struct FindTeams {
+    #[cynic(rename = "teams")]
+    teams: TeamConnectionLite,
+}
+
+async fn resolve_team_id(gql: &LinearGraphQl, cfg: &LinearConfig) -> Result<String> {
+    if let Some(id) = cfg.team_id.clone() {
+        return Ok(id);
+    }
+
+    let data = gql
+        .execute(
+            FindTeams::builder()
+                .variables(FindTeamsVars { first: Some(100) })
+                .build(),
+        )
+        .await?;
+
+    if let Some(key) = cfg.team_key.as_ref() {
+        if let Some(team) = data.teams.nodes.iter().find(|t| &t.key == key) {
+            return Ok(team.id.to_string());
+        }
+    }
+    if let Some(name) = cfg.team_name.as_ref() {
+        if let Some(team) = data.teams.nodes.iter().find(|t| &t.name == name) {
+            return Ok(team.id.to_string());
+        }
+    }
+
+    Err(anyhow::anyhow!(
+        "Unable to resolve Linear team id. Set LINEAR_TEAM_ID or provide LINEAR_TEAM_KEY/LINEAR_TEAM_NAME."
+    ))
+}
 
 #[derive(cynic::QueryFragment, Debug, Clone)]
 #[cynic(graphql_type = "Project")]
@@ -188,9 +246,17 @@ pub async fn upsert_project_documents(
     tech_stack_md: &str,
 ) -> Result<(String, String)> {
     // Load existing docs for the project (first page)
-    let filter = ProjectFilterById { id: Some(IdEqComparator { eq: Some(cynic::Id::from(project_id.to_string())) }) };
+    let filter = ProjectFilterById {
+        id: Some(IdEqComparator {
+            eq: Some(cynic::Id::from(project_id.to_string())),
+        }),
+    };
     let pdq = ProjectDocumentsQuery::builder()
-        .variables(ProjectDocumentsVars { filter: Some(filter), first: Some(1), docs_first: Some(50) })
+        .variables(ProjectDocumentsVars {
+            filter: Some(filter),
+            first: Some(1),
+            docs_first: Some(50),
+        })
         .build();
     let data = gql.execute(pdq).await?;
 
@@ -201,7 +267,8 @@ pub async fn upsert_project_documents(
         for d in project.documents_conn.nodes.into_iter() {
             if d.title == "Vision" || d.title == format!("{} — Vision", project_name) {
                 existing_vision = Some(d);
-            } else if d.title == "Tech Stack" || d.title == format!("{} — Tech Stack", project_name) {
+            } else if d.title == "Tech Stack" || d.title == format!("{} — Tech Stack", project_name)
+            {
                 existing_tech = Some(d);
             }
         }
@@ -217,7 +284,13 @@ pub async fn upsert_project_documents(
         let _ = gql
             .execute(
                 UpdateDocumentOp::builder()
-                    .variables(UpdateDocumentVars { id: doc.id.to_string(), input: DocumentUpdateInputLinear { title: None, content: Some(vision_body.clone()) } })
+                    .variables(UpdateDocumentVars {
+                        id: doc.id.to_string(),
+                        input: DocumentUpdateInputLinear {
+                            title: None,
+                            content: Some(vision_body.clone()),
+                        },
+                    })
                     .build(),
             )
             .await?;
@@ -226,7 +299,13 @@ pub async fn upsert_project_documents(
         let created = gql
             .execute(
                 CreateDocumentOp::builder()
-                    .variables(CreateDocumentVars { input: DocumentCreateInputLinear { title: format!("{} — Vision", project_name), content: Some(vision_body.clone()), projectId: Some(project_id.to_string()) } })
+                    .variables(CreateDocumentVars {
+                        input: DocumentCreateInputLinear {
+                            title: format!("{} — Vision", project_name),
+                            content: Some(vision_body.clone()),
+                            projectId: Some(project_id.to_string()),
+                        },
+                    })
                     .build(),
             )
             .await?;
@@ -238,7 +317,13 @@ pub async fn upsert_project_documents(
         let _ = gql
             .execute(
                 UpdateDocumentOp::builder()
-                    .variables(UpdateDocumentVars { id: doc.id.to_string(), input: DocumentUpdateInputLinear { title: None, content: Some(tech_body.clone()) } })
+                    .variables(UpdateDocumentVars {
+                        id: doc.id.to_string(),
+                        input: DocumentUpdateInputLinear {
+                            title: None,
+                            content: Some(tech_body.clone()),
+                        },
+                    })
                     .build(),
             )
             .await?;
@@ -247,7 +332,13 @@ pub async fn upsert_project_documents(
         let created = gql
             .execute(
                 CreateDocumentOp::builder()
-                    .variables(CreateDocumentVars { input: DocumentCreateInputLinear { title: format!("{} — Tech Stack", project_name), content: Some(tech_body.clone()), projectId: Some(project_id.to_string()) } })
+                    .variables(CreateDocumentVars {
+                        input: DocumentCreateInputLinear {
+                            title: format!("{} — Tech Stack", project_name),
+                            content: Some(tech_body.clone()),
+                            projectId: Some(project_id.to_string()),
+                        },
+                    })
                     .build(),
             )
             .await?;
@@ -281,7 +372,11 @@ pub async fn find_or_create_project(
         .execute(
             CreateProjectOp::builder()
                 .variables(CreateProjectVars {
-                    input: ProjectCreateInput { name: name.to_string(), description: description.map(|s| s.to_string()), _phantom: None },
+                    input: ProjectCreateInput {
+                        name: name.to_string(),
+                        description: description.map(|s| s.to_string()),
+                        _phantom: None,
+                    },
                 })
                 .build(),
         )
@@ -306,10 +401,280 @@ pub async fn upsert_project_description(
             UpdateProjectOp::builder()
                 .variables(UpdateProjectVars {
                     id: id.to_string(),
-                    input: ProjectUpdateInput { description: Some(description.to_string()) },
+                    input: ProjectUpdateInput {
+                        description: Some(description.to_string()),
+                    },
                 })
                 .build(),
         )
         .await?;
     Ok(())
+}
+
+// ---- Labels ----
+// We need to ensure the "foundry" label exists for our issues
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "IssueLabel")]
+struct IssueLabelLite {
+    id: cynic::Id,
+    name: String,
+}
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "IssueLabelConnection")]
+struct IssueLabelConnectionLite {
+    nodes: Vec<IssueLabelLite>,
+}
+
+#[derive(cynic::QueryVariables, Debug, Clone)]
+struct FindIssueLabelsVars {
+    filter: Option<IssueLabelFilter>,
+    first: Option<i32>,
+}
+
+#[derive(cynic::InputObject, Debug, Clone)]
+#[cynic(graphql_type = "IssueLabelFilter")]
+struct IssueLabelFilter {
+    name: Option<StringFilter>,
+}
+
+#[derive(cynic::InputObject, Debug, Clone)]
+#[cynic(graphql_type = "StringFilter")]
+struct StringFilter {
+    eq: Option<String>,
+}
+
+#[derive(cynic::QueryBuilder, Debug, Clone)]
+#[cynic(graphql_type = "Query", variables = "FindIssueLabelsVars")]
+struct FindIssueLabels {
+    #[cynic(rename = "issueLabels")]
+    issue_labels: IssueLabelConnectionLite,
+}
+
+#[derive(cynic::InputObject, Debug, Clone)]
+#[cynic(graphql_type = "IssueLabelCreateInput")]
+struct IssueLabelCreateInput {
+    name: String,
+    color: Option<String>,
+}
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "IssueLabelPayload")]
+struct IssueLabelPayloadLite {
+    issueLabel: Option<IssueLabelLite>,
+}
+
+#[derive(cynic::QueryVariables, Debug, Clone)]
+struct CreateIssueLabelVars {
+    input: IssueLabelCreateInput,
+}
+
+#[derive(cynic::QueryBuilder, Debug, Clone)]
+#[cynic(graphql_type = "Mutation", variables = "CreateIssueLabelVars")]
+struct CreateIssueLabelOp {
+    #[cynic(rename = "issueLabelCreate")]
+    issue_label_create: IssueLabelPayloadLite,
+}
+
+/// Find the "foundry" label or create it if it doesn't exist
+pub async fn ensure_foundry_label(gql: &LinearGraphQl) -> Result<String> {
+    // First try to find existing label
+    let filter = IssueLabelFilter {
+        name: Some(StringFilter {
+            eq: Some("foundry".to_string()),
+        }),
+    };
+    let data = gql
+        .execute(
+            FindIssueLabels::builder()
+                .variables(FindIssueLabelsVars {
+                    filter: Some(filter),
+                    first: Some(50),
+                })
+                .build(),
+        )
+        .await?;
+
+    if let Some(label) = data
+        .issue_labels
+        .nodes
+        .into_iter()
+        .find(|l| l.name == "foundry")
+    {
+        return Ok(label.id.to_string());
+    }
+
+    // Label doesn't exist, create it
+    let created = gql
+        .execute(
+            CreateIssueLabelOp::builder()
+                .variables(CreateIssueLabelVars {
+                    input: IssueLabelCreateInput {
+                        name: "foundry".to_string(),
+                        color: Some("#4A90E2".to_string()),
+                    },
+                })
+                .build(),
+        )
+        .await?;
+
+    let label = created
+        .issue_label_create
+        .issueLabel
+        .ok_or_else(|| anyhow::anyhow!("missing label in issueLabelCreate payload"))?;
+
+    Ok(label.id.to_string())
+}
+
+// ---- Issues ----
+// Phase C: Spec creation via Issues
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "Issue")]
+struct IssueLite {
+    id: cynic::Id,
+    title: String,
+    description: Option<String>,
+    url: String,
+}
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "IssuePayload")]
+struct IssuePayloadLite {
+    issue: Option<IssueLite>,
+}
+
+#[derive(cynic::InputObject, Debug, Clone)]
+#[cynic(graphql_type = "IssueCreateInput")]
+struct IssueCreateInput {
+    title: String,
+    description: String,
+    projectId: String,
+    labelIds: Vec<String>,
+    teamId: String,
+}
+
+#[derive(cynic::QueryVariables, Debug, Clone)]
+struct CreateIssueVars {
+    input: IssueCreateInput,
+}
+
+#[derive(cynic::QueryBuilder, Debug, Clone)]
+#[cynic(graphql_type = "Mutation", variables = "CreateIssueVars")]
+struct CreateIssueOp {
+    #[cynic(rename = "issueCreate")]
+    issue_create: IssuePayloadLite,
+}
+
+#[derive(cynic::InputObject, Debug, Clone)]
+#[cynic(graphql_type = "IssueUpdateInput")]
+struct IssueUpdateInput {
+    description: Option<String>,
+}
+
+#[derive(cynic::QueryVariables, Debug, Clone)]
+struct UpdateIssueVars {
+    id: String,
+    input: IssueUpdateInput,
+}
+
+#[derive(cynic::QueryBuilder, Debug, Clone)]
+#[cynic(graphql_type = "Mutation", variables = "UpdateIssueVars")]
+struct UpdateIssueOp {
+    #[cynic(rename = "issueUpdate")]
+    issue_update: IssuePayloadLite,
+}
+
+/// Create a Linear Issue for a spec with humanized title and hidden marker
+pub async fn create_spec_issue(
+    gql: &LinearGraphQl,
+    cfg: &LinearConfig,
+    project_id: &str,
+    spec_name: &str,
+    spec_content: &str,
+    notes_url: &str,
+) -> Result<(String, String)> {
+    let foundry_label_id = ensure_foundry_label(gql).await?;
+
+    // Humanize the spec name for the title
+    let humanized_title = humanize_title(spec_name);
+
+    // Create description with spec content + hidden marker + notes link
+    let spec_marker = format!("<!-- foundry:specId={}; type=spec; v=1 -->\n", spec_name);
+    let description = format!(
+        "{}{}\n\n**Notes**: {}",
+        spec_marker, spec_content, notes_url
+    );
+
+    // Resolve team id from config hints (id -> key -> name)
+    let team_id = resolve_team_id(gql, cfg).await?;
+
+    let created = gql
+        .execute(
+            CreateIssueOp::builder()
+                .variables(CreateIssueVars {
+                    input: IssueCreateInput {
+                        title: humanized_title,
+                        description: description.clone(),
+                        projectId: project_id.to_string(),
+                        labelIds: vec![foundry_label_id],
+                        teamId: team_id,
+                    },
+                })
+                .build(),
+        )
+        .await?;
+
+    let issue = created
+        .issue_create
+        .issue
+        .ok_or_else(|| anyhow::anyhow!("missing issue in issueCreate payload"))?;
+
+    Ok((issue.id.to_string(), issue.url))
+}
+
+/// Update an issue's description
+pub async fn update_issue_description(
+    gql: &LinearGraphQl,
+    issue_id: &str,
+    description: &str,
+) -> Result<()> {
+    let _ = gql
+        .execute(
+            UpdateIssueOp::builder()
+                .variables(UpdateIssueVars {
+                    id: issue_id.to_string(),
+                    input: IssueUpdateInput {
+                        description: Some(description.to_string()),
+                    },
+                })
+                .build(),
+        )
+        .await?;
+    Ok(())
+}
+
+/// Create a document with the given title and content
+pub async fn create_document(
+    gql: &LinearGraphQl,
+    title: &str,
+    content: &str,
+    project_id: &str,
+) -> Result<DocumentLite> {
+    let created = gql
+        .execute(
+            CreateDocumentOp::builder()
+                .variables(CreateDocumentVars {
+                    input: DocumentCreateInputLinear {
+                        title: title.to_string(),
+                        content: Some(content.to_string()),
+                        projectId: Some(project_id.to_string()),
+                    },
+                })
+                .build(),
+        )
+        .await?;
+
+    Ok(created.document_create.document)
 }
