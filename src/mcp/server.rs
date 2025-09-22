@@ -9,7 +9,7 @@ use rust_mcp_sdk::{
     mcp_server::server_runtime::create_server,
     schema::{
         Implementation, InitializeResult, LATEST_PROTOCOL_VERSION, ServerCapabilities,
-        ServerCapabilitiesTools,
+        ServerCapabilitiesResources, ServerCapabilitiesTools,
     },
 };
 use rust_mcp_transport::{StdioTransport, TransportOptions};
@@ -36,6 +36,10 @@ impl FoundryMcpServer {
             },
             capabilities: ServerCapabilities {
                 tools: Some(ServerCapabilitiesTools { list_changed: None }),
+                resources: Some(ServerCapabilitiesResources {
+                    subscribe: None,
+                    list_changed: None,
+                }),
                 ..Default::default()
             },
             meta: None,
