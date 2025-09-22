@@ -293,7 +293,7 @@ pub struct LoadSpecArgs {
     ///   - Returns match confidence and details in response
     ///
     /// If omitted, returns list of all available specs for the project
-    /// Use 'foundry list-specs PROJECT_NAME' for lightweight spec discovery
+    /// Use 'mcp_foundry_list_specs PROJECT_NAME' for lightweight spec discovery
     pub spec_name: Option<String>,
 }
 

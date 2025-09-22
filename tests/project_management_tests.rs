@@ -1,9 +1,9 @@
-//! Integration tests for Foundry CLI project management commands
+//! Integration tests for Foundry project management tools
 //!
 //! These tests verify the full project creation and loading workflows using
 //! isolated filesystem operations following CLI testing best practices.
 
-use foundry_mcp::cli::commands::{create_project, create_spec, load_project};
+use foundry_mcp::core::ops::{create_project, create_spec, load_project};
 use foundry_mcp::test_utils::TestEnvironment;
 use foundry_mcp::types::responses::ValidationStatus;
 
@@ -14,8 +14,15 @@ fn test_create_project_full_workflow() {
     env.with_env_async(|| async {
         let args = env.create_project_args("test-integration-project");
 
-        // Execute create_project command
-        let response = create_project::execute(args).await.unwrap();
+        // Execute create_project op
+        let response = create_project::run(create_project::Input {
+            project_name: args.project_name,
+            vision: args.vision,
+            tech_stack: args.tech_stack,
+            summary: args.summary,
+        })
+        .await
+        .unwrap();
 
         // Verify response structure
         assert_eq!(response.data.project_name, "test-integration-project");
@@ -64,11 +71,22 @@ fn test_load_project_empty() {
     env.with_env_async(|| async {
         // Create project without specs
         let project_args = env.create_project_args("empty-project");
-        create_project::execute(project_args).await.unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         // Load the project
         let load_args = env.load_project_args("empty-project");
-        let response = load_project::execute(load_args).await.unwrap();
+        let response = load_project::run(load_project::Input {
+            project_name: load_args.project_name,
+        })
+        .await
+        .unwrap();
 
         // Verify response for empty project
         assert_eq!(response.data.project.name, "empty-project");
@@ -106,17 +124,44 @@ fn test_load_project_with_specs() {
     env.with_env_async(|| async {
         // Create project and add specs
         let project_args = env.create_project_args("project-with-specs");
-        create_project::execute(project_args).await.unwrap();
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
 
         let spec1_args = env.create_spec_args("project-with-specs", "feature_one");
-        let spec1_response = create_spec::execute(spec1_args).await.unwrap();
+        let spec1_response = create_spec::run(create_spec::Input {
+            project_name: spec1_args.project_name,
+            feature_name: spec1_args.feature_name,
+            spec: spec1_args.spec,
+            notes: spec1_args.notes,
+            tasks: spec1_args.tasks,
+        })
+        .await
+        .unwrap();
 
         let spec2_args = env.create_spec_args("project-with-specs", "feature_two");
-        let spec2_response = create_spec::execute(spec2_args).await.unwrap();
+        let spec2_response = create_spec::run(create_spec::Input {
+            project_name: spec2_args.project_name,
+            feature_name: spec2_args.feature_name,
+            spec: spec2_args.spec,
+            notes: spec2_args.notes,
+            tasks: spec2_args.tasks,
+        })
+        .await
+        .unwrap();
 
         // Load the project
         let load_args = env.load_project_args("project-with-specs");
-        let response = load_project::execute(load_args).await.unwrap();
+        let response = load_project::run(load_project::Input {
+            project_name: load_args.project_name,
+        })
+        .await
+        .unwrap();
 
         // Verify response for project with specs
         assert_eq!(response.data.project.name, "project-with-specs");
@@ -168,7 +213,10 @@ fn test_error_missing_project() {
             project_name: "non-existent-project".to_string(),
         };
 
-        let result = load_project::execute(load_args).await;
+        let result = load_project::run(load_project::Input {
+            project_name: load_args.project_name,
+        })
+        .await;
         assert!(result.is_err(), "Should fail for missing project");
 
         let error_msg = result.unwrap_err().to_string();
@@ -192,12 +240,23 @@ fn test_end_to_end_workflow() {
 
         // Step 1: Create project
         let project_args = env.create_project_args(project_name);
-        let _project_response = create_project::execute(project_args).await.unwrap();
+        let _project_response = create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
         // Project creation succeeded (validation_status may be Incomplete due to content warnings)
 
         // Step 2: Load empty project
         let load_args = env.load_project_args(project_name);
-        let load_response = load_project::execute(load_args).await.unwrap();
+        let load_response = load_project::run(load_project::Input {
+            project_name: load_args.project_name,
+        })
+        .await
+        .unwrap();
         assert!(matches!(
             load_response.validation_status,
             ValidationStatus::Incomplete
@@ -206,12 +265,24 @@ fn test_end_to_end_workflow() {
 
         // Step 3: Create a spec
         let spec_args = env.create_spec_args(project_name, "auth_system");
-        let _spec_response = create_spec::execute(spec_args).await.unwrap();
+        let _spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
         // Spec creation succeeded
 
         // Step 4: Load project with spec
         let load_args2 = env.load_project_args(project_name);
-        let load_response2 = load_project::execute(load_args2).await.unwrap();
+        let load_response2 = load_project::run(load_project::Input {
+            project_name: load_args2.project_name,
+        })
+        .await
+        .unwrap();
         assert!(matches!(
             load_response2.validation_status,
             ValidationStatus::Complete
@@ -244,7 +315,14 @@ fn test_filesystem_isolation() {
         let env1 = TestEnvironment::new().unwrap();
         env1.with_env_async(|| async {
             let args = env1.create_project_args(project_name);
-            create_project::execute(args).await.unwrap();
+            create_project::run(create_project::Input {
+                project_name: args.project_name,
+                vision: args.vision,
+                tech_stack: args.tech_stack,
+                summary: args.summary,
+            })
+            .await
+            .unwrap();
 
             // Verify project exists in this environment
             let foundry_dir = env1.foundry_dir();
@@ -264,7 +342,14 @@ fn test_filesystem_isolation() {
 
             // Can create project with same name
             let args = env2.create_project_args(project_name);
-            let response = create_project::execute(args).await.unwrap();
+            let response = create_project::run(create_project::Input {
+                project_name: args.project_name,
+                vision: args.vision,
+                tech_stack: args.tech_stack,
+                summary: args.summary,
+            })
+            .await
+            .unwrap();
             // Project creation succeeded (validation_status may be Incomplete due to content warnings)
             assert_eq!(response.data.project_name, project_name);
         });

@@ -1,4 +1,4 @@
-//! Test utilities for Foundry CLI integration tests
+//! Test utilities for Foundry integration tests
 //!
 //! This module provides the TestEnvironment struct and helper functions
 //! that can be used by the test crate.
@@ -46,7 +46,7 @@ pub fn env_var_guard(key: &str, value: &str) -> EnvVarGuard {
 }
 
 /// Test environment that sets up a temporary foundry directory with proper isolation
-/// Uses thread-safe environment variable manipulation following CLI testing best practices
+/// Uses thread-safe environment variable manipulation following testing best practices
 pub struct TestEnvironment {
     pub temp_dir: TempDir,
     pub original_home: Option<String>,
@@ -699,9 +699,15 @@ esac
 
     /// Create a test project for testing spec functionality
     pub async fn create_test_project(&self, project_name: &str) -> Result<()> {
-        use crate::cli::commands::create_project;
+        use crate::core::ops::create_project;
         let args = self.create_project_args(project_name);
-        create_project::execute(args).await?;
+        create_project::run(create_project::Input {
+            project_name: args.project_name,
+            vision: args.vision,
+            tech_stack: args.tech_stack,
+            summary: args.summary,
+        })
+        .await?;
         Ok(())
     }
 
@@ -712,10 +718,17 @@ esac
         feature_name: &str,
         spec_content: &str,
     ) -> Result<()> {
-        use crate::cli::commands::create_spec;
+        use crate::core::ops::create_spec;
         let mut args = self.create_spec_args(project_name, feature_name);
         args.spec = spec_content.to_string();
-        create_spec::execute(args).await?;
+        create_spec::run(create_spec::Input {
+            project_name: args.project_name,
+            feature_name: args.feature_name,
+            spec: args.spec,
+            notes: args.notes,
+            tasks: args.tasks,
+        })
+        .await?;
         Ok(())
     }
 }

@@ -1,8 +1,7 @@
 //! # MCP Request Handlers
 //!
 //! This module implements the ServerHandler trait to route MCP tool requests
-//! to existing CLI command functions, maintaining identical functionality
-//! and response formats between CLI and MCP interfaces.
+//! to core operations, maintaining identical functionality and response formats.
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -19,7 +18,7 @@ use serde_json::Value;
 use crate::cli;
 use crate::mcp::{error::FoundryMcpError, tools::FoundryTools, traits::McpToolDefinition};
 
-/// Main server handler that routes MCP requests to CLI command functions
+/// Main server handler that routes MCP requests to core operations
 pub struct FoundryServerHandler;
 
 impl FoundryServerHandler {
@@ -28,7 +27,7 @@ impl FoundryServerHandler {
         Self
     }
 
-    /// Convert MCP parameters to CLI arguments and execute command
+    /// Convert MCP parameters to typed inputs and execute operation
     async fn route_to_cli_command(
         &self,
         tool_name: &str,
@@ -45,7 +44,15 @@ impl FoundryServerHandler {
                             ))
                         })?;
 
-                let result = cli::commands::create_project::execute(args).await?;
+                let result = crate::core::ops::create_project::run(
+                    crate::core::ops::create_project::Input {
+                        project_name: args.project_name,
+                        vision: args.vision,
+                        tech_stack: args.tech_stack,
+                        summary: args.summary,
+                    },
+                )
+                .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -57,7 +64,15 @@ impl FoundryServerHandler {
                     ))
                 })?;
 
-                let result = cli::commands::analyze_project::execute(args).await?;
+                let result = crate::core::ops::analyze_project::run(
+                    crate::core::ops::analyze_project::Input {
+                        project_name: args.project_name,
+                        vision: args.vision,
+                        tech_stack: args.tech_stack,
+                        summary: args.summary,
+                    },
+                )
+                .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -69,7 +84,11 @@ impl FoundryServerHandler {
                     ))
                 })?;
 
-                let result = cli::commands::load_project::execute(args).await?;
+                let result =
+                    crate::core::ops::load_project::run(crate::core::ops::load_project::Input {
+                        project_name: args.project_name,
+                    })
+                    .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -81,7 +100,15 @@ impl FoundryServerHandler {
                     ))
                 })?;
 
-                let result = cli::commands::create_spec::execute(args).await?;
+                let result =
+                    crate::core::ops::create_spec::run(crate::core::ops::create_spec::Input {
+                        project_name: args.project_name,
+                        feature_name: args.feature_name,
+                        spec: args.spec,
+                        notes: args.notes,
+                        tasks: args.tasks,
+                    })
+                    .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -93,7 +120,11 @@ impl FoundryServerHandler {
                     ))
                 })?;
 
-                let result = cli::commands::load_spec::execute(args).await?;
+                let result = crate::core::ops::load_spec::run(crate::core::ops::load_spec::Input {
+                    project_name: args.project_name,
+                    spec_name: args.spec_name,
+                })
+                .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -105,7 +136,10 @@ impl FoundryServerHandler {
                     ))
                 })?;
 
-                let result = cli::commands::list_projects::execute(args).await?;
+                let _ = args; // unit struct
+                let result =
+                    crate::core::ops::list_projects::run(crate::core::ops::list_projects::Input)
+                        .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -117,7 +151,11 @@ impl FoundryServerHandler {
                     ))
                 })?;
 
-                let result = cli::commands::list_specs::execute(args).await?;
+                let result =
+                    crate::core::ops::list_specs::run(crate::core::ops::list_specs::Input {
+                        project_name: args.project_name,
+                    })
+                    .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -130,7 +168,13 @@ impl FoundryServerHandler {
                         ))
                     })?;
 
-                let result = cli::commands::validate_content::execute(args).await?;
+                let result = crate::core::ops::validate_content::run(
+                    crate::core::ops::validate_content::Input {
+                        content_type: args.content_type,
+                        content: args.content,
+                    },
+                )
+                .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -142,7 +186,10 @@ impl FoundryServerHandler {
                     ))
                 })?;
 
-                let result = cli::commands::get_foundry_help::execute(args).await?;
+                let result = crate::core::ops::get_foundry_help::run(
+                    crate::core::ops::get_foundry_help::Input { topic: args.topic },
+                )
+                .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -154,7 +201,13 @@ impl FoundryServerHandler {
                     ))
                 })?;
 
-                let result = cli::commands::update_spec::execute(args).await?;
+                let result =
+                    crate::core::ops::update_spec::run(crate::core::ops::update_spec::Input {
+                        project_name: args.project_name,
+                        spec_name: args.spec_name,
+                        commands_json: args.commands,
+                    })
+                    .await?;
 
                 Ok(serde_json::to_value(result)?)
             }
@@ -166,7 +219,13 @@ impl FoundryServerHandler {
                     ))
                 })?;
 
-                let result = cli::commands::delete_spec::execute(args).await?;
+                let result =
+                    crate::core::ops::delete_spec::run(crate::core::ops::delete_spec::Input {
+                        project_name: args.project_name,
+                        spec_name: args.spec_name,
+                        confirm: args.confirm,
+                    })
+                    .await?;
 
                 Ok(serde_json::to_value(result)?)
             }

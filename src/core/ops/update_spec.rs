@@ -1,33 +1,36 @@
-//! Implementation of the update_spec command
+//! Core op for applying edit commands to a spec (tool-agnostic)
 
-use crate::cli::args::UpdateSpecArgs;
+use anyhow::Result;
+
 use crate::core::edit_engine::EditEngine;
 use crate::core::{project, spec};
 use crate::types::edit_commands::EditCommand;
 use crate::types::responses::{EditCommandsResponsePayload, FoundryResponse, ValidationStatus};
-use anyhow::Result;
 
-pub async fn execute(args: UpdateSpecArgs) -> Result<FoundryResponse<EditCommandsResponsePayload>> {
-    // Validate inputs
-    validate_args(&args)?;
+#[derive(Debug, Clone)]
+pub struct Input {
+    pub project_name: String,
+    pub spec_name: String,
+    pub commands_json: String,
+}
 
-    // Validate project exists
-    validate_project_exists(&args.project_name)?;
+pub async fn run(input: Input) -> Result<FoundryResponse<EditCommandsResponsePayload>> {
+    validate_args(&input)?;
+    validate_project_exists(&input.project_name)?;
 
-    // Validate spec exists
-    if !spec::spec_exists(&args.project_name, &args.spec_name)? {
+    if !spec::spec_exists(&input.project_name, &input.spec_name)? {
         return Err(anyhow::anyhow!(
             "Spec '{}' not found in project '{}'. Use load_project tool to see available specs: {{\"name\": \"load_project\", \"arguments\": {{\"project_name\": \"{}\"}}}}",
-            args.spec_name,
-            args.project_name,
-            args.project_name
+            input.spec_name,
+            input.project_name,
+            input.project_name
         ));
     }
 
-    let commands: Vec<EditCommand> = serde_json::from_str(&args.commands)
+    let commands: Vec<EditCommand> = serde_json::from_str(&input.commands_json)
         .map_err(|e| anyhow::anyhow!("Invalid commands JSON: {}", e))?;
 
-    let result = EditEngine::apply_edit_commands(&args.project_name, &args.spec_name, &commands)?;
+    let result = EditEngine::apply_edit_commands(&input.project_name, &input.spec_name, &commands)?;
 
     let response_data = EditCommandsResponsePayload {
         applied_count: result.applied_count,
@@ -49,24 +52,19 @@ pub async fn execute(args: UpdateSpecArgs) -> Result<FoundryResponse<EditCommand
     })
 }
 
-/// Validate command arguments
-fn validate_args(args: &UpdateSpecArgs) -> Result<()> {
-    if args.project_name.trim().is_empty() {
+fn validate_args(input: &Input) -> Result<()> {
+    if input.project_name.trim().is_empty() {
         return Err(anyhow::anyhow!("Project name cannot be empty"));
     }
-
-    if args.spec_name.trim().is_empty() {
+    if input.spec_name.trim().is_empty() {
         return Err(anyhow::anyhow!("Spec name cannot be empty"));
     }
-
-    if args.commands.trim().is_empty() {
+    if input.commands_json.trim().is_empty() {
         return Err(anyhow::anyhow!("'commands' parameter is required"));
     }
-
     Ok(())
 }
 
-/// Validate that project exists
 fn validate_project_exists(project_name: &str) -> Result<()> {
     if !project::project_exists(project_name)? {
         return Err(anyhow::anyhow!(

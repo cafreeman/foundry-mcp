@@ -1,24 +1,26 @@
-//! Implementation of the load_spec command
+//! Core op for loading specs or listing available specs (tool-agnostic)
 
-use crate::cli::args::LoadSpecArgs;
+use anyhow::{Context, Result};
+
 use crate::core::{filesystem, project, spec};
 use crate::types::responses::{
     FoundryResponse, LoadSpecResponse, SpecContent, SpecInfo, ValidationStatus,
 };
-use anyhow::{Context, Result};
 
-pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecResponse>> {
-    // Validate project exists
-    validate_project_exists(&args.project_name)?;
+#[derive(Debug, Clone)]
+pub struct Input {
+    pub project_name: String,
+    pub spec_name: Option<String>,
+}
 
-    // Load project summary for context
-    let project_summary = load_project_summary(&args.project_name)?;
+pub async fn run(input: Input) -> Result<FoundryResponse<LoadSpecResponse>> {
+    validate_project_exists(&input.project_name)?;
 
-    // Handle two cases: list specs or load specific spec
-    match args.spec_name {
+    let project_summary = load_project_summary(&input.project_name)?;
+
+    match &input.spec_name {
         None => {
-            // List available specs
-            let specs = spec::list_specs(&args.project_name)?;
+            let specs = spec::list_specs(&input.project_name)?;
             let available_specs: Vec<SpecInfo> = specs
                 .into_iter()
                 .map(|spec_meta| SpecInfo {
@@ -29,7 +31,7 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
                 .collect();
 
             let response_data = LoadSpecResponse {
-                project_name: args.project_name.clone(),
+                project_name: input.project_name.clone(),
                 project_summary,
                 spec_name: None,
                 created_at: None,
@@ -40,7 +42,7 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
 
             Ok(FoundryResponse {
                 data: response_data,
-                next_steps: generate_listing_next_steps(&args.project_name, &available_specs),
+                next_steps: generate_listing_next_steps(&input.project_name, &available_specs),
                 validation_status: if available_specs.is_empty() {
                     ValidationStatus::Incomplete
                 } else {
@@ -50,13 +52,11 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
             })
         }
         Some(spec_name) => {
-            // Try fuzzy matching first, fall back to exact match
             let (spec_data, match_strategy) =
-                match spec::load_spec_with_fuzzy(&args.project_name, &spec_name) {
+                match spec::load_spec_with_fuzzy(&input.project_name, spec_name) {
                     Ok(result) => result,
                     Err(_) => {
-                        // Fall back to exact match for backward compatibility
-                        let spec_data = spec::load_spec(&args.project_name, &spec_name)
+                        let spec_data = spec::load_spec(&input.project_name, spec_name)
                             .with_context(|| format!("Failed to load spec '{}'", spec_name))?;
                         (spec_data, spec::SpecMatchStrategy::Exact(spec_name.clone()))
                     }
@@ -66,11 +66,10 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
                 content: spec_data.content,
             };
 
-            // Create match info for fuzzy matches
             let match_info = match match_strategy {
-                spec::SpecMatchStrategy::Exact(_) => None, // No match info for exact matches
+                spec::SpecMatchStrategy::Exact(_) => None,
                 _ => Some(crate::types::responses::MatchInfo {
-                    requested_spec: spec_name,
+                    requested_spec: spec_name.clone(),
                     matched_spec: spec_data.name.clone(),
                     match_type: match match_strategy {
                         spec::SpecMatchStrategy::FeatureExact(_) => "feature_exact".to_string(),
@@ -78,23 +77,23 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
                         spec::SpecMatchStrategy::NameFuzzy(_) => "name_fuzzy".to_string(),
                         _ => "exact".to_string(),
                     },
-                    confidence: 1.0, // We'll calculate this properly later
+                    confidence: 1.0,
                 }),
             };
 
             let response_data = LoadSpecResponse {
-                project_name: args.project_name.clone(),
+                project_name: input.project_name.clone(),
                 project_summary,
                 spec_name: Some(spec_data.name.clone()),
                 created_at: Some(spec_data.created_at.clone()),
                 spec_content: Some(spec_content),
-                available_specs: Vec::new(), // Empty when loading specific spec
+                available_specs: Vec::new(),
                 match_info,
             };
 
             Ok(FoundryResponse {
                 data: response_data,
-                next_steps: generate_spec_next_steps(&args.project_name, &spec_data.name),
+                next_steps: generate_spec_next_steps(&input.project_name, &spec_data.name),
                 validation_status: ValidationStatus::Complete,
                 workflow_hints: generate_spec_workflow_hints(&spec_data.name),
             })
@@ -102,7 +101,6 @@ pub async fn execute(args: LoadSpecArgs) -> Result<FoundryResponse<LoadSpecRespo
     }
 }
 
-/// Validate that project exists
 fn validate_project_exists(project_name: &str) -> Result<()> {
     if !project::project_exists(project_name)? {
         return Err(anyhow::anyhow!(
@@ -113,7 +111,6 @@ fn validate_project_exists(project_name: &str) -> Result<()> {
     Ok(())
 }
 
-/// Load project summary for context
 fn load_project_summary(project_name: &str) -> Result<String> {
     let project_path = project::get_project_path(project_name)?;
     let summary_path = project_path.join("summary.md");
@@ -123,7 +120,6 @@ fn load_project_summary(project_name: &str) -> Result<String> {
     }))
 }
 
-/// Generate next steps for spec listing
 fn generate_listing_next_steps(project_name: &str, available_specs: &[SpecInfo]) -> Vec<String> {
     if available_specs.is_empty() {
         vec![
@@ -163,7 +159,6 @@ fn generate_listing_next_steps(project_name: &str, available_specs: &[SpecInfo])
     }
 }
 
-/// Generate next steps for specific spec loading
 fn generate_spec_next_steps(project_name: &str, spec_name: &str) -> Vec<String> {
     vec![
         format!("Spec '{}' loaded successfully", spec_name),
@@ -181,7 +176,6 @@ fn generate_spec_next_steps(project_name: &str, spec_name: &str) -> Vec<String> 
     ]
 }
 
-/// Generate workflow hints for spec listing
 fn generate_listing_workflow_hints(available_specs: &[SpecInfo]) -> Vec<String> {
     let mut hints = vec![
         "You can use the project summary for context about all specifications".to_string(),
@@ -209,7 +203,6 @@ fn generate_listing_workflow_hints(available_specs: &[SpecInfo]) -> Vec<String> 
     hints
 }
 
-/// Generate workflow hints for specific spec loading
 fn generate_spec_workflow_hints(spec_name: &str) -> Vec<String> {
     vec![
         format!("Loaded spec: {}", spec_name),
