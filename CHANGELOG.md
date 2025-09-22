@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **MCP Resources Support**: Added list_resources capability to satisfy Warp AI terminal requirements
+  - Implemented ServerCapabilitiesResources with subscribe and list_changed options
+  - Added proper resources capability declaration in MCP server initialization
+  - Ensures compatibility with Warp terminal's MCP resource discovery
+
 ### Enhanced
 
 - **Command Template Documentation**: Improved update_spec command templates with comprehensive edit commands guidance

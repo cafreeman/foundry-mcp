@@ -9,8 +9,8 @@ use rust_mcp_sdk::{
     McpServer,
     mcp_server::ServerHandler,
     schema::{
-        CallToolRequest, CallToolResult, ListToolsRequest, ListToolsResult, RpcError, TextContent,
-        schema_utils::CallToolError,
+        CallToolRequest, CallToolResult, ListResourcesRequest, ListResourcesResult,
+        ListToolsRequest, ListToolsResult, RpcError, TextContent, schema_utils::CallToolError,
     },
 };
 use serde_json::Value;
@@ -255,6 +255,22 @@ impl ServerHandler for FoundryServerHandler {
 
         Ok(ListToolsResult {
             tools: FoundryTools::all_tools(),
+            meta: None,
+            next_cursor: None,
+        })
+    }
+
+    /// Handle resources listing requests
+    async fn handle_list_resources_request(
+        &self,
+        _request: ListResourcesRequest,
+        _runtime: &dyn McpServer,
+    ) -> Result<ListResourcesResult, RpcError> {
+        tracing::debug!("Handling list_resources request");
+
+        // Return empty resources list since Foundry doesn't provide resources
+        Ok(ListResourcesResult {
+            resources: vec![],
             meta: None,
             next_cursor: None,
         })
