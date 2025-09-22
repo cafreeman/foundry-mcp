@@ -104,6 +104,17 @@ Foundry stores structured project context in `~/.foundry/`:
 
 **Benefits**: Clean codebase separation • Persistent across git operations • Chronological feature tracking
 
+## Architecture: Backends
+
+Foundry uses a façade plus pluggable backend design to keep domain logic independent of storage.
+
+- Façade: `Foundry<B: FoundryBackend>` centralizes domain logic (spec naming/validation, fuzzy matching) and delegates I/O to a backend.
+- Default backend: `FilesystemBackend` preserves the existing on-disk layout and atomic write semantics.
+- Edit Engine: Uses `SpecContentStore` implemented by the façade for read/write operations.
+- Resource locators: Types include optional `location_hint` and `locator` for UI/deeplink use. The legacy `path` field is retained for compatibility but considered deprecated.
+
+See docs/backends.md for trait contracts, invariants, and a checklist for adding new backends.
+
 ## AI Assistant Benefits
 
 When you work with AI assistants like Claude or Cursor, Foundry provides:

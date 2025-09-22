@@ -9,10 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **MCP Resources Support**: Added list_resources capability to satisfy Warp AI terminal requirements
-  - Implemented ServerCapabilitiesResources with subscribe and list_changed options
-  - Added proper resources capability declaration in MCP server initialization
-  - Ensures compatibility with Warp terminal's MCP resource discovery
+- Backend Architecture Documentation
+  - Added docs/backends.md with trait contracts, invariants, capabilities, and extension checklist
+  - Added "Architecture: Backends" section to README.md linking to the new docs
+
+### Changed
+
+- Edit Engine routing
+  - Removed legacy EditEngine::apply_edit_commands that performed direct filesystem I/O
+  - All edit operations now route exclusively through Foundry::apply_edit_commands (façade), which uses SpecContentStore and backend abstraction
+
+### Deprecated
+
+- Documented deprecation of `path` fields on Project/Spec in favor of `location_hint` and `locator` in docs/backends.md and README.md
 
 ### Enhanced
 
