@@ -368,436 +368,600 @@ pub fn get_notes_file_path(project_name: &str, spec_name: &str) -> Result<PathBu
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_environment::TestEnvironment;
     use crate::types::spec::{SpecConfig, SpecFileType, SpecFilter};
-    use std::sync::Mutex;
 
-    // Use a mutex to serialize tests that modify global environment
-    static TEST_MUTEX: Mutex<()> = Mutex::new(());
-
-    /// Acquire test mutex lock, handling poisoning gracefully
-    fn acquire_test_lock() -> std::sync::MutexGuard<'static, ()> {
-        TEST_MUTEX.lock().unwrap_or_else(|poisoned| {
-            // Clear the poisoned state and acquire the lock
-            poisoned.into_inner()
-        })
-    }
-
-    // removed legacy setup_test_environment in favor of TestEnvironment
+    // Removed legacy mutex-based testing in favor of modern environment isolation
 
     #[test]
     fn test_spec_filtering() {
-        use crate::test_utils::TestEnvironment;
-        let _lock = acquire_test_lock();
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-spec-filtering";
 
-        // Create a few test specs
-        let spec_configs = vec![
-            SpecConfig {
-                project_name: project_name.to_string(),
-                feature_name: "user_auth".to_string(),
-                content: SpecContentData {
-                    spec: "User authentication specification".to_string(),
-                    notes: "Authentication notes".to_string(),
-                    tasks: "- Implement login\n- Implement logout".to_string(),
-                },
-            },
-            SpecConfig {
-                project_name: project_name.to_string(),
-                feature_name: "user_profile".to_string(),
-                content: SpecContentData {
-                    spec: "User profile management".to_string(),
-                    notes: "Profile notes".to_string(),
-                    tasks: "- Profile CRUD\n- Avatar upload".to_string(),
-                },
-            },
-        ];
+        let _ = env.with_env_async(|| async {
+            // First create the project
+            env.create_test_project(project_name).await.unwrap();
 
-        for config in spec_configs {
-            create_spec(config).unwrap();
-        }
+            // Create test specs using helper methods
+            env.create_test_spec(
+                project_name,
+                "user_auth",
+                "User authentication specification",
+            )
+            .await
+            .unwrap();
+            env.create_test_spec(project_name, "user_profile", "User profile management")
+                .await
+                .unwrap();
 
-        // Test filtering by feature name
-        let filter = SpecFilter {
-            feature_name_contains: Some("user".to_string()),
-            ..Default::default()
-        };
+            // Use spawn_blocking to run sync functions from async context
+            let project_name_clone = project_name.to_string();
+            let filtered_specs = tokio::task::spawn_blocking(move || {
+                let filter = SpecFilter {
+                    feature_name_contains: Some("user".to_string()),
+                    ..Default::default()
+                };
+                list_specs_filtered(&project_name_clone, filter)
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(filtered_specs.len(), 2);
 
-        let filtered_specs = list_specs_filtered(project_name, filter).unwrap();
-        assert_eq!(filtered_specs.len(), 2);
-
-        // Test filtering with limit
-        let filter = SpecFilter {
-            limit: Some(1),
-            ..Default::default()
-        };
-
-        let limited_specs = list_specs_filtered(project_name, filter).unwrap();
-        assert_eq!(limited_specs.len(), 1);
+            // Test filtering with limit
+            let project_name_clone = project_name.to_string();
+            let limited_specs = tokio::task::spawn_blocking(move || {
+                let filter = SpecFilter {
+                    limit: Some(1),
+                    ..Default::default()
+                };
+                list_specs_filtered(&project_name_clone, filter)
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(limited_specs.len(), 1);
+        });
     }
 
     #[test]
     fn test_spec_existence_and_counting() {
-        use crate::test_utils::TestEnvironment;
-        let _lock = acquire_test_lock();
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-spec-existence";
 
-        // Test empty project
-        assert_eq!(count_specs(project_name).unwrap(), 0);
-        assert!(!spec_exists(project_name, "nonexistent_spec").unwrap());
+        let _ = env.with_env_async(|| async {
+            // First create the project
+            env.create_test_project(project_name).await.unwrap();
 
-        // Create a spec
-        let config = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "test_feature".to_string(),
-            content: SpecContentData {
-                spec: "Test specification".to_string(),
-                notes: "Test notes".to_string(),
-                tasks: "- Test task".to_string(),
-            },
-        };
+            // Use spawn_blocking to run sync functions from async context
+            let project_name_clone = project_name.to_string();
+            let count = tokio::task::spawn_blocking(move || count_specs(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(count, 0);
 
-        let created_spec = create_spec(config).unwrap();
+            let project_name_clone = project_name.to_string();
+            let exists = tokio::task::spawn_blocking(move || {
+                spec_exists(&project_name_clone, "nonexistent_spec")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert!(!exists);
 
-        // Test counting and existence
-        assert_eq!(count_specs(project_name).unwrap(), 1);
-        assert!(spec_exists(project_name, &created_spec.name).unwrap());
+            // Create a test spec
+            env.create_test_spec(project_name, "test_feature", "Test specification")
+                .await
+                .unwrap();
+
+            // Test counting and existence
+            let project_name_clone = project_name.to_string();
+            let count = tokio::task::spawn_blocking(move || count_specs(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(count, 1);
+
+            // List specs to get the actual spec name for existence check
+            let project_name_clone = project_name.to_string();
+            let specs = tokio::task::spawn_blocking(move || list_specs(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(specs.len(), 1);
+
+            let project_name_clone = project_name.to_string();
+            let spec_name = specs[0].name.clone();
+            let exists =
+                tokio::task::spawn_blocking(move || spec_exists(&project_name_clone, &spec_name))
+                    .await
+                    .unwrap()
+                    .unwrap();
+            assert!(exists);
+        });
     }
 
     #[test]
     fn test_spec_content_updates() {
-        use crate::test_utils::TestEnvironment;
-        let _lock = acquire_test_lock();
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-spec-content-updates";
 
-        // Create a spec
-        let config = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "updatable_spec".to_string(),
-            content: SpecContentData {
-                spec: "Original specification".to_string(),
-                notes: "Original notes".to_string(),
-                tasks: "- Original task".to_string(),
-            },
-        };
+        let _ = env.with_env_async(|| async {
+            // First create the project
+            env.create_test_project(project_name).await.unwrap();
 
-        let created_spec = create_spec(config).unwrap();
+            // Create a test spec
+            env.create_test_spec(project_name, "updatable_spec", "Original specification")
+                .await
+                .unwrap();
 
-        // Update task list
-        let new_tasks = "- Updated task\n- New task\n- [ ] Completed task";
-        update_spec_content(
-            project_name,
-            &created_spec.name,
-            SpecFileType::TaskList,
-            new_tasks,
-        )
-        .unwrap();
+            // Use spawn_blocking to run sync functions from async context
+            let project_name_clone = project_name.to_string();
+            let specs = tokio::task::spawn_blocking(move || list_specs(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(specs.len(), 1);
+            let spec_name = specs[0].name.clone();
 
-        // Verify update
-        let loaded_spec = load_spec(project_name, &created_spec.name).unwrap();
-        assert_eq!(loaded_spec.content.tasks, new_tasks);
-        assert_eq!(loaded_spec.content.spec, "Original specification");
+            // Update task list
+            let new_tasks = "- Updated task\n- New task\n- [ ] Completed task";
+            let project_name_clone = project_name.to_string();
+            let spec_name_clone = spec_name.clone();
+            let new_tasks_clone = new_tasks.to_string();
+            tokio::task::spawn_blocking(move || {
+                update_spec_content(
+                    &project_name_clone,
+                    &spec_name_clone,
+                    SpecFileType::TaskList,
+                    &new_tasks_clone,
+                )
+            })
+            .await
+            .unwrap()
+            .unwrap();
+
+            // Verify update
+            let project_name_clone = project_name.to_string();
+            let spec_name_clone = spec_name.clone();
+            let loaded_spec = tokio::task::spawn_blocking(move || {
+                load_spec(&project_name_clone, &spec_name_clone)
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(loaded_spec.content.tasks, new_tasks);
+            // Note: The spec content will be longer than "Original specification" due to our template
+            assert!(loaded_spec.content.spec.contains("Original specification"));
+        });
     }
 
     #[test]
     fn test_spec_validation() {
-        use crate::test_utils::TestEnvironment;
-        let _lock = acquire_test_lock();
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-spec-validation";
 
-        // Create a spec
-        let config = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "validation_test".to_string(),
-            content: SpecContentData {
-                spec: "Valid specification content".to_string(),
-                notes: "Valid notes".to_string(),
-                tasks: "- Valid task".to_string(),
-            },
-        };
+        let _ = env.with_env_async(|| async {
+            // First create the project
+            env.create_test_project(project_name).await.unwrap();
 
-        let created_spec = create_spec(config).unwrap();
+            // Create a test spec
+            env.create_test_spec(
+                project_name,
+                "validation_test",
+                "Valid specification content",
+            )
+            .await
+            .unwrap();
 
-        // Validate the spec
-        let validation_result = validate_spec_files(project_name, &created_spec.name).unwrap();
+            // Use spawn_blocking to run sync functions from async context
+            let project_name_clone = project_name.to_string();
+            let specs = tokio::task::spawn_blocking(move || list_specs(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(specs.len(), 1);
+            let spec_name = specs[0].name.clone();
 
-        assert!(validation_result.is_valid());
-        assert!(validation_result.spec_file_exists);
-        assert!(validation_result.notes_file_exists);
-        assert!(validation_result.task_list_file_exists);
-        assert!(validation_result.content_validation.spec_valid);
-        assert!(validation_result.content_validation.notes_valid);
-        assert!(validation_result.content_validation.task_list_valid);
-        assert!(validation_result.validation_errors.is_empty());
-        assert_eq!(validation_result.summary(), "Spec is valid");
+            // Validate the spec
+            let project_name_clone = project_name.to_string();
+            let spec_name_clone = spec_name.clone();
+            let validation_result = tokio::task::spawn_blocking(move || {
+                validate_spec_files(&project_name_clone, &spec_name_clone)
+            })
+            .await
+            .unwrap()
+            .unwrap();
+
+            assert!(validation_result.is_valid());
+            assert!(validation_result.spec_file_exists);
+            assert!(validation_result.notes_file_exists);
+            assert!(validation_result.task_list_file_exists);
+            assert!(validation_result.content_validation.spec_valid);
+            assert!(validation_result.content_validation.notes_valid);
+            assert!(validation_result.content_validation.task_list_valid);
+            assert!(validation_result.validation_errors.is_empty());
+            assert_eq!(validation_result.summary(), "Spec is valid");
+        });
     }
 
     #[test]
     fn test_latest_spec_retrieval() {
-        use crate::test_utils::TestEnvironment;
-        let _lock = acquire_test_lock();
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-latest-spec-retrieval";
 
-        // Initially no specs
-        assert!(get_latest_spec(project_name).unwrap().is_none());
+        let _ = env.with_env_async(|| async {
+            // Create test project first
+            env.create_test_project(project_name).await.unwrap();
 
-        // Create first spec
-        let config1 = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "first_spec".to_string(),
-            content: SpecContentData {
-                spec: "First specification".to_string(),
-                notes: "First notes".to_string(),
-                tasks: "- First task".to_string(),
-            },
-        };
+            // Initially no specs
+            let project_name_clone = project_name.to_string();
+            let latest = tokio::task::spawn_blocking(move || get_latest_spec(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(latest.is_none());
 
-        let _spec1 = create_spec(config1).unwrap();
+            // Create first spec
+            env.create_test_spec(project_name, "first_spec", "First specification")
+                .await
+                .unwrap();
 
-        // Delay to ensure different timestamps (need at least 1 second difference)
-        std::thread::sleep(std::time::Duration::from_millis(1100));
+            // Delay to ensure different timestamps (need at least 1 second difference)
+            tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
 
-        // Create second spec
-        let config2 = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "second_spec".to_string(),
-            content: SpecContentData {
-                spec: "Second specification".to_string(),
-                notes: "Second notes".to_string(),
-                tasks: "- Second task".to_string(),
-            },
-        };
+            // Create second spec
+            env.create_test_spec(project_name, "second_spec", "Second specification")
+                .await
+                .unwrap();
 
-        let spec2 = create_spec(config2).unwrap();
+            // Get all specs to verify we have both
+            let project_name_clone = project_name.to_string();
+            let specs = tokio::task::spawn_blocking(move || list_specs(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
+            assert_eq!(specs.len(), 2);
 
-        // Get latest spec (should be the second one)
-        let latest = get_latest_spec(project_name).unwrap().unwrap();
-        assert_eq!(latest.name, spec2.name);
-        assert_eq!(latest.feature_name, "second_spec");
+            // Get latest spec (should be the second one based on timestamp)
+            let project_name_clone = project_name.to_string();
+            let latest = tokio::task::spawn_blocking(move || get_latest_spec(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap()
+                .unwrap();
+
+            // Find the second spec by feature name to compare
+            let second_spec = specs
+                .iter()
+                .find(|s| s.feature_name == "second_spec")
+                .unwrap();
+            assert_eq!(latest.name, second_spec.name);
+            assert_eq!(latest.feature_name, "second_spec");
+        });
     }
 
     #[test]
     fn test_directory_management() {
-        // Use proper TestEnvironment for isolation instead of setup_test_environment
-        use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
 
-        // Use a consistent project name for this test
-        let project_name = "test-directory-management-project";
+        env.with_env_async(|| async {
+            // Use a consistent project name for this test
+            let project_name = "test-directory-management-project";
 
-        // Test directory creation
-        let specs_dir = ensure_specs_directory(project_name).unwrap();
-        assert!(specs_dir.exists());
-        assert!(specs_dir.is_dir());
+            // Create test project first
+            env.create_test_project(project_name).await.unwrap();
 
-        // Test path getters
-        let specs_dir_path = get_specs_directory(project_name).unwrap();
-        assert_eq!(specs_dir, specs_dir_path);
+            // Use the async foundry directly to avoid nested runtime issues
+            let foundry = crate::core::foundry::get_default_foundry().unwrap();
 
-        // Create a spec and test spec path
-        let config = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "path_test".to_string(),
-            content: SpecContentData {
-                spec: "Path test spec".to_string(),
-                notes: "Path test notes".to_string(),
-                tasks: "- Path test task".to_string(),
-            },
-        };
+            // Test directory creation
+            let specs_dir = ensure_specs_directory(project_name).unwrap();
+            assert!(specs_dir.exists());
+            assert!(specs_dir.is_dir());
 
-        let created_spec = create_spec(config).unwrap();
-        let spec_path = get_spec_path(project_name, &created_spec.name).unwrap();
+            // Test path getters
+            let specs_dir_path = get_specs_directory(project_name).unwrap();
+            assert_eq!(specs_dir, specs_dir_path);
 
-        // Test that the spec path exists and is correct
-        assert!(spec_path.exists());
-        assert!(spec_path.is_dir());
-        assert!(spec_path.ends_with(&created_spec.name));
+            // Create a spec and test spec path using async API
+            let config = SpecConfig {
+                project_name: project_name.to_string(),
+                feature_name: "path_test".to_string(),
+                content: SpecContentData {
+                    spec: "Path test spec".to_string(),
+                    notes: "Path test notes".to_string(),
+                    tasks: "- Path test task".to_string(),
+                },
+            };
+
+            let created_spec = foundry.create_spec(config).await.unwrap();
+            let spec_path = get_spec_path(project_name, &created_spec.name).unwrap();
+
+            // Test that the spec path exists and is correct
+            assert!(spec_path.exists());
+            assert!(spec_path.is_dir());
+            assert!(spec_path.ends_with(&created_spec.name));
+        });
     }
 
     #[test]
     fn test_fuzzy_matching_exact_spec_name() {
-        use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-exact-spec";
 
-        // Create test specs
-        let config1 = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "user_authentication".to_string(),
-            content: SpecContentData {
-                spec: "Auth spec".to_string(),
-                notes: "Auth notes".to_string(),
-                tasks: "- Auth task".to_string(),
-            },
-        };
-        let spec1 = create_spec(config1).unwrap();
+        let _ = env.with_env_async(|| async {
+            // Create test project first
+            env.create_test_project(project_name).await.unwrap();
 
-        let config2 = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "payment_processing".to_string(),
-            content: SpecContentData {
-                spec: "Payment spec".to_string(),
-                notes: "Payment notes".to_string(),
-                tasks: "- Payment task".to_string(),
-            },
-        };
-        let spec2 = create_spec(config2).unwrap();
+            // Create test specs using helper method
+            env.create_test_spec(project_name, "user_authentication", "Auth spec")
+                .await
+                .unwrap();
+            env.create_test_spec(project_name, "payment_processing", "Payment spec")
+                .await
+                .unwrap();
 
-        // Test exact spec name match
-        let result = find_spec_match(project_name, &spec1.name).unwrap();
-        assert_eq!(result, SpecMatchStrategy::Exact(spec1.name));
+            // Get the actual spec names from the isolated environment
+            let project_name_clone = project_name.to_string();
+            let specs = tokio::task::spawn_blocking(move || list_specs(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
 
-        let result = find_spec_match(project_name, &spec2.name).unwrap();
-        assert_eq!(result, SpecMatchStrategy::Exact(spec2.name));
+            assert_eq!(specs.len(), 2);
+            let auth_spec = specs
+                .iter()
+                .find(|s| s.feature_name == "user_authentication")
+                .unwrap();
+            let payment_spec = specs
+                .iter()
+                .find(|s| s.feature_name == "payment_processing")
+                .unwrap();
+
+            // Test exact spec name match
+            let project_name_clone = project_name.to_string();
+            let auth_spec_name = auth_spec.name.clone();
+            let auth_spec_name_clone = auth_spec_name.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                find_spec_match(&project_name_clone, &auth_spec_name_clone)
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(result, SpecMatchStrategy::Exact(auth_spec_name));
+
+            let project_name_clone = project_name.to_string();
+            let payment_spec_name = payment_spec.name.clone();
+            let payment_spec_name_clone = payment_spec_name.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                find_spec_match(&project_name_clone, &payment_spec_name_clone)
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(result, SpecMatchStrategy::Exact(payment_spec_name));
+        });
     }
 
     #[test]
     fn test_fuzzy_matching_feature_name() {
-        use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-feature";
 
-        // Create test specs
-        let config1 = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "user_authentication".to_string(),
-            content: SpecContentData {
-                spec: "Auth spec".to_string(),
-                notes: "Auth notes".to_string(),
-                tasks: "- Auth task".to_string(),
-            },
-        };
-        let spec1 = create_spec(config1).unwrap();
+        let _ = env.with_env_async(|| async {
+            // Create test project first
+            env.create_test_project(project_name).await.unwrap();
 
-        let config2 = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "payment_processing".to_string(),
-            content: SpecContentData {
-                spec: "Payment spec".to_string(),
-                notes: "Payment notes".to_string(),
-                tasks: "- Payment task".to_string(),
-            },
-        };
-        let spec2 = create_spec(config2).unwrap();
+            // Create test specs using helper method
+            env.create_test_spec(project_name, "user_authentication", "Auth spec")
+                .await
+                .unwrap();
+            env.create_test_spec(project_name, "payment_processing", "Payment spec")
+                .await
+                .unwrap();
 
-        // Test exact feature name match
-        let result = find_spec_match(project_name, "user_authentication").unwrap();
-        assert_eq!(result, SpecMatchStrategy::FeatureExact(spec1.name.clone()));
+            // Get the actual spec names from the isolated environment
+            let project_name_clone = project_name.to_string();
+            let specs = tokio::task::spawn_blocking(move || list_specs(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
 
-        let result = find_spec_match(project_name, "payment_processing").unwrap();
-        assert_eq!(result, SpecMatchStrategy::FeatureExact(spec2.name.clone()));
+            assert_eq!(specs.len(), 2);
+            let auth_spec = specs
+                .iter()
+                .find(|s| s.feature_name == "user_authentication")
+                .unwrap();
+            let payment_spec = specs
+                .iter()
+                .find(|s| s.feature_name == "payment_processing")
+                .unwrap();
 
-        // Test feature name substring match
-        let result = find_spec_match(project_name, "auth").unwrap();
-        assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(spec1.name));
+            // Test exact feature name match using spawn_blocking
+            let project_name_clone = project_name.to_string();
+            let auth_spec_name = auth_spec.name.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                find_spec_match(&project_name_clone, "user_authentication")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(result, SpecMatchStrategy::FeatureExact(auth_spec_name));
 
-        let result = find_spec_match(project_name, "payment").unwrap();
-        assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(spec2.name));
+            let project_name_clone = project_name.to_string();
+            let payment_spec_name = payment_spec.name.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                find_spec_match(&project_name_clone, "payment_processing")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(result, SpecMatchStrategy::FeatureExact(payment_spec_name));
+
+            // Test feature name substring match
+            let project_name_clone = project_name.to_string();
+            let auth_spec_name = auth_spec.name.clone();
+            let result =
+                tokio::task::spawn_blocking(move || find_spec_match(&project_name_clone, "auth"))
+                    .await
+                    .unwrap()
+                    .unwrap();
+            assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(auth_spec_name));
+
+            let project_name_clone = project_name.to_string();
+            let payment_spec_name = payment_spec.name.clone();
+            let result = tokio::task::spawn_blocking(move || {
+                find_spec_match(&project_name_clone, "payment")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(result, SpecMatchStrategy::FeatureFuzzy(payment_spec_name));
+        });
     }
 
     #[test]
     fn test_fuzzy_matching_no_matches() {
-        use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-no-matches";
 
-        // Create test specs
-        let config = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "user_authentication".to_string(),
-            content: SpecContentData {
-                spec: "Auth spec".to_string(),
-                notes: "Auth notes".to_string(),
-                tasks: "- Auth task".to_string(),
-            },
-        };
-        let _spec = create_spec(config).unwrap();
+        let _ = env.with_env_async(|| async {
+            // Create test project first
+            env.create_test_project(project_name).await.unwrap();
 
-        // Test no matches
-        let result = find_spec_match(project_name, "completely_different").unwrap();
-        assert_eq!(result, SpecMatchStrategy::None);
+            // Create test spec using helper method
+            env.create_test_spec(project_name, "user_authentication", "Auth spec")
+                .await
+                .unwrap();
 
-        let result = find_spec_match(project_name, "xyz").unwrap();
-        assert_eq!(result, SpecMatchStrategy::None);
+            // Test no matches
+            let project_name_clone = project_name.to_string();
+            let result = tokio::task::spawn_blocking(move || {
+                find_spec_match(&project_name_clone, "completely_different")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(result, SpecMatchStrategy::None);
+
+            let project_name_clone = project_name.to_string();
+            let result =
+                tokio::task::spawn_blocking(move || find_spec_match(&project_name_clone, "xyz"))
+                    .await
+                    .unwrap()
+                    .unwrap();
+            assert_eq!(result, SpecMatchStrategy::None);
+        });
     }
 
     #[test]
     fn test_fuzzy_matching_empty_project() {
-        use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-empty";
 
-        // Test empty project
-        let result = find_spec_match(project_name, "anything").unwrap();
-        assert_eq!(result, SpecMatchStrategy::None);
+        let _ = env.with_env_async(|| async {
+            // Create test project first (but no specs)
+            env.create_test_project(project_name).await.unwrap();
+
+            // Test empty project
+            let project_name_clone = project_name.to_string();
+            let result = tokio::task::spawn_blocking(move || {
+                find_spec_match(&project_name_clone, "anything")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(result, SpecMatchStrategy::None);
+        });
     }
 
     #[test]
     fn test_load_spec_with_fuzzy() {
-        use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-load-fuzzy";
 
-        // Create test spec
-        let config = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "user_authentication".to_string(),
-            content: SpecContentData {
-                spec: "Auth spec".to_string(),
-                notes: "Auth notes".to_string(),
-                tasks: "- Auth task".to_string(),
-            },
-        };
-        let created_spec = create_spec(config).unwrap();
+        let _ = env.with_env_async(|| async {
+            // Create test project first
+            env.create_test_project(project_name).await.unwrap();
 
-        // Test fuzzy loading with feature name
-        let (loaded_spec, match_strategy) = load_spec_with_fuzzy(project_name, "auth").unwrap();
-        assert_eq!(loaded_spec.name, created_spec.name);
-        assert!(matches!(match_strategy, SpecMatchStrategy::FeatureFuzzy(_)));
+            // Create test spec using helper method
+            env.create_test_spec(project_name, "user_authentication", "Auth spec")
+                .await
+                .unwrap();
 
-        // Test exact loading
-        let (loaded_spec, match_strategy) =
-            load_spec_with_fuzzy(project_name, &created_spec.name).unwrap();
-        assert_eq!(loaded_spec.name, created_spec.name);
-        assert_eq!(match_strategy, SpecMatchStrategy::Exact(created_spec.name));
+            // Get the actual spec name from the isolated environment
+            let project_name_clone = project_name.to_string();
+            let specs = tokio::task::spawn_blocking(move || list_specs(&project_name_clone))
+                .await
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(specs.len(), 1);
+            let created_spec = &specs[0];
+
+            // Test fuzzy loading with feature name
+            let project_name_clone = project_name.to_string();
+            let (loaded_spec, match_strategy) = tokio::task::spawn_blocking(move || {
+                load_spec_with_fuzzy(&project_name_clone, "auth")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(loaded_spec.name, created_spec.name);
+            assert!(matches!(match_strategy, SpecMatchStrategy::FeatureFuzzy(_)));
+
+            // Test exact loading
+            let project_name_clone = project_name.to_string();
+            let created_spec_name = created_spec.name.clone();
+            let (loaded_spec, match_strategy) = tokio::task::spawn_blocking(move || {
+                load_spec_with_fuzzy(&project_name_clone, &created_spec_name)
+            })
+            .await
+            .unwrap()
+            .unwrap();
+            assert_eq!(loaded_spec.name, created_spec.name);
+            assert_eq!(
+                match_strategy,
+                SpecMatchStrategy::Exact(created_spec.name.clone())
+            );
+        });
     }
 
     #[test]
     fn test_load_spec_with_fuzzy_no_matches() {
-        use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-load-fuzzy-no-matches";
 
-        // Create test spec
-        let config = SpecConfig {
-            project_name: project_name.to_string(),
-            feature_name: "user_authentication".to_string(),
-            content: SpecContentData {
-                spec: "Auth spec".to_string(),
-                notes: "Auth notes".to_string(),
-                tasks: "- Auth task".to_string(),
-            },
-        };
-        let _spec = create_spec(config).unwrap();
+        let _ = env.with_env_async(|| async {
+            // Create test project first
+            env.create_test_project(project_name).await.unwrap();
 
-        // Test no matches
-        let result = load_spec_with_fuzzy(project_name, "completely_different");
-        assert!(result.is_err());
-        assert!(
-            result
-                .unwrap_err()
-                .to_string()
-                .contains("No specs found matching")
-        );
+            // Create test spec using helper method
+            env.create_test_spec(project_name, "user_authentication", "Auth spec")
+                .await
+                .unwrap();
+
+            // Test no matches
+            let project_name_clone = project_name.to_string();
+            let result = tokio::task::spawn_blocking(move || {
+                load_spec_with_fuzzy(&project_name_clone, "completely_different")
+            })
+            .await
+            .unwrap();
+            assert!(result.is_err());
+            assert!(
+                result
+                    .unwrap_err()
+                    .to_string()
+                    .contains("No specs found matching")
+            );
+        });
     }
 
     #[test]
     fn test_fuzzy_matching_empty_query() {
-        use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
         let project_name = "test-empty-query";
 
@@ -828,7 +992,6 @@ mod tests {
 
     #[test]
     fn test_fuzzy_matching_empty_project_name() {
-        use crate::test_utils::TestEnvironment;
         let _env = TestEnvironment::new().unwrap();
 
         _env.with_env_async(|| async {
@@ -848,7 +1011,6 @@ mod tests {
 
     #[test]
     fn test_fuzzy_matching_multiple_matches() {
-        use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-multiple-matches";
 
@@ -878,7 +1040,6 @@ mod tests {
 
     #[test]
     fn test_fuzzy_matching_empty_project_with_query() {
-        use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-empty-project-with-query";
 
@@ -895,7 +1056,6 @@ mod tests {
 
     #[test]
     fn test_list_specs_performance() {
-        use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-performance";
 
@@ -907,7 +1067,7 @@ mod tests {
 
             // Use the facade directly in async context
             let foundry = crate::core::foundry::get_default_foundry().unwrap();
-            
+
             // Multiple calls should work consistently (no caching, but still fast)
             let specs1 = foundry.list_specs(project_name).await.unwrap();
             assert_eq!(specs1.len(), 1);
@@ -920,7 +1080,6 @@ mod tests {
 
     #[test]
     fn test_malformed_spec_handling() {
-        use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-malformed";
 
@@ -940,7 +1099,7 @@ mod tests {
 
             // Use the facade directly in async context
             let foundry = crate::core::foundry::get_default_foundry().unwrap();
-            
+
             // List specs should skip malformed ones but still return valid ones
             let specs = foundry.list_specs(project_name).await.unwrap();
             assert_eq!(specs.len(), 1);
@@ -950,7 +1109,6 @@ mod tests {
 
     #[test]
     fn test_fuzzy_matching_similarity_thresholds() {
-        use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-similarity-thresholds";
 
@@ -973,7 +1131,10 @@ mod tests {
             let foundry = crate::core::foundry::get_default_foundry().unwrap();
 
             // Test exact match (similarity = 1.0)
-            let result = foundry.find_spec_match(project_name, "user_auth").await.unwrap();
+            let result = foundry
+                .find_spec_match(project_name, "user_auth")
+                .await
+                .unwrap();
             match result {
                 SpecMatchStrategy::FeatureExact(spec_name) => {
                     assert!(spec_name.ends_with("_user_auth"));
@@ -983,7 +1144,10 @@ mod tests {
             }
 
             // Test high similarity match (should match "user_auth" for "user_authentication" query)
-            let result = foundry.find_spec_match(project_name, "user_authentication").await.unwrap();
+            let result = foundry
+                .find_spec_match(project_name, "user_authentication")
+                .await
+                .unwrap();
             match result {
                 SpecMatchStrategy::FeatureExact(spec_name) => {
                     assert!(spec_name.ends_with("_user_authentication"));
@@ -993,7 +1157,10 @@ mod tests {
             }
 
             // Test fuzzy match with partial similarity
-            let result = foundry.find_spec_match(project_name, "usr_auth").await.unwrap();
+            let result = foundry
+                .find_spec_match(project_name, "usr_auth")
+                .await
+                .unwrap();
             match result {
                 SpecMatchStrategy::FeatureFuzzy(_) => {
                     // This should find a fuzzy match due to high similarity
@@ -1005,14 +1172,16 @@ mod tests {
             }
 
             // Test low similarity (should not match above threshold)
-            let result = foundry.find_spec_match(project_name, "completely_different").await.unwrap();
+            let result = foundry
+                .find_spec_match(project_name, "completely_different")
+                .await
+                .unwrap();
             assert_eq!(result, SpecMatchStrategy::None);
         });
     }
 
     #[test]
     fn test_fuzzy_matching_edge_cases() {
-        use crate::test_utils::TestEnvironment;
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-edge-cases";
 
@@ -1043,7 +1212,10 @@ mod tests {
             let foundry = crate::core::foundry::get_default_foundry().unwrap();
 
             // Test exact case match
-            let result = foundry.find_spec_match(project_name, "test_feature").await.unwrap();
+            let result = foundry
+                .find_spec_match(project_name, "test_feature")
+                .await
+                .unwrap();
             match result {
                 SpecMatchStrategy::FeatureExact(spec_name) => {
                     assert!(spec_name.ends_with("_test_feature"));
@@ -1053,7 +1225,10 @@ mod tests {
             }
 
             // Test case mismatch (should not find exact match)
-            let result = foundry.find_spec_match(project_name, "Test_Feature").await.unwrap();
+            let result = foundry
+                .find_spec_match(project_name, "Test_Feature")
+                .await
+                .unwrap();
             match result {
                 SpecMatchStrategy::FeatureFuzzy(_) => {
                     // Should find fuzzy match due to case difference
@@ -1068,8 +1243,6 @@ mod tests {
 
     #[test]
     fn test_logging_hygiene_no_stderr_output() {
-        use crate::test_utils::TestEnvironment;
-
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-logging-hygiene";
 
@@ -1089,7 +1262,7 @@ mod tests {
 
             // Use the facade directly in async context
             let foundry = crate::core::foundry::get_default_foundry().unwrap();
-            
+
             // Verify no eprintln! output from core functions (stderr is empty)
             // This would require more complex setup to capture stderr
             // For now, we just ensure the function calls work without panicking

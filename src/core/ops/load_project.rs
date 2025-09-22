@@ -14,12 +14,12 @@ pub struct Input {
 
 pub async fn run(input: Input) -> Result<FoundryResponse<LoadProjectResponse>> {
     let foundry = foundry::get_default_foundry()?;
-    
+
     validate_project_exists(&foundry, &input.project_name).await?;
 
     let project = foundry.load_project(&input.project_name).await?;
     let specs = foundry.list_specs(&input.project_name).await?;
-    
+
     let project_context = build_project_context(project, specs);
     let specs_available = project_context.specs_available.clone();
 
@@ -62,9 +62,9 @@ fn build_project_context(
 
     ProjectContext {
         name: project.name,
-        vision: project.vision.unwrap_or_else(|| String::new()),
-        tech_stack: project.tech_stack.unwrap_or_else(|| String::new()),
-        summary: project.summary.unwrap_or_else(|| String::new()),
+        vision: project.vision.unwrap_or_default(),
+        tech_stack: project.tech_stack.unwrap_or_default(),
+        summary: project.summary.unwrap_or_default(),
         specs_available,
         created_at: project.created_at,
     }

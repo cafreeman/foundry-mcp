@@ -3,13 +3,13 @@
 //! These tests verify the full specification creation, loading, updating, and
 //! deletion workflows using isolated filesystem operations.
 
+mod common;
+
+use common::{TestEnvironment, UpdateSpecArgs};
 use foundry_mcp::cli::args::LoadSpecArgs;
 use foundry_mcp::core::ops::{create_project, create_spec, delete_spec, load_spec, update_spec};
 use foundry_mcp::types::edit_commands::EditCommandTarget;
 use foundry_mcp::types::responses::ValidationStatus;
-
-// Import TestEnvironment from the main crate
-use foundry_mcp::test_utils::TestEnvironment;
 
 /// Test creating a spec for an existing project
 #[test]
@@ -33,9 +33,9 @@ fn test_create_spec_full_workflow() {
         let response = create_spec::run(create_spec::Input {
             project_name: spec_args.project_name,
             feature_name: spec_args.feature_name,
-            spec: spec_args.spec,
-            notes: spec_args.notes,
-            tasks: spec_args.tasks,
+            spec: spec_args.content.spec,
+            notes: spec_args.content.notes,
+            tasks: spec_args.content.tasks,
         })
         .await
         .unwrap();
@@ -553,7 +553,7 @@ fn test_update_spec_replace() {
         let response = update_spec::run(update_spec::Input {
             project_name: update_args.project_name,
             spec_name: update_args.spec_name,
-            commands_json: update_args.commands,
+            commands_json: update_args.commands_json,
         })
         .await
         .unwrap();
@@ -629,7 +629,7 @@ fn test_update_spec_append() {
         let response = update_spec::run(update_spec::Input {
             project_name: update_args.project_name,
             spec_name: update_args.spec_name,
-            commands_json: update_args.commands,
+            commands_json: update_args.commands_json,
         })
         .await
         .unwrap();
@@ -687,12 +687,27 @@ fn test_update_spec_task_list() {
         let spec_name = spec_response.data.spec_name;
 
         // Update task list with new tasks using edit_commands
-        let update_args = env.update_spec_args_single("task-test-project", &spec_name, "tasks");
+        // Create specific update args for this test
+        let commands = vec![serde_json::json!({
+            "target": "tasks",
+            "command": "upsert_task",
+            "selector": {
+                "type": "task_text",
+                "value": "- [ ] Test task"
+            },
+            "content": "- [ ] Test task"
+        })];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "task-test-project".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
 
         let response = update_spec::run(update_spec::Input {
             project_name: update_args.project_name,
             spec_name: update_args.spec_name,
-            commands_json: update_args.commands,
+            commands_json: update_args.commands_json,
         })
         .await
         .unwrap();
@@ -728,7 +743,7 @@ fn test_update_spec_error_handling() {
         let result = update_spec::run(update_spec::Input {
             project_name: update_args.project_name,
             spec_name: update_args.spec_name,
-            commands_json: update_args.commands,
+            commands_json: update_args.commands_json,
         })
         .await;
         assert!(result.is_err());
@@ -762,7 +777,7 @@ fn test_update_spec_error_handling() {
         let result = update_spec::run(update_spec::Input {
             project_name: update_args.project_name,
             spec_name: update_args.spec_name,
-            commands_json: update_args.commands,
+            commands_json: update_args.commands_json,
         })
         .await;
         assert!(result.is_err());
@@ -944,7 +959,7 @@ fn test_spec_lifecycle_workflow() {
         let update_response = update_spec::run(update_spec::Input {
             project_name: update_args.project_name,
             spec_name: update_args.spec_name,
-            commands_json: update_args.commands,
+            commands_json: update_args.commands_json,
         })
         .await
         .unwrap();
@@ -958,7 +973,7 @@ fn test_spec_lifecycle_workflow() {
         let append_response = update_spec::run(update_spec::Input {
             project_name: append_args.project_name,
             spec_name: append_args.spec_name,
-            commands_json: append_args.commands,
+            commands_json: append_args.commands_json,
         })
         .await
         .unwrap();
@@ -973,7 +988,7 @@ fn test_spec_lifecycle_workflow() {
         let task_response = update_spec::run(update_spec::Input {
             project_name: task_args.project_name,
             spec_name: task_args.spec_name,
-            commands_json: task_args.commands,
+            commands_json: task_args.commands_json,
         })
         .await
         .unwrap();

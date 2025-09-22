@@ -15,7 +15,7 @@ pub struct Input {
 
 pub async fn run(input: Input) -> Result<FoundryResponse<LoadSpecResponse>> {
     let foundry = foundry::get_default_foundry()?;
-    
+
     validate_project_exists(&foundry, &input.project_name).await?;
 
     let project_summary = load_project_summary(&foundry, &input.project_name).await?;
@@ -57,7 +57,7 @@ pub async fn run(input: Input) -> Result<FoundryResponse<LoadSpecResponse>> {
             let match_strategy = foundry
                 .find_spec_match(&input.project_name, spec_name)
                 .await?;
-                
+
             let (spec_data, match_strategy) = match match_strategy {
                 spec::SpecMatchStrategy::None => {
                     return Err(anyhow::anyhow!(
@@ -85,14 +85,20 @@ pub async fn run(input: Input) -> Result<FoundryResponse<LoadSpecResponse>> {
                         .load_spec(&input.project_name, &actual_name)
                         .await
                         .with_context(|| format!("Failed to load spec '{}'", actual_name))?;
-                    (spec_data, spec::SpecMatchStrategy::FeatureExact(actual_name))
+                    (
+                        spec_data,
+                        spec::SpecMatchStrategy::FeatureExact(actual_name),
+                    )
                 }
                 spec::SpecMatchStrategy::FeatureFuzzy(actual_name) => {
                     let spec_data = foundry
                         .load_spec(&input.project_name, &actual_name)
                         .await
                         .with_context(|| format!("Failed to load spec '{}'", actual_name))?;
-                    (spec_data, spec::SpecMatchStrategy::FeatureFuzzy(actual_name))
+                    (
+                        spec_data,
+                        spec::SpecMatchStrategy::FeatureFuzzy(actual_name),
+                    )
                 }
                 spec::SpecMatchStrategy::NameFuzzy(actual_name) => {
                     let spec_data = foundry
@@ -160,7 +166,7 @@ async fn load_project_summary(
     project_name: &str,
 ) -> Result<String> {
     let project = foundry.load_project(project_name).await?;
-    
+
     Ok(project.summary.unwrap_or_else(|| {
         "No project summary available. Consider updating the project summary for better context.".to_string()
     }))

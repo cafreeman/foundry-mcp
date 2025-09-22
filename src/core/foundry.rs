@@ -1,9 +1,9 @@
 //! Foundry façade providing storage-agnostic domain logic
 
 use crate::core::backends::{FoundryBackend, SpecContentStore};
-use crate::core::edit_engine::{EditEngine, EditCommandsResult};
-use crate::types::edit_commands::EditCommand;
+use crate::core::edit_engine::{EditCommandsResult, EditEngine};
 use crate::core::spec::SpecMatchStrategy;
+use crate::types::edit_commands::EditCommand;
 use crate::types::{
     project::{Project, ProjectConfig, ProjectMetadata},
     spec::{Spec, SpecConfig, SpecFileType, SpecMetadata},
@@ -254,16 +254,16 @@ impl<B: FoundryBackend> SpecContentStore for Foundry<B> {
     ) -> Result<String> {
         // Try to load the spec to get the file content
         let spec = self.load_spec(project_name, spec_name).await?;
-        
+
         let content = match file_type {
             SpecFileType::Spec => spec.content.spec,
             SpecFileType::Notes => spec.content.notes,
             SpecFileType::TaskList => spec.content.tasks,
         };
-        
+
         Ok(content)
     }
-    
+
     async fn write_spec_file(
         &self,
         project_name: &str,
@@ -274,7 +274,7 @@ impl<B: FoundryBackend> SpecContentStore for Foundry<B> {
         self.update_spec_content(project_name, spec_name, file_type, content)
             .await
     }
-    
+
     async fn is_file_modified(
         &self,
         project_name: &str,
@@ -282,7 +282,9 @@ impl<B: FoundryBackend> SpecContentStore for Foundry<B> {
         file_type: SpecFileType,
         new_content: &str,
     ) -> Result<bool> {
-        let current_content = self.read_spec_file(project_name, spec_name, file_type).await?;
+        let current_content = self
+            .read_spec_file(project_name, spec_name, file_type)
+            .await?;
         Ok(current_content != new_content)
     }
 }

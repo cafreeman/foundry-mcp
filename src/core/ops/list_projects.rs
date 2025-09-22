@@ -12,7 +12,7 @@ pub struct Input;
 
 pub async fn run(_input: Input) -> Result<FoundryResponse<ListProjectsResponse>> {
     let foundry = foundry::get_default_foundry()?;
-    
+
     let project_metadata_list = foundry
         .list_projects()
         .await

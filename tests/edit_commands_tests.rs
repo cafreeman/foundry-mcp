@@ -1,8 +1,10 @@
 //! Tests for update_spec with operation "edit_commands"
 
+mod common;
+
+use common::test_utils::TestEnvironment;
 use foundry_mcp::cli::args::UpdateSpecArgs;
 use foundry_mcp::core::ops::{create_project, create_spec, update_spec};
-use foundry_mcp::test_utils::TestEnvironment;
 
 fn commands_json(cmds: serde_json::Value) -> String {
     serde_json::to_string(&cmds).unwrap()

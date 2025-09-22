@@ -27,23 +27,25 @@ impl EditEngine {
         // Legacy method - keep for backward compatibility during transition
         // This will be deprecated once all callers use the new method
         use crate::core::{filesystem, spec};
-        
+
         if commands.is_empty() {
             return Err(anyhow!("commands must be a non-empty array"));
         }
 
         // Load current contents using direct filesystem calls (legacy)
         let mut spec_content =
-            read_file_or_empty(&spec::get_spec_file_path(project_name, spec_name)?)?
-        ;
+            read_file_or_empty(&spec::get_spec_file_path(project_name, spec_name)?)?;
         let mut tasks_content =
-            read_file_or_empty(&spec::get_task_list_file_path(project_name, spec_name)?)?
-        ;
+            read_file_or_empty(&spec::get_task_list_file_path(project_name, spec_name)?)?;
         let mut notes_content =
-            read_file_or_empty(&spec::get_notes_file_path(project_name, spec_name)?)?
-        ;
+            read_file_or_empty(&spec::get_notes_file_path(project_name, spec_name)?)?;
 
-        let result = Self::process_edit_commands(commands, &mut spec_content, &mut tasks_content, &mut notes_content)?;
+        let result = Self::process_edit_commands(
+            commands,
+            &mut spec_content,
+            &mut tasks_content,
+            &mut notes_content,
+        )?;
 
         // Write back only if modified using direct filesystem calls (legacy)
         if is_modified(
@@ -101,7 +103,12 @@ impl EditEngine {
             .await
             .unwrap_or_else(|_| String::new());
 
-        let result = Self::process_edit_commands(commands, &mut spec_content, &mut tasks_content, &mut notes_content)?;
+        let result = Self::process_edit_commands(
+            commands,
+            &mut spec_content,
+            &mut tasks_content,
+            &mut notes_content,
+        )?;
 
         // Write back only if modified via SpecContentStore
         if store
@@ -113,11 +120,21 @@ impl EditEngine {
                 .await?;
         }
         if store
-            .is_file_modified(project_name, spec_name, SpecFileType::TaskList, &tasks_content)
+            .is_file_modified(
+                project_name,
+                spec_name,
+                SpecFileType::TaskList,
+                &tasks_content,
+            )
             .await?
         {
             store
-                .write_spec_file(project_name, spec_name, SpecFileType::TaskList, &tasks_content)
+                .write_spec_file(
+                    project_name,
+                    spec_name,
+                    SpecFileType::TaskList,
+                    &tasks_content,
+                )
                 .await?;
         }
         if store
@@ -173,7 +190,7 @@ impl EditEngine {
                         .status
                         .clone()
                         .ok_or_else(|| anyhow!("status is required for set_task_status"))?;
-                    match set_task_status(&tasks_content, value, status) {
+                    match set_task_status(tasks_content, value, status) {
                         Ok(EditOutcome {
                             content,
                             applied,
@@ -206,7 +223,7 @@ impl EditEngine {
                         .content
                         .clone()
                         .ok_or_else(|| anyhow!("content is required for upsert_task"))?;
-                    match upsert_task(&tasks_content, value, &content) {
+                    match upsert_task(tasks_content, value, &content) {
                         Ok(EditOutcome {
                             content,
                             applied,

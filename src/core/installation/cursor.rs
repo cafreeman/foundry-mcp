@@ -331,7 +331,7 @@ async fn remove_cursor_rules_template(config_path: &std::path::Path) -> Result<O
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::TestEnvironment;
+    use crate::test_environment::TestEnvironment;
 
     #[test]
     fn test_install_for_cursor_fresh_environment() {

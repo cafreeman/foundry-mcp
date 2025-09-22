@@ -7,8 +7,8 @@ use anyhow::Result;
 // Note: Using test helper functions instead of direct command imports
 use foundry_mcp::types::responses::InstallationStatus;
 
-// Import TestEnvironment from the main crate
-use foundry_mcp::test_utils::TestEnvironment;
+mod common;
+use common::TestEnvironment;
 
 /// Test Claude Code uninstall end-to-end workflow
 #[test]

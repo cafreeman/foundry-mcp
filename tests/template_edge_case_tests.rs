@@ -5,7 +5,8 @@
 
 use anyhow::Result;
 use foundry_mcp::core::installation::install_for_cursor;
-use foundry_mcp::test_utils::TestEnvironment;
+mod common;
+use common::TestEnvironment;
 use std::fs;
 use std::os::unix::fs::PermissionsExt;
 use tempfile::TempDir;
@@ -15,39 +16,34 @@ use tempfile::TempDir;
 fn test_template_installation_readonly_directory() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    env.with_env_async(|| async {
-        // Create a read-only directory
-        let temp_dir = TempDir::new()?;
-        let readonly_dir = temp_dir.path().join("readonly");
-        fs::create_dir(&readonly_dir)?;
+    // Create a read-only directory
+    let temp_dir = TempDir::new()?;
+    let readonly_dir = temp_dir.path().join("readonly");
+    fs::create_dir(&readonly_dir)?;
 
-        // Make directory read-only
-        let mut perms = fs::metadata(&readonly_dir)?.permissions();
-        perms.set_mode(0o444); // Read-only
-        fs::set_permissions(&readonly_dir, perms)?;
+    // Make directory read-only
+    let mut perms = fs::metadata(&readonly_dir)?.permissions();
+    perms.set_mode(0o444); // Read-only
+    fs::set_permissions(&readonly_dir, perms)?;
 
-        // Set up environment to use the read-only directory
-        let readonly_path = readonly_dir.to_string_lossy().to_string();
-        temp_env::with_var("CURSOR_CONFIG_DIR", Some(&readonly_path), || {
-            // Attempt installation - should fail gracefully
-            let result = std::thread::spawn(|| {
-                tokio::runtime::Runtime::new()
-                    .unwrap()
-                    .block_on(install_for_cursor())
-            })
-            .join()
-            .unwrap();
+    // Set up environment to use the read-only directory
+    let readonly_path = readonly_dir.to_string_lossy().to_string();
+    let extra = &[(
+        std::ffi::OsString::from("CURSOR_CONFIG_DIR"),
+        Some(std::ffi::OsString::from(readonly_path)),
+    )];
+    env.with_env_and_vars_async(extra, || async {
+        // Attempt installation - should fail gracefully
+        let result = install_for_cursor().await;
 
-            // Should fail with permission error, not panic
-            assert!(result.is_err());
-            let error_msg = result.unwrap_err().to_string();
-            assert!(
-                error_msg.contains("permission")
-                    || error_msg.contains("denied")
-                    || error_msg.contains("read-only")
-            );
-        });
-
+        // Should fail with permission error, not panic
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(
+            error_msg.contains("permission")
+                || error_msg.contains("denied")
+                || error_msg.contains("read-only")
+        );
         Ok::<(), anyhow::Error>(())
     })?;
 
@@ -164,32 +160,25 @@ fn test_template_installation_insufficient_space() -> Result<()> {
 fn test_template_installation_invalid_paths() -> Result<()> {
     let env = TestEnvironment::new()?;
 
-    env.with_env_async(|| async {
-        // Set invalid config directory path
-        temp_env::with_var(
-            "CURSOR_CONFIG_DIR",
-            Some("/invalid/path/that/does/not/exist"),
-            || {
-                // Attempt installation - should handle path errors gracefully
-                let result = std::thread::spawn(|| {
-                    tokio::runtime::Runtime::new()
-                        .unwrap()
-                        .block_on(install_for_cursor())
-                })
-                .join()
-                .unwrap();
+    // Set invalid config directory path
+    let extra = &[(
+        std::ffi::OsString::from("CURSOR_CONFIG_DIR"),
+        Some(std::ffi::OsString::from(
+            "/invalid/path/that/does/not/exist",
+        )),
+    )];
+    env.with_env_and_vars_async(extra, || async {
+        // Attempt installation - should handle path errors gracefully
+        let result = install_for_cursor().await;
 
-                // Should fail with path-related error, not panic
-                assert!(result.is_err());
-                let error_msg = result.unwrap_err().to_string();
-                assert!(
-                    error_msg.contains("path")
-                        || error_msg.contains("directory")
-                        || error_msg.contains("not found")
-                );
-            },
+        // Should fail with path-related error, not panic
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(
+            error_msg.contains("path")
+                || error_msg.contains("directory")
+                || error_msg.contains("not found")
         );
-
         Ok::<(), anyhow::Error>(())
     })?;
 

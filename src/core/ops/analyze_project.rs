@@ -17,13 +17,15 @@ pub struct Input {
 
 pub async fn run(input: Input) -> Result<FoundryResponse<AnalyzeProjectResponse>> {
     let foundry = foundry::get_default_foundry()?;
-    
+
     validate_project_name(&input.project_name).with_context(|| "Project name validation failed")?;
 
     validate_content_sizes(&input.vision, &input.tech_stack, &input.summary)
         .with_context(|| "Content size validation failed")?;
 
-    if foundry.project_exists(&input.project_name).await
+    if foundry
+        .project_exists(&input.project_name)
+        .await
         .with_context(|| format!("Failed to check if project '{}' exists", input.project_name))?
     {
         return Err(anyhow::anyhow!(
@@ -63,8 +65,10 @@ pub async fn run(input: Input) -> Result<FoundryResponse<AnalyzeProjectResponse>
         tech_stack: input.tech_stack,
         summary: input.summary,
     };
-    
-    foundry.create_project(project_config).await
+
+    foundry
+        .create_project(project_config)
+        .await
         .with_context(|| format!("Failed to create project '{}'", input.project_name))?;
 
     let files_created = vec![

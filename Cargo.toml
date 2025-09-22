@@ -43,7 +43,6 @@ tokio = { version = "1.47.1", features = ["sync"] }
 
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
-tempfile = "3.10.1"
 which = "6.0.0"
 
 [dev-dependencies]
