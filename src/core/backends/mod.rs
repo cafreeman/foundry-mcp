@@ -95,9 +95,9 @@ pub mod filesystem;
 // Re-export memory backend for testing
 pub mod memory;
 
-// Experimental Linear backend
-// Temporarily not exported to avoid compiling unfinished backend code
-// pub mod linear;
+// Experimental Linear backend (guarded by Cargo feature)
+#[cfg(feature = "linear_backend")]
+pub mod linear;
 
 // Backend testing infrastructure
 mod tests;
