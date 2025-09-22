@@ -2,8 +2,7 @@
 
 use anyhow::Result;
 
-use crate::core::edit_engine::EditEngine;
-use crate::core::{project, spec};
+use crate::core::foundry;
 use crate::types::edit_commands::EditCommand;
 use crate::types::responses::{EditCommandsResponsePayload, FoundryResponse, ValidationStatus};
 
@@ -15,22 +14,25 @@ pub struct Input {
 }
 
 pub async fn run(input: Input) -> Result<FoundryResponse<EditCommandsResponsePayload>> {
+    let foundry = foundry::get_default_foundry()?;
+    
     validate_args(&input)?;
-    validate_project_exists(&input.project_name)?;
+    validate_project_exists(&foundry, &input.project_name).await?;
 
-    if !spec::spec_exists(&input.project_name, &input.spec_name)? {
-        return Err(anyhow::anyhow!(
+    // Check if spec exists by trying to load it
+    foundry.load_spec(&input.project_name, &input.spec_name).await.map_err(|_| {
+        anyhow::anyhow!(
             "Spec '{}' not found in project '{}'. Use load_project tool to see available specs: {{\"name\": \"load_project\", \"arguments\": {{\"project_name\": \"{}\"}}}}",
             input.spec_name,
             input.project_name,
             input.project_name
-        ));
-    }
+        )
+    })?;
 
     let commands: Vec<EditCommand> = serde_json::from_str(&input.commands_json)
         .map_err(|e| anyhow::anyhow!("Invalid commands JSON: {}", e))?;
 
-    let result = EditEngine::apply_edit_commands(&input.project_name, &input.spec_name, &commands)?;
+    let result = foundry.apply_edit_commands(&input.project_name, &input.spec_name, &commands).await?;
 
     let response_data = EditCommandsResponsePayload {
         applied_count: result.applied_count,
@@ -65,8 +67,11 @@ fn validate_args(input: &Input) -> Result<()> {
     Ok(())
 }
 
-fn validate_project_exists(project_name: &str) -> Result<()> {
-    if !project::project_exists(project_name)? {
+async fn validate_project_exists(
+    foundry: &foundry::Foundry<crate::core::backends::filesystem::FilesystemBackend>,
+    project_name: &str,
+) -> Result<()> {
+    if !foundry.project_exists(project_name).await? {
         return Err(anyhow::anyhow!(
             "Project '{}' not found. Use list_projects tool to see available projects: {{\"name\": \"list_projects\", \"arguments\": {{}}}}",
             project_name

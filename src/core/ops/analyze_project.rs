@@ -2,9 +2,9 @@
 
 use anyhow::{Context, Result};
 
-use crate::core::filesystem::{foundry_dir, write_file_atomic};
-use crate::core::project::project_exists;
+use crate::core::foundry;
 use crate::core::validation::{ContentType, validate_content};
+use crate::types::project::ProjectConfig;
 use crate::types::responses::{AnalyzeProjectResponse, FoundryResponse, ValidationStatus};
 
 #[derive(Debug, Clone)]
@@ -16,12 +16,14 @@ pub struct Input {
 }
 
 pub async fn run(input: Input) -> Result<FoundryResponse<AnalyzeProjectResponse>> {
+    let foundry = foundry::get_default_foundry()?;
+    
     validate_project_name(&input.project_name).with_context(|| "Project name validation failed")?;
 
     validate_content_sizes(&input.vision, &input.tech_stack, &input.summary)
         .with_context(|| "Content size validation failed")?;
 
-    if project_exists(&input.project_name)
+    if foundry.project_exists(&input.project_name).await
         .with_context(|| format!("Failed to check if project '{}' exists", input.project_name))?
     {
         return Err(anyhow::anyhow!(
@@ -54,50 +56,16 @@ pub async fn run(input: Input) -> Result<FoundryResponse<AnalyzeProjectResponse>
         ));
     }
 
-    let foundry_path = foundry_dir().with_context(
-        || "Failed to access or create foundry directory (~/.foundry/). Check file permissions.",
-    )?;
-    let project_path = foundry_path.join(&input.project_name);
-
-    std::fs::create_dir_all(&project_path).with_context(|| {
-        format!(
-            "Failed to create project directory '{}'. Possible causes:\n- Insufficient disk space\n- Permission denied\n- Invalid project name characters\n- Path too long for filesystem",
-            project_path.display()
-        )
-    })?;
-
-    let specs_dir = project_path.join("specs");
-    std::fs::create_dir_all(&specs_dir).with_context(|| {
-        format!(
-            "Failed to create specs directory '{}'. The project directory was created, but specs creation failed. Check disk space and permissions.",
-            specs_dir.display()
-        )
-    })?;
-
-    let vision_path = project_path.join("vision.md");
-    let tech_stack_path = project_path.join("tech-stack.md");
-    let summary_path = project_path.join("summary.md");
-
-    write_file_atomic(&vision_path, &input.vision).with_context(|| {
-        format!(
-            "Failed to write vision.md ({}). File creation failed after directory setup. Check disk space and file permissions.",
-            vision_path.display()
-        )
-    })?;
-
-    write_file_atomic(&tech_stack_path, &input.tech_stack).with_context(|| {
-        format!(
-            "Failed to write tech-stack.md ({}). Vision file was created successfully. Check disk space and file permissions.",
-            tech_stack_path.display()
-        )
-    })?;
-
-    write_file_atomic(&summary_path, &input.summary).with_context(|| {
-        format!(
-            "Failed to write summary.md ({}). Vision and tech-stack files were created successfully. Check disk space and file permissions.",
-            summary_path.display()
-        )
-    })?;
+    // Create project using the foundry façade
+    let project_config = ProjectConfig {
+        name: input.project_name.clone(),
+        vision: input.vision,
+        tech_stack: input.tech_stack,
+        summary: input.summary,
+    };
+    
+    foundry.create_project(project_config).await
+        .with_context(|| format!("Failed to create project '{}'", input.project_name))?;
 
     let files_created = vec![
         "vision.md".to_string(),

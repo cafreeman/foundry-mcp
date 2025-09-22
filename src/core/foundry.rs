@@ -1,6 +1,8 @@
 //! Foundry façade providing storage-agnostic domain logic
 
-use crate::core::backends::FoundryBackend;
+use crate::core::backends::{FoundryBackend, SpecContentStore};
+use crate::core::edit_engine::{EditEngine, EditCommandsResult};
+use crate::types::edit_commands::EditCommand;
 use crate::core::spec::SpecMatchStrategy;
 use crate::types::{
     project::{Project, ProjectConfig, ProjectMetadata},
@@ -230,15 +232,60 @@ impl<B: FoundryBackend> Foundry<B> {
         Ok(SpecMatchStrategy::None)
     }
 
-    // Edit commands integration - will be implemented in Phase 1
-    // pub async fn apply_edit_commands(&self, project_name: &str, spec_name: &str,
-    //                                commands: &[EditCommand]) -> Result<EditCommandsResult> {
-    //     // This will be implemented in Phase 1
-    //     todo!("Edit commands integration")
-    // }
+    // Edit commands integration
+    pub async fn apply_edit_commands(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        commands: &[EditCommand],
+    ) -> Result<EditCommandsResult> {
+        EditEngine::apply_edit_commands_with_store(project_name, spec_name, commands, self).await
+    }
 }
 
-// SpecContentStore implementation will be added in Phase 1 when EditEngine integration is needed
+/// SpecContentStore implementation for the Foundry façade
+#[async_trait::async_trait]
+impl<B: FoundryBackend> SpecContentStore for Foundry<B> {
+    async fn read_spec_file(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        file_type: SpecFileType,
+    ) -> Result<String> {
+        // Try to load the spec to get the file content
+        let spec = self.load_spec(project_name, spec_name).await?;
+        
+        let content = match file_type {
+            SpecFileType::Spec => spec.content.spec,
+            SpecFileType::Notes => spec.content.notes,
+            SpecFileType::TaskList => spec.content.tasks,
+        };
+        
+        Ok(content)
+    }
+    
+    async fn write_spec_file(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        file_type: SpecFileType,
+        content: &str,
+    ) -> Result<()> {
+        self.update_spec_content(project_name, spec_name, file_type, content)
+            .await
+    }
+    
+    async fn is_file_modified(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        file_type: SpecFileType,
+        new_content: &str,
+    ) -> Result<bool> {
+        let current_content = self.read_spec_file(project_name, spec_name, file_type).await?;
+        Ok(current_content != new_content)
+    }
+}
 
 /// Get the default Foundry instance with filesystem backend
 ///

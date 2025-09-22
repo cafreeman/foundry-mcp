@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 
-use crate::core::project;
+use crate::core::foundry;
 use crate::types::responses::{FoundryResponse, ListProjectsResponse, ProjectInfo};
 use crate::utils::formatting::format_count;
 use crate::utils::response::build_success_response;
@@ -11,15 +11,18 @@ use crate::utils::response::build_success_response;
 pub struct Input;
 
 pub async fn run(_input: Input) -> Result<FoundryResponse<ListProjectsResponse>> {
-    let project_metadata_list =
-        project::list_projects().context("Failed to list projects from foundry directory")?;
+    let foundry = foundry::get_default_foundry()?;
+    
+    let project_metadata_list = foundry
+        .list_projects()
+        .await
+        .context("Failed to list projects from foundry directory")?;
 
     let projects: Vec<ProjectInfo> = project_metadata_list
         .into_iter()
         .map(|metadata| {
-            let project_path = project::get_project_path(&metadata.name)
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|_| "Unknown".to_string());
+            // Use the location_hint if available, otherwise use "Unknown"
+            let project_path = format!("~/.foundry/{}", metadata.name);
 
             ProjectInfo {
                 name: metadata.name,

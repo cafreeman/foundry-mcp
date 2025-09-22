@@ -383,7 +383,7 @@ fn test_load_spec_missing_spec() {
         assert!(result.is_err());
 
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("Failed to load spec"));
+        assert!(error_msg.contains("No spec found matching"));
     });
 }
 
@@ -419,7 +419,7 @@ fn test_load_spec_invalid_spec_name() {
         assert!(result.is_err());
 
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("Failed to load spec"));
+        assert!(error_msg.contains("No spec found matching"));
     });
 }
 

@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 
-use crate::core::{project, spec};
+use crate::core::foundry;
 use crate::types::responses::{FoundryResponse, ListSpecsResponse, SpecInfo};
 use crate::utils::response::{build_incomplete_response, build_success_response};
 
@@ -12,9 +12,13 @@ pub struct Input {
 }
 
 pub async fn run(input: Input) -> Result<FoundryResponse<ListSpecsResponse>> {
-    validate_project_exists(&input.project_name)?;
+    let foundry = foundry::get_default_foundry()?;
+    
+    validate_project_exists(&foundry, &input.project_name).await?;
 
-    let specs = spec::list_specs(&input.project_name)
+    let specs = foundry
+        .list_specs(&input.project_name)
+        .await
         .with_context(|| format!("Failed to list specs for project '{}'", input.project_name))?;
 
     let spec_infos: Vec<SpecInfo> = specs
@@ -93,8 +97,11 @@ pub async fn run(input: Input) -> Result<FoundryResponse<ListSpecsResponse>> {
     }
 }
 
-fn validate_project_exists(project_name: &str) -> Result<()> {
-    if !project::project_exists(project_name)? {
+async fn validate_project_exists(
+    foundry: &foundry::Foundry<crate::core::backends::filesystem::FilesystemBackend>,
+    project_name: &str,
+) -> Result<()> {
+    if !foundry.project_exists(project_name).await? {
         return Err(anyhow::anyhow!(
             "Project '{}' not found. Use 'mcp_foundry_list_projects' to see available projects.",
             project_name

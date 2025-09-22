@@ -1,8 +1,9 @@
-use crate::core::{filesystem, spec};
+use crate::core::backends::SpecContentStore;
 use crate::types::edit_commands::{
     EditCommand, EditCommandError, EditCommandName, EditCommandTarget, EditSelector,
     FileUpdateSummary, SelectorCandidate, TaskStatus,
 };
+use crate::types::spec::SpecFileType;
 use anyhow::{Result, anyhow};
 
 pub struct EditEngine;
@@ -23,18 +24,120 @@ impl EditEngine {
         spec_name: &str,
         commands: &[EditCommand],
     ) -> Result<EditCommandsResult> {
+        // Legacy method - keep for backward compatibility during transition
+        // This will be deprecated once all callers use the new method
+        use crate::core::{filesystem, spec};
+        
         if commands.is_empty() {
             return Err(anyhow!("commands must be a non-empty array"));
         }
 
-        // Load current contents
+        // Load current contents using direct filesystem calls (legacy)
         let mut spec_content =
-            read_file_or_empty(&spec::get_spec_file_path(project_name, spec_name)?)?;
+            read_file_or_empty(&spec::get_spec_file_path(project_name, spec_name)?)?
+        ;
         let mut tasks_content =
-            read_file_or_empty(&spec::get_task_list_file_path(project_name, spec_name)?)?;
+            read_file_or_empty(&spec::get_task_list_file_path(project_name, spec_name)?)?
+        ;
         let mut notes_content =
-            read_file_or_empty(&spec::get_notes_file_path(project_name, spec_name)?)?;
+            read_file_or_empty(&spec::get_notes_file_path(project_name, spec_name)?)?
+        ;
 
+        let result = Self::process_edit_commands(commands, &mut spec_content, &mut tasks_content, &mut notes_content)?;
+
+        // Write back only if modified using direct filesystem calls (legacy)
+        if is_modified(
+            &spec::get_spec_file_path(project_name, spec_name)?,
+            &spec_content,
+        )? {
+            filesystem::write_file_atomic(
+                &spec::get_spec_file_path(project_name, spec_name)?,
+                &spec_content,
+            )?;
+        }
+        if is_modified(
+            &spec::get_task_list_file_path(project_name, spec_name)?,
+            &tasks_content,
+        )? {
+            filesystem::write_file_atomic(
+                &spec::get_task_list_file_path(project_name, spec_name)?,
+                &tasks_content,
+            )?;
+        }
+        if is_modified(
+            &spec::get_notes_file_path(project_name, spec_name)?,
+            &notes_content,
+        )? {
+            filesystem::write_file_atomic(
+                &spec::get_notes_file_path(project_name, spec_name)?,
+                &notes_content,
+            )?;
+        }
+
+        Ok(result)
+    }
+
+    pub async fn apply_edit_commands_with_store<S: SpecContentStore>(
+        project_name: &str,
+        spec_name: &str,
+        commands: &[EditCommand],
+        store: &S,
+    ) -> Result<EditCommandsResult> {
+        if commands.is_empty() {
+            return Err(anyhow!("commands must be a non-empty array"));
+        }
+
+        // Load current contents via SpecContentStore
+        let mut spec_content = store
+            .read_spec_file(project_name, spec_name, SpecFileType::Spec)
+            .await
+            .unwrap_or_else(|_| String::new());
+        let mut tasks_content = store
+            .read_spec_file(project_name, spec_name, SpecFileType::TaskList)
+            .await
+            .unwrap_or_else(|_| String::new());
+        let mut notes_content = store
+            .read_spec_file(project_name, spec_name, SpecFileType::Notes)
+            .await
+            .unwrap_or_else(|_| String::new());
+
+        let result = Self::process_edit_commands(commands, &mut spec_content, &mut tasks_content, &mut notes_content)?;
+
+        // Write back only if modified via SpecContentStore
+        if store
+            .is_file_modified(project_name, spec_name, SpecFileType::Spec, &spec_content)
+            .await?
+        {
+            store
+                .write_spec_file(project_name, spec_name, SpecFileType::Spec, &spec_content)
+                .await?;
+        }
+        if store
+            .is_file_modified(project_name, spec_name, SpecFileType::TaskList, &tasks_content)
+            .await?
+        {
+            store
+                .write_spec_file(project_name, spec_name, SpecFileType::TaskList, &tasks_content)
+                .await?;
+        }
+        if store
+            .is_file_modified(project_name, spec_name, SpecFileType::Notes, &notes_content)
+            .await?
+        {
+            store
+                .write_spec_file(project_name, spec_name, SpecFileType::Notes, &notes_content)
+                .await?;
+        }
+
+        Ok(result)
+    }
+
+    fn process_edit_commands(
+        commands: &[EditCommand],
+        spec_content: &mut String,
+        tasks_content: &mut String,
+        notes_content: &mut String,
+    ) -> Result<EditCommandsResult> {
         let mut applied_total = 0usize;
         let mut skipped_total = 0usize;
         let mut file_updates: Vec<FileUpdateSummary> = vec![
@@ -76,7 +179,7 @@ impl EditEngine {
                             applied,
                             skipped,
                         }) => {
-                            tasks_content = content;
+                            *tasks_content = content;
                             update_counts(
                                 file_updates.as_mut_slice(),
                                 EditCommandTarget::Tasks,
@@ -109,7 +212,7 @@ impl EditEngine {
                             applied,
                             skipped,
                         }) => {
-                            tasks_content = content;
+                            *tasks_content = content;
                             update_counts(
                                 file_updates.as_mut_slice(),
                                 EditCommandTarget::Tasks,
@@ -154,9 +257,9 @@ impl EditEngine {
                             skipped,
                         }) => {
                             if is_spec {
-                                spec_content = new_content;
+                                *spec_content = new_content;
                             } else {
-                                notes_content = new_content;
+                                *notes_content = new_content;
                             }
                             let target = if is_spec {
                                 EditCommandTarget::Spec
@@ -196,35 +299,6 @@ impl EditEngine {
             }
         }
 
-        // Write back only if modified
-        if is_modified(
-            &spec::get_spec_file_path(project_name, spec_name)?,
-            &spec_content,
-        )? {
-            filesystem::write_file_atomic(
-                &spec::get_spec_file_path(project_name, spec_name)?,
-                &spec_content,
-            )?;
-        }
-        if is_modified(
-            &spec::get_task_list_file_path(project_name, spec_name)?,
-            &tasks_content,
-        )? {
-            filesystem::write_file_atomic(
-                &spec::get_task_list_file_path(project_name, spec_name)?,
-                &tasks_content,
-            )?;
-        }
-        if is_modified(
-            &spec::get_notes_file_path(project_name, spec_name)?,
-            &notes_content,
-        )? {
-            filesystem::write_file_atomic(
-                &spec::get_notes_file_path(project_name, spec_name)?,
-                &notes_content,
-            )?;
-        }
-
         let active_file_updates: Vec<FileUpdateSummary> = file_updates
             .into_iter()
             .filter(|fu| fu.applied > 0 || fu.skipped_idempotent > 0)
@@ -255,10 +329,12 @@ struct EditAmbiguity {
 }
 
 fn read_file_or_empty(path: &std::path::Path) -> Result<String> {
+    use crate::core::filesystem;
     filesystem::read_file(path).or_else(|_| Ok(String::new()))
 }
 
 fn is_modified(path: &std::path::Path, new_content: &str) -> Result<bool> {
+    use crate::core::filesystem;
     filesystem::read_file(path).map_or_else(
         |_| Ok(!new_content.is_empty()),
         |existing| Ok(existing != new_content),

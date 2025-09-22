@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 
-use crate::core::{project, validation};
+use crate::core::{foundry, validation};
 use crate::types::project::ProjectConfig;
 use crate::types::responses::{CreateProjectResponse, FoundryResponse};
 use crate::utils::response::{build_incomplete_response, build_success_response};
@@ -16,21 +16,28 @@ pub struct Input {
 }
 
 pub async fn run(input: Input) -> Result<FoundryResponse<CreateProjectResponse>> {
-    validate_project_preconditions(&input.project_name)?;
+    let foundry = foundry::get_default_foundry()?;
+    
+    validate_project_preconditions(&foundry, &input.project_name).await?;
 
     let suggestions = process_content_validation(&input)?;
 
     let project_config = build_project_config(input);
-    let created_project =
-        project::create_project(project_config).context("Failed to create project structure")?;
+    let created_project = foundry
+        .create_project(project_config)
+        .await
+        .context("Failed to create project structure")?;
 
     Ok(build_response(created_project, suggestions))
 }
 
-fn validate_project_preconditions(project_name: &str) -> Result<()> {
+async fn validate_project_preconditions(
+    foundry: &foundry::Foundry<crate::core::backends::filesystem::FilesystemBackend>,
+    project_name: &str,
+) -> Result<()> {
     validate_project_name(project_name)?;
 
-    if project::project_exists(project_name)? {
+    if foundry.project_exists(project_name).await? {
         return Err(anyhow::anyhow!("Project '{}' already exists", project_name));
     }
 

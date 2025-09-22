@@ -1,9 +1,8 @@
 //! Core op for loading full project context (tool-agnostic)
 
-use anyhow::{Context, Result};
-use std::fs;
+use anyhow::Result;
 
-use crate::core::{filesystem, project};
+use crate::core::foundry;
 use crate::types::responses::{
     FoundryResponse, LoadProjectResponse, ProjectContext, ValidationStatus,
 };
@@ -14,10 +13,14 @@ pub struct Input {
 }
 
 pub async fn run(input: Input) -> Result<FoundryResponse<LoadProjectResponse>> {
-    validate_project_exists(&input.project_name)?;
+    let foundry = foundry::get_default_foundry()?;
+    
+    validate_project_exists(&foundry, &input.project_name).await?;
 
-    let project_path = project::get_project_path(&input.project_name)?;
-    let project_context = load_project_context(&input.project_name, &project_path)?;
+    let project = foundry.load_project(&input.project_name).await?;
+    let specs = foundry.list_specs(&input.project_name).await?;
+    
+    let project_context = build_project_context(project, specs);
     let specs_available = project_context.specs_available.clone();
 
     let response_data = LoadProjectResponse {
@@ -38,8 +41,11 @@ pub async fn run(input: Input) -> Result<FoundryResponse<LoadProjectResponse>> {
     })
 }
 
-fn validate_project_exists(project_name: &str) -> Result<()> {
-    if !project::project_exists(project_name)? {
+async fn validate_project_exists(
+    foundry: &foundry::Foundry<crate::core::backends::filesystem::FilesystemBackend>,
+    project_name: &str,
+) -> Result<()> {
+    if !foundry.project_exists(project_name).await? {
         return Err(anyhow::anyhow!(
             "Project '{}' not found. Use 'mcp_foundry_list_projects' to see available projects.",
             project_name
@@ -48,54 +54,20 @@ fn validate_project_exists(project_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn load_project_context(
-    project_name: &str,
-    project_path: &std::path::Path,
-) -> Result<ProjectContext> {
-    let vision =
-        filesystem::read_file(project_path.join("vision.md")).unwrap_or_else(|_| String::new());
-    let tech_stack =
-        filesystem::read_file(project_path.join("tech-stack.md")).unwrap_or_else(|_| String::new());
-    let summary =
-        filesystem::read_file(project_path.join("summary.md")).unwrap_or_else(|_| String::new());
+fn build_project_context(
+    project: crate::types::project::Project,
+    specs: Vec<crate::types::spec::SpecMetadata>,
+) -> ProjectContext {
+    let specs_available = specs.into_iter().map(|s| s.name).collect();
 
-    let created_at = fs::metadata(project_path)
-        .and_then(|metadata| metadata.created())
-        .map_err(anyhow::Error::from)
-        .and_then(|time| {
-            time.duration_since(std::time::UNIX_EPOCH)
-                .map_err(anyhow::Error::from)
-        })
-        .map(|duration| {
-            chrono::DateTime::from_timestamp(duration.as_secs() as i64, 0)
-                .unwrap_or_else(chrono::Utc::now)
-                .to_rfc3339()
-        })
-        .unwrap_or_else(|_| chrono::Utc::now().to_rfc3339());
-
-    let specs_dir = project_path.join("specs");
-    let specs_available = if specs_dir.exists() {
-        fs::read_dir(&specs_dir)
-            .context("Failed to read specs directory")?
-            .filter_map(|entry| {
-                entry
-                    .ok()
-                    .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-                    .map(|e| e.file_name().to_string_lossy().to_string())
-            })
-            .collect()
-    } else {
-        Vec::new()
-    };
-
-    Ok(ProjectContext {
-        name: project_name.to_string(),
-        vision,
-        tech_stack,
-        summary,
+    ProjectContext {
+        name: project.name,
+        vision: project.vision.unwrap_or_else(|| String::new()),
+        tech_stack: project.tech_stack.unwrap_or_else(|| String::new()),
+        summary: project.summary.unwrap_or_else(|| String::new()),
         specs_available,
-        created_at,
-    })
+        created_at: project.created_at,
+    }
 }
 
 fn generate_next_steps(project_name: &str, specs_available: &[String]) -> Vec<String> {
