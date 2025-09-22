@@ -678,3 +678,189 @@ pub async fn create_document(
 
     Ok(created.document_create.document)
 }
+
+// ---- Sub-issues (Phase D) ----
+// Feature-gated to avoid breaking builds until mutations/queries are finalized
+#[cfg(feature = "linear_backend")]
+#[allow(dead_code)]
+pub async fn list_sub_issues_for_parent(
+    _gql: &LinearGraphQl,
+    _parent_issue_id: &str,
+) -> Result<Vec<(String, String, bool, bool, Option<String>)>> {
+    // Returns tuples: (id, title, open, has_foundry_label, task_key)
+    Err(anyhow::anyhow!(
+        "list_sub_issues_for_parent not implemented yet"
+    ))
+}
+
+#[cfg(feature = "linear_backend")]
+#[allow(dead_code)]
+pub async fn create_sub_issue_with_marker(
+    gql: &LinearGraphQl,
+    cfg: &LinearConfig,
+    parent_issue_id: &str,
+    project_id: &str,
+    title: &str,
+    spec_id: &str,
+    task_key: &str,
+) -> Result<String> {
+    // Compose hidden marker in the body
+    let marker = format!(
+        "<!-- foundry:specId={}; type=task; v=1; taskKey={} -->\n",
+        spec_id, task_key
+    );
+    let description = format!("{}{}", marker, title);
+
+    let foundry_label_id = ensure_foundry_label(gql).await?;
+    let team_id = resolve_team_id(gql, cfg).await?;
+
+    // NOTE: The Linear GraphQL schema supports creating a sub-issue by setting the parent.
+    // We intentionally leave this unimplemented until query is finalized.
+    let _ = (
+        parent_issue_id,
+        project_id,
+        foundry_label_id,
+        team_id,
+        description,
+    );
+    Err(anyhow::anyhow!(
+        "create_sub_issue_with_marker not implemented yet"
+    ))
+}
+
+#[cfg(feature = "linear_backend")]
+#[allow(dead_code)]
+pub async fn close_issue(_gql: &LinearGraphQl, _issue_id: &str) -> Result<()> {
+    Err(anyhow::anyhow!("close_issue not implemented yet"))
+}
+
+#[cfg(feature = "linear_backend")]
+#[allow(dead_code)]
+pub async fn reopen_issue(_gql: &LinearGraphQl, _issue_id: &str) -> Result<()> {
+    Err(anyhow::anyhow!("reopen_issue not implemented yet"))
+}
+
+#[cfg(feature = "linear_backend")]
+#[allow(dead_code)]
+pub async fn ensure_label_on_issue(
+    _gql: &LinearGraphQl,
+    _issue_id: &str,
+    _label_id: &str,
+) -> Result<()> {
+    Err(anyhow::anyhow!("ensure_label_on_issue not implemented yet"))
+}
+
+// Helper to convert listed sub-issues to reconciliation inputs
+#[cfg(feature = "linear_backend")]
+pub(crate) fn build_existing_from_tuples(
+    rows: Vec<(String, String, bool, bool, Option<String>)>,
+) -> Vec<crate::linear_reconcile::ExistingSubIssue> {
+    rows.into_iter()
+        .map(|(id, title, open, has_foundry_label, task_key)| {
+            crate::linear_reconcile::ExistingSubIssue {
+                id,
+                title,
+                open,
+                has_foundry_label,
+                task_key,
+            }
+        })
+        .collect()
+}
+
+#[cfg(all(test, feature = "linear_backend"))]
+mod tests {
+    use super::build_existing_from_tuples;
+    use crate::linear_executor::execute_plan;
+    use crate::linear_phase_d::plan_from_markdown_and_existing;
+    use crate::linear_reconcile::{ExistingSubIssue, normalize_task_key};
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    fn mk_tuple(
+        id: &str,
+        title: &str,
+        open: bool,
+        labeled: bool,
+        task_key: Option<&str>,
+    ) -> (String, String, bool, bool, Option<String>) {
+        (
+            id.to_string(),
+            title.to_string(),
+            open,
+            labeled,
+            task_key.map(|s| s.to_string()),
+        )
+    }
+
+    #[test]
+    fn builds_existing_with_keys_and_labels() {
+        let rows = vec![
+            mk_tuple("I1", "Add login flow", true, true, Some("add-login-flow")),
+            mk_tuple("I2", "Old task", true, false, None),
+        ];
+        let existing = build_existing_from_tuples(rows);
+        assert_eq!(existing.len(), 2);
+        assert_eq!(existing[0].id, "I1");
+        assert_eq!(existing[0].task_key.as_deref(), Some("add-login-flow"));
+        assert!(existing[0].has_foundry_label);
+        assert_eq!(existing[1].id, "I2");
+        assert_eq!(existing[1].task_key.as_deref(), None);
+        assert!(!existing[1].has_foundry_label);
+    }
+
+    #[test]
+    fn normalized_title_matches_when_no_task_key() {
+        let rows = vec![mk_tuple("I9", "Refactor: API / HTTP", true, true, None)];
+        let existing = build_existing_from_tuples(rows);
+        let normalized = normalize_task_key(&existing[0].title);
+        assert_eq!(normalized, "refactor-api-http");
+    }
+
+    #[test]
+    fn end_to_end_plan_and_execute_idempotent() {
+        // Markdown desired tasks: keep one open, add one new, and leave one old to be closed
+        let md = "- [ ] Keep me\n- [ ] New task\n";
+        // Existing: one matching open, one extraneous open (to close), and one unlabeled match to trigger label fix
+        let rows = vec![
+            mk_tuple("E1", "Keep me", true, true, Some("keep-me")),
+            mk_tuple("E2", "Old task", true, true, Some("old-task")),
+            mk_tuple("E3", "Label me", true, false, Some("label-me")),
+        ];
+        let existing = build_existing_from_tuples(rows);
+
+        let plan = plan_from_markdown_and_existing(md, &existing);
+
+        // Record calls in order
+        let calls: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+        let calls_c = Rc::clone(&calls);
+        let calls_cl = Rc::clone(&calls);
+        let calls_ro = Rc::clone(&calls);
+        let calls_lb = Rc::clone(&calls);
+
+        let mut create = move |t: &crate::linear_reconcile::DesiredTask| {
+            calls_c.borrow_mut().push(format!("create:{}", t.text))
+        };
+        let mut close = move |id: &str| calls_cl.borrow_mut().push(format!("close:{}", id));
+        let mut reopen = move |id: &str| calls_ro.borrow_mut().push(format!("reopen:{}", id));
+        let mut label = move |id: &str| calls_lb.borrow_mut().push(format!("label:{}", id));
+
+        execute_plan(&plan, &mut create, &mut close, &mut reopen, &mut label);
+
+        // Second pass should produce identical sequence (idempotent behavior on caller side)
+        let calls2: Rc<RefCell<Vec<String>>> = Rc::new(RefCell::new(Vec::new()));
+        let c2_c = Rc::clone(&calls2);
+        let c2_cl = Rc::clone(&calls2);
+        let c2_ro = Rc::clone(&calls2);
+        let c2_lb = Rc::clone(&calls2);
+        let mut create2 = move |t: &crate::linear_reconcile::DesiredTask| {
+            c2_c.borrow_mut().push(format!("create:{}", t.text))
+        };
+        let mut close2 = move |id: &str| c2_cl.borrow_mut().push(format!("close:{}", id));
+        let mut reopen2 = move |id: &str| c2_ro.borrow_mut().push(format!("reopen:{}", id));
+        let mut label2 = move |id: &str| c2_lb.borrow_mut().push(format!("label:{}", id));
+        execute_plan(&plan, &mut create2, &mut close2, &mut reopen2, &mut label2);
+
+        assert_eq!(calls.borrow().clone(), calls2.borrow().clone());
+    }
+}

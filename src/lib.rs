@@ -70,3 +70,12 @@ mod linear_phase_d {
         "/src/core/backends/linear/phase_d.rs"
     ));
 }
+
+// Compile reconciliation executor tests
+#[cfg(test)]
+mod linear_executor {
+    include!(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/src/core/backends/linear/executor.rs"
+    ));
+}

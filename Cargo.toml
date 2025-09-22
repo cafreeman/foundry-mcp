@@ -67,6 +67,10 @@ httpmock = "0.7"
 [build-dependencies]
 cynic-codegen = "3"
 
+[features]
+# Opt-in Linear backend (experimental)
+linear_backend = []
+
 [lints.clippy]
 all = "deny"
 redundant_clone = "deny"
