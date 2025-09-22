@@ -3,6 +3,8 @@
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::core::backends::ResourceLocator;
+
 /// Spec content data structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SpecContentData {
@@ -16,8 +18,16 @@ pub struct SpecContentData {
 pub struct Spec {
     pub name: String,
     pub created_at: String,
-    pub path: PathBuf,
+    pub path: PathBuf, // Keep for backward compatibility (deprecated)
     pub project_name: String,
+
+    // New optional fields for backend abstraction
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location_hint: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locator: Option<ResourceLocator>,
+
+    // Existing fields
     pub content: SpecContentData,
 }
 
