@@ -19,66 +19,6 @@ pub struct EditCommandsResult {
 }
 
 impl EditEngine {
-    pub fn apply_edit_commands(
-        project_name: &str,
-        spec_name: &str,
-        commands: &[EditCommand],
-    ) -> Result<EditCommandsResult> {
-        // Legacy method - keep for backward compatibility during transition
-        // This will be deprecated once all callers use the new method
-        use crate::core::{filesystem, spec};
-
-        if commands.is_empty() {
-            return Err(anyhow!("commands must be a non-empty array"));
-        }
-
-        // Load current contents using direct filesystem calls (legacy)
-        let mut spec_content =
-            read_file_or_empty(&spec::get_spec_file_path(project_name, spec_name)?)?;
-        let mut tasks_content =
-            read_file_or_empty(&spec::get_task_list_file_path(project_name, spec_name)?)?;
-        let mut notes_content =
-            read_file_or_empty(&spec::get_notes_file_path(project_name, spec_name)?)?;
-
-        let result = Self::process_edit_commands(
-            commands,
-            &mut spec_content,
-            &mut tasks_content,
-            &mut notes_content,
-        )?;
-
-        // Write back only if modified using direct filesystem calls (legacy)
-        if is_modified(
-            &spec::get_spec_file_path(project_name, spec_name)?,
-            &spec_content,
-        )? {
-            filesystem::write_file_atomic(
-                &spec::get_spec_file_path(project_name, spec_name)?,
-                &spec_content,
-            )?;
-        }
-        if is_modified(
-            &spec::get_task_list_file_path(project_name, spec_name)?,
-            &tasks_content,
-        )? {
-            filesystem::write_file_atomic(
-                &spec::get_task_list_file_path(project_name, spec_name)?,
-                &tasks_content,
-            )?;
-        }
-        if is_modified(
-            &spec::get_notes_file_path(project_name, spec_name)?,
-            &notes_content,
-        )? {
-            filesystem::write_file_atomic(
-                &spec::get_notes_file_path(project_name, spec_name)?,
-                &notes_content,
-            )?;
-        }
-
-        Ok(result)
-    }
-
     pub async fn apply_edit_commands_with_store<S: SpecContentStore>(
         project_name: &str,
         spec_name: &str,
@@ -343,19 +283,6 @@ struct EditOutcome {
 
 struct EditAmbiguity {
     candidates: Vec<SelectorCandidate>,
-}
-
-fn read_file_or_empty(path: &std::path::Path) -> Result<String> {
-    use crate::core::filesystem;
-    filesystem::read_file(path).or_else(|_| Ok(String::new()))
-}
-
-fn is_modified(path: &std::path::Path, new_content: &str) -> Result<bool> {
-    use crate::core::filesystem;
-    filesystem::read_file(path).map_or_else(
-        |_| Ok(!new_content.is_empty()),
-        |existing| Ok(existing != new_content),
-    )
 }
 
 fn normalize_task_text(line: &str) -> String {
