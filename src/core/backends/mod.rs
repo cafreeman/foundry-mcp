@@ -53,7 +53,13 @@ pub struct BackendCapabilities {
 #[serde(rename_all = "snake_case")]
 pub enum ResourceLocator {
     FilesystemPath(String),
-    // Future: Linear { project_id: String, issue_id: String, urls: Vec<String> },
+    Linear {
+        project_id: String,
+        issue_id: String,
+        notes_document_id: String,
+        issue_url: String,
+        notes_url: String,
+    },
 }
 
 /// Content store abstraction for EditEngine I/O via façade

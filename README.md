@@ -115,6 +115,41 @@ Foundry uses a façade plus pluggable backend design to keep domain logic indepe
 
 See docs/backends.md for trait contracts, invariants, and a checklist for adding new backends.
 
+### Linear Backend (Experimental)
+
+Foundry includes an experimental Linear backend that maps Projects/Specs/Notes/Tasks to Linear entities via the GraphQL API.
+
+Current capabilities:
+
+- Projects: find-or-create, description upsert
+- Project Documents: upsert "Vision" and "Tech Stack" with hidden project markers
+- Specs: create Issue with humanized title and hidden spec marker; create Notes document and backlink from the Issue
+- Robust transport: shared client with retry/backoff and 429 Retry-After handling
+
+Prerequisites:
+
+- Linear API token in environment: `LINEAR_API_TOKEN` (or `LINEAR_API_KEY`)
+- Team selection (one of):
+  - `LINEAR_TEAM_ID` (preferred)
+  - `LINEAR_TEAM_KEY` (e.g., "ENG")
+  - `LINEAR_TEAM_NAME` (exact match)
+
+Quick setup (environment variables):
+
+```bash
+export LINEAR_API_TOKEN=...           # or LINEAR_API_KEY
+export LINEAR_TEAM_ID=...             # or LINEAR_TEAM_KEY/LINEAR_TEAM_NAME
+# optional overrides
+export LINEAR_GRAPHQL_ENDPOINT=https://api.linear.app/graphql
+export LINEAR_HTTP_TIMEOUT_SECS=30
+```
+
+Notes & limitations:
+
+- The Linear backend is not the default runtime backend yet; it is being developed behind a façade to avoid breaking changes.
+- Team resolution prefers `LINEAR_TEAM_ID` and falls back to `LINEAR_TEAM_KEY` then `LINEAR_TEAM_NAME`.
+- Sub-issue task reconciliation, listing, loading, and deletion phases are planned next.
+
 ## AI Assistant Benefits
 
 When you work with AI assistants like Claude or Cursor, Foundry provides:

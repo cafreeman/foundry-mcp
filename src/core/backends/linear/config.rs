@@ -11,7 +11,12 @@ pub struct RetryConfig {
 
 impl Default for RetryConfig {
     fn default() -> Self {
-        Self { max_retries: 5, initial_interval_ms: 250, multiplier: 2.0, jitter: 0.2 }
+        Self {
+            max_retries: 5,
+            initial_interval_ms: 250,
+            multiplier: 2.0,
+            jitter: 0.2,
+        }
     }
 }
 
@@ -22,6 +27,10 @@ pub struct LinearConfig {
     pub user_agent: String,
     pub timeout: Duration,
     pub retry: RetryConfig,
+    // Optional team resolution hints
+    pub team_id: Option<String>,
+    pub team_key: Option<String>,
+    pub team_name: Option<String>,
 }
 
 impl LinearConfig {
@@ -32,9 +41,9 @@ impl LinearConfig {
 
         let token = std::env::var("LINEAR_API_TOKEN")
             .or_else(|_| std::env::var("LINEAR_API_KEY"))
-            .map_err(|_| anyhow::anyhow!(
-                "Missing LINEAR_API_TOKEN or LINEAR_API_KEY in environment"
-            ))?;
+            .map_err(|_| {
+                anyhow::anyhow!("Missing LINEAR_API_TOKEN or LINEAR_API_KEY in environment")
+            })?;
 
         let user_agent = format!(
             "foundry-mcp-linear/{} (+https://github.com/cafreeman/foundry-mcp)",
@@ -48,6 +57,19 @@ impl LinearConfig {
                 .unwrap_or(30),
         );
 
-        Ok(Self { endpoint, token, user_agent, timeout, retry: RetryConfig::default() })
+        let team_id = std::env::var("LINEAR_TEAM_ID").ok();
+        let team_key = std::env::var("LINEAR_TEAM_KEY").ok();
+        let team_name = std::env::var("LINEAR_TEAM_NAME").ok();
+
+        Ok(Self {
+            endpoint,
+            token,
+            user_agent,
+            timeout,
+            retry: RetryConfig::default(),
+            team_id,
+            team_key,
+            team_name,
+        })
     }
 }

@@ -15,6 +15,7 @@ use async_trait::async_trait;
 use url::Url;
 
 use crate::core::backends::FoundryBackend;
+use crate::core::backends::linear::helpers::humanize_title;
 use crate::types::{
     project::{Project, ProjectConfig, ProjectMetadata},
     spec::{Spec, SpecConfig, SpecFileType, SpecMetadata},
@@ -40,12 +41,8 @@ impl FoundryBackend for LinearBackend {
         use chrono::Utc;
 
         // 1) Find or create the project in Linear
-        let (project_id, project_name, _existing_desc) = ops::find_or_create_project(
-            &self.gql,
-            &config.name,
-            config.summary.as_deref(),
-        )
-        .await?;
+        let (project_id, project_name, _existing_desc) =
+            ops::find_or_create_project(&self.gql, &config.name, config.summary.as_deref()).await?;
 
         // 2) Ensure description is up to date with the provided summary
         if let Some(summary) = config.summary.as_ref() {
@@ -88,8 +85,60 @@ impl FoundryBackend for LinearBackend {
         Err(anyhow::anyhow!("LinearBackend not implemented (Phase A)"))
     }
 
-    async fn create_spec(&self, _config: SpecConfig) -> Result<Spec> {
-        Err(anyhow::anyhow!("LinearBackend not implemented (Phase A)"))
+    async fn create_spec(&self, config: SpecConfig) -> Result<Spec> {
+        use crate::core::backends::linear::ops;
+        use chrono::Utc;
+
+        // 1) Find or create the project in Linear
+        let (project_id, _project_name, _existing_desc) = ops::find_or_create_project(
+            &self.gql,
+            &config.project_name,
+            config.content.spec.clone(),
+        )
+        .await?;
+
+        // 2) Generate spec name (timestamped)
+        let spec_name =
+            crate::core::foundry::Foundry::<Self>::generate_spec_name(&config.feature_name);
+        let created_at = Utc::now().to_rfc3339();
+
+        // 3) Create the Notes document first
+        let notes_marker = format!("<!-- foundry:specId={}; type=notes; v=1 -->\n", spec_name);
+        let notes_content = format!("{}{}", notes_marker, config.content.notes);
+
+        let notes_title = format!("{} — Notes", humanize_title(&config.feature_name));
+        let notes_doc =
+            ops::create_document(&self.gql, &notes_title, &notes_content, &project_id).await?;
+
+        // 4) Create the spec issue with reference to notes
+        let (issue_id, issue_url) = ops::create_spec_issue(
+            &self.gql,
+            &LinearConfig::from_env()?,
+            &project_id,
+            &spec_name,
+            &config.content.spec,
+            &notes_doc.url,
+        )
+        .await?;
+
+        // 5) Return a Spec struct with Linear-specific locator
+        let linear_locator = ResourceLocator::Linear {
+            project_id: project_id.clone(),
+            issue_id: issue_id.clone(),
+            notes_document_id: notes_doc.id.clone(),
+            issue_url: issue_url.clone(),
+            notes_url: notes_doc.url.clone(),
+        };
+
+        Ok(Spec {
+            name: spec_name,
+            created_at,
+            path: std::path::PathBuf::from(format!("linear://spec/{}", issue_id)),
+            project_name: config.project_name,
+            location_hint: Some(issue_url.clone()),
+            locator: Some(linear_locator),
+            content: config.content,
+        })
     }
 
     async fn list_specs(&self, _project_name: &str) -> Result<Vec<SpecMetadata>> {
