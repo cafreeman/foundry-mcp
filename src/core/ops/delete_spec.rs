@@ -1,9 +1,8 @@
 //! Core op for deleting a spec (tool-agnostic)
 
 use anyhow::{Context, Result};
-use std::fs;
 
-use crate::core::{project, spec};
+use crate::core::foundry;
 use crate::types::responses::{DeleteSpecResponse, FoundryResponse, ValidationStatus};
 
 #[derive(Debug, Clone)]
@@ -14,37 +13,46 @@ pub struct Input {
 }
 
 pub async fn run(input: Input) -> Result<FoundryResponse<DeleteSpecResponse>> {
+    let foundry = foundry::get_default_foundry()?;
+    
     validate_args(&input)?;
-    validate_project_exists(&input.project_name)?;
+    validate_project_exists(&foundry, &input.project_name).await?;
 
-    if !spec::spec_exists(&input.project_name, &input.spec_name)? {
-        return Err(anyhow::anyhow!(
-            "Spec '{}' not found in project '{}'. Use 'mcp_foundry_load_project {}' to see available specs.",
-            input.spec_name,
-            input.project_name,
-            input.project_name
-        ));
-    }
+    // Check if spec exists by trying to load it
+    let response_data = match foundry.load_spec(&input.project_name, &input.spec_name).await {
+        Ok(spec) => {
+            let files_to_delete = vec![
+                format!("{}/spec.md", spec.name),
+                format!("{}/task-list.md", spec.name),
+                format!("{}/notes.md", spec.name),
+            ];
+            
+            if input.confirm.to_lowercase() != "true" {
+                return Err(anyhow::anyhow!(
+                    "Deletion not confirmed. Set --confirm true to proceed with deleting spec '{}' and all its files. Got: '{}'",
+                    input.spec_name,
+                    input.confirm
+                ));
+            }
 
-    let spec_path = spec::get_spec_path(&input.project_name, &input.spec_name)?;
-    let files_to_delete = get_spec_files(&spec_path)?;
+            foundry.delete_spec(&input.project_name, &input.spec_name).await
+                .with_context(|| format!("Failed to delete spec '{}'", input.spec_name))?;
 
-    if input.confirm.to_lowercase() != "true" {
-        return Err(anyhow::anyhow!(
-            "Deletion not confirmed. Set --confirm true to proceed with deleting spec '{}' and all its files. Got: '{}'",
-            input.spec_name,
-            input.confirm
-        ));
-    }
-
-    spec::delete_spec(&input.project_name, &input.spec_name)
-        .with_context(|| format!("Failed to delete spec '{}'", input.spec_name))?;
-
-    let response_data = DeleteSpecResponse {
-        project_name: input.project_name.clone(),
-        spec_name: input.spec_name.clone(),
-        spec_path: spec_path.to_string_lossy().to_string(),
-        files_deleted: files_to_delete,
+            DeleteSpecResponse {
+                project_name: input.project_name.clone(),
+                spec_name: input.spec_name.clone(),
+                spec_path: format!("~/.foundry/{}/specs/{}", input.project_name, input.spec_name),
+                files_deleted: files_to_delete,
+            }
+        }
+        Err(_) => {
+            return Err(anyhow::anyhow!(
+                "Spec '{}' not found in project '{}'. Use 'mcp_foundry_load_project {}' to see available specs.",
+                input.spec_name,
+                input.project_name,
+                input.project_name
+            ));
+        }
     };
 
     Ok(FoundryResponse {
@@ -71,8 +79,11 @@ fn validate_args(input: &Input) -> Result<()> {
     Ok(())
 }
 
-fn validate_project_exists(project_name: &str) -> Result<()> {
-    if !project::project_exists(project_name)? {
+async fn validate_project_exists(
+    foundry: &foundry::Foundry<crate::core::backends::filesystem::FilesystemBackend>,
+    project_name: &str,
+) -> Result<()> {
+    if !foundry.project_exists(project_name).await? {
         return Err(anyhow::anyhow!(
             "Project '{}' not found. Use 'mcp_foundry_list_projects' to see available projects.",
             project_name
@@ -81,34 +92,6 @@ fn validate_project_exists(project_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn get_spec_files(spec_path: &std::path::Path) -> Result<Vec<String>> {
-    let mut files = Vec::new();
-    if !spec_path.exists() {
-        return Ok(files);
-    }
-    let expected_files = ["spec.md", "task-list.md", "notes.md"];
-    for file_name in &expected_files {
-        let file_path = spec_path.join(file_name);
-        if file_path.exists() {
-            files.push(file_path.to_string_lossy().to_string());
-        }
-    }
-    if let Ok(entries) = fs::read_dir(spec_path) {
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.is_file() {
-                let file_name = path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("unknown");
-                if !expected_files.contains(&file_name) {
-                    files.push(path.to_string_lossy().to_string());
-                }
-            }
-        }
-    }
-    Ok(files)
-}
 
 fn generate_next_steps(input: &Input) -> Vec<String> {
     vec![

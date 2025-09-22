@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 
-use crate::core::{project, spec, validation};
+use crate::core::{foundry, validation};
 use crate::types::responses::{CreateSpecResponse, FoundryResponse, ValidationStatus};
 use crate::types::spec::{SpecConfig, SpecContentData};
 use crate::utils::paths;
@@ -19,8 +19,10 @@ pub struct Input {
 
 /// Execute the create_spec operation and return a structured response
 pub async fn run(input: Input) -> Result<FoundryResponse<CreateSpecResponse>> {
+    let foundry = foundry::get_default_foundry()?;
+    
     // Validate project exists
-    validate_project_exists(&input.project_name)?;
+    validate_project_exists(&foundry, &input.project_name).await?;
 
     // Validate feature name
     validate_feature_name(&input.feature_name)?;
@@ -33,7 +35,10 @@ pub async fn run(input: Input) -> Result<FoundryResponse<CreateSpecResponse>> {
 
     // Create the spec
     let spec_config = build_spec_config(input);
-    let created_spec = spec::create_spec(spec_config).context("Failed to create specification")?;
+    let created_spec = foundry
+        .create_spec(spec_config)
+        .await
+        .context("Failed to create specification")?;
 
     // Build response
     let response_data = CreateSpecResponse {
@@ -66,8 +71,11 @@ pub async fn run(input: Input) -> Result<FoundryResponse<CreateSpecResponse>> {
 }
 
 /// Validate that project exists
-fn validate_project_exists(project_name: &str) -> Result<()> {
-    if !project::project_exists(project_name)? {
+async fn validate_project_exists(
+    foundry: &foundry::Foundry<crate::core::backends::filesystem::FilesystemBackend>,
+    project_name: &str,
+) -> Result<()> {
+    if !foundry.project_exists(project_name).await? {
         return Err(anyhow::anyhow!(
             "Project '{}' not found. Use list_projects via MCP to see available projects: {{\"name\": \"list_projects\", \"arguments\": {{}}}}",
             project_name

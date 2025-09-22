@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 
-use crate::core::{filesystem, project, spec};
+use crate::core::{foundry, spec};
 use crate::types::responses::{
     FoundryResponse, LoadSpecResponse, SpecContent, SpecInfo, ValidationStatus,
 };
@@ -14,13 +14,15 @@ pub struct Input {
 }
 
 pub async fn run(input: Input) -> Result<FoundryResponse<LoadSpecResponse>> {
-    validate_project_exists(&input.project_name)?;
+    let foundry = foundry::get_default_foundry()?;
+    
+    validate_project_exists(&foundry, &input.project_name).await?;
 
-    let project_summary = load_project_summary(&input.project_name)?;
+    let project_summary = load_project_summary(&foundry, &input.project_name).await?;
 
     match &input.spec_name {
         None => {
-            let specs = spec::list_specs(&input.project_name)?;
+            let specs = foundry.list_specs(&input.project_name).await?;
             let available_specs: Vec<SpecInfo> = specs
                 .into_iter()
                 .map(|spec_meta| SpecInfo {
@@ -52,15 +54,54 @@ pub async fn run(input: Input) -> Result<FoundryResponse<LoadSpecResponse>> {
             })
         }
         Some(spec_name) => {
-            let (spec_data, match_strategy) =
-                match spec::load_spec_with_fuzzy(&input.project_name, spec_name) {
-                    Ok(result) => result,
-                    Err(_) => {
-                        let spec_data = spec::load_spec(&input.project_name, spec_name)
-                            .with_context(|| format!("Failed to load spec '{}'", spec_name))?;
-                        (spec_data, spec::SpecMatchStrategy::Exact(spec_name.clone()))
-                    }
-                };
+            let match_strategy = foundry
+                .find_spec_match(&input.project_name, spec_name)
+                .await?;
+                
+            let (spec_data, match_strategy) = match match_strategy {
+                spec::SpecMatchStrategy::None => {
+                    return Err(anyhow::anyhow!(
+                        "No spec found matching '{}' in project '{}'",
+                        spec_name,
+                        input.project_name
+                    ));
+                }
+                spec::SpecMatchStrategy::Multiple(candidates) => {
+                    return Err(anyhow::anyhow!(
+                        "Multiple specs match '{}': {}. Please be more specific.",
+                        spec_name,
+                        candidates.join(", ")
+                    ));
+                }
+                spec::SpecMatchStrategy::Exact(actual_name) => {
+                    let spec_data = foundry
+                        .load_spec(&input.project_name, &actual_name)
+                        .await
+                        .with_context(|| format!("Failed to load spec '{}'", actual_name))?;
+                    (spec_data, spec::SpecMatchStrategy::Exact(actual_name))
+                }
+                spec::SpecMatchStrategy::FeatureExact(actual_name) => {
+                    let spec_data = foundry
+                        .load_spec(&input.project_name, &actual_name)
+                        .await
+                        .with_context(|| format!("Failed to load spec '{}'", actual_name))?;
+                    (spec_data, spec::SpecMatchStrategy::FeatureExact(actual_name))
+                }
+                spec::SpecMatchStrategy::FeatureFuzzy(actual_name) => {
+                    let spec_data = foundry
+                        .load_spec(&input.project_name, &actual_name)
+                        .await
+                        .with_context(|| format!("Failed to load spec '{}'", actual_name))?;
+                    (spec_data, spec::SpecMatchStrategy::FeatureFuzzy(actual_name))
+                }
+                spec::SpecMatchStrategy::NameFuzzy(actual_name) => {
+                    let spec_data = foundry
+                        .load_spec(&input.project_name, &actual_name)
+                        .await
+                        .with_context(|| format!("Failed to load spec '{}'", actual_name))?;
+                    (spec_data, spec::SpecMatchStrategy::NameFuzzy(actual_name))
+                }
+            };
 
             let spec_content = SpecContent {
                 content: spec_data.content,
@@ -101,8 +142,11 @@ pub async fn run(input: Input) -> Result<FoundryResponse<LoadSpecResponse>> {
     }
 }
 
-fn validate_project_exists(project_name: &str) -> Result<()> {
-    if !project::project_exists(project_name)? {
+async fn validate_project_exists(
+    foundry: &foundry::Foundry<crate::core::backends::filesystem::FilesystemBackend>,
+    project_name: &str,
+) -> Result<()> {
+    if !foundry.project_exists(project_name).await? {
         return Err(anyhow::anyhow!(
             "Project '{}' not found. Use 'mcp_foundry_list_projects' to see available projects.",
             project_name
@@ -111,11 +155,13 @@ fn validate_project_exists(project_name: &str) -> Result<()> {
     Ok(())
 }
 
-fn load_project_summary(project_name: &str) -> Result<String> {
-    let project_path = project::get_project_path(project_name)?;
-    let summary_path = project_path.join("summary.md");
-
-    Ok(filesystem::read_file(summary_path).unwrap_or_else(|_| {
+async fn load_project_summary(
+    foundry: &foundry::Foundry<crate::core::backends::filesystem::FilesystemBackend>,
+    project_name: &str,
+) -> Result<String> {
+    let project = foundry.load_project(project_name).await?;
+    
+    Ok(project.summary.unwrap_or_else(|| {
         "No project summary available. Consider updating the project summary for better context.".to_string()
     }))
 }

@@ -849,63 +849,70 @@ mod tests {
     #[test]
     fn test_fuzzy_matching_multiple_matches() {
         use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-multiple-matches";
 
-        _env.with_env_async(|| async {
-            _env.create_test_project(project_name).await.unwrap();
-            _env.create_test_spec(project_name, "user_authentication", "User auth spec")
+        let _ = env.with_env_async(|| async {
+            env.create_test_project(project_name).await.unwrap();
+            env.create_test_spec(project_name, "user_authentication", "User auth spec")
                 .await
                 .unwrap();
-            _env.create_test_spec(project_name, "user_management", "User management spec")
+            env.create_test_spec(project_name, "user_management", "User management spec")
                 .await
                 .unwrap();
 
-            // Test multiple matches
-            let result = load_spec_with_fuzzy(project_name, "user");
-            assert!(result.is_err());
-            let error = result.unwrap_err();
-            assert!(error.to_string().contains("Multiple specs match"));
-            assert!(error.to_string().contains("user_authentication"));
-            assert!(error.to_string().contains("user_management"));
+            // Use the facade directly in async context
+            let foundry = crate::core::foundry::get_default_foundry().unwrap();
+            let result = foundry.find_spec_match(project_name, "user").await;
+            assert!(result.is_ok());
+            match result.unwrap() {
+                SpecMatchStrategy::Multiple(candidates) => {
+                    assert!(candidates.len() >= 2);
+                    assert!(candidates.iter().any(|c| c.contains("user_authentication")));
+                    assert!(candidates.iter().any(|c| c.contains("user_management")));
+                }
+                _ => panic!("Expected Multiple match strategy"),
+            }
         });
     }
 
     #[test]
     fn test_fuzzy_matching_empty_project_with_query() {
         use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-empty-project-with-query";
 
-        _env.with_env_async(|| async {
-            _env.create_test_project(project_name).await.unwrap();
+        let _ = env.with_env_async(|| async {
+            env.create_test_project(project_name).await.unwrap();
 
-            // Test query on empty project
-            let result = load_spec_with_fuzzy(project_name, "any_query");
-            assert!(result.is_err());
-            let error = result.unwrap_err();
-            assert!(error.to_string().contains("No specs found in project"));
-            assert!(error.to_string().contains("mcp_foundry_create_spec"));
+            // Use the facade directly in async context
+            let foundry = crate::core::foundry::get_default_foundry().unwrap();
+            let result = foundry.find_spec_match(project_name, "any_query").await;
+            assert!(result.is_ok());
+            assert_eq!(result.unwrap(), SpecMatchStrategy::None);
         });
     }
 
     #[test]
     fn test_list_specs_performance() {
         use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-performance";
 
-        _env.with_env_async(|| async {
-            _env.create_test_project(project_name).await.unwrap();
-            _env.create_test_spec(project_name, "test_feature", "Test spec")
+        let _ = env.with_env_async(|| async {
+            env.create_test_project(project_name).await.unwrap();
+            env.create_test_spec(project_name, "test_feature", "Test spec")
                 .await
                 .unwrap();
 
+            // Use the facade directly in async context
+            let foundry = crate::core::foundry::get_default_foundry().unwrap();
+            
             // Multiple calls should work consistently (no caching, but still fast)
-            let specs1 = list_specs(project_name).unwrap();
+            let specs1 = foundry.list_specs(project_name).await.unwrap();
             assert_eq!(specs1.len(), 1);
 
-            let specs2 = list_specs(project_name).unwrap();
+            let specs2 = foundry.list_specs(project_name).await.unwrap();
             assert_eq!(specs2.len(), 1);
             assert_eq!(specs1[0].name, specs2[0].name);
         });
@@ -914,14 +921,14 @@ mod tests {
     #[test]
     fn test_malformed_spec_handling() {
         use crate::test_utils::TestEnvironment;
-        let _env = TestEnvironment::new().unwrap();
+        let env = TestEnvironment::new().unwrap();
         let project_name = "test-malformed";
 
-        _env.with_env_async(|| async {
-            _env.create_test_project(project_name).await.unwrap();
+        let _ = env.with_env_async(|| async {
+            env.create_test_project(project_name).await.unwrap();
 
             // Create a valid spec
-            _env.create_test_spec(project_name, "valid_spec", "Valid spec")
+            env.create_test_spec(project_name, "valid_spec", "Valid spec")
                 .await
                 .unwrap();
 
@@ -931,8 +938,11 @@ mod tests {
             let malformed_dir = specs_dir.join("invalid_spec_name");
             std::fs::create_dir_all(&malformed_dir).unwrap();
 
+            // Use the facade directly in async context
+            let foundry = crate::core::foundry::get_default_foundry().unwrap();
+            
             // List specs should skip malformed ones but still return valid ones
-            let specs = list_specs(project_name).unwrap();
+            let specs = foundry.list_specs(project_name).await.unwrap();
             assert_eq!(specs.len(), 1);
             assert_eq!(specs[0].feature_name, "valid_spec");
         });
@@ -944,7 +954,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-similarity-thresholds";
 
-        env.with_env_async(|| async {
+        let _ = env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
 
             // Create test specs with similar names
@@ -959,8 +969,11 @@ mod tests {
             .await
             .unwrap();
 
+            // Use the facade directly in async context
+            let foundry = crate::core::foundry::get_default_foundry().unwrap();
+
             // Test exact match (similarity = 1.0)
-            let result = find_spec_match(project_name, "user_auth").unwrap();
+            let result = foundry.find_spec_match(project_name, "user_auth").await.unwrap();
             match result {
                 SpecMatchStrategy::FeatureExact(spec_name) => {
                     assert!(spec_name.ends_with("_user_auth"));
@@ -970,7 +983,7 @@ mod tests {
             }
 
             // Test high similarity match (should match "user_auth" for "user_authentication" query)
-            let result = find_spec_match(project_name, "user_authentication").unwrap();
+            let result = foundry.find_spec_match(project_name, "user_authentication").await.unwrap();
             match result {
                 SpecMatchStrategy::FeatureExact(spec_name) => {
                     assert!(spec_name.ends_with("_user_authentication"));
@@ -980,7 +993,7 @@ mod tests {
             }
 
             // Test fuzzy match with partial similarity
-            let result = find_spec_match(project_name, "usr_auth").unwrap();
+            let result = foundry.find_spec_match(project_name, "usr_auth").await.unwrap();
             match result {
                 SpecMatchStrategy::FeatureFuzzy(_) => {
                     // This should find a fuzzy match due to high similarity
@@ -992,7 +1005,7 @@ mod tests {
             }
 
             // Test low similarity (should not match above threshold)
-            let result = find_spec_match(project_name, "completely_different").unwrap();
+            let result = foundry.find_spec_match(project_name, "completely_different").await.unwrap();
             assert_eq!(result, SpecMatchStrategy::None);
         });
     }
@@ -1003,7 +1016,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-edge-cases";
 
-        env.with_env_async(|| async {
+        let _ = env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
 
             // Test empty string similarity
@@ -1026,8 +1039,11 @@ mod tests {
                 .await
                 .unwrap();
 
+            // Use the facade directly in async context
+            let foundry = crate::core::foundry::get_default_foundry().unwrap();
+
             // Test exact case match
-            let result = find_spec_match(project_name, "test_feature").unwrap();
+            let result = foundry.find_spec_match(project_name, "test_feature").await.unwrap();
             match result {
                 SpecMatchStrategy::FeatureExact(spec_name) => {
                     assert!(spec_name.ends_with("_test_feature"));
@@ -1037,7 +1053,7 @@ mod tests {
             }
 
             // Test case mismatch (should not find exact match)
-            let result = find_spec_match(project_name, "Test_Feature").unwrap();
+            let result = foundry.find_spec_match(project_name, "Test_Feature").await.unwrap();
             match result {
                 SpecMatchStrategy::FeatureFuzzy(_) => {
                     // Should find fuzzy match due to case difference
@@ -1057,7 +1073,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-logging-hygiene";
 
-        env.with_env_async(|| async {
+        let _ = env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
 
             // Create a spec with a malformed directory to trigger logging
@@ -1071,11 +1087,13 @@ mod tests {
             let malformed_dir = specs_dir.join("invalid_format_spec");
             std::fs::create_dir_all(&malformed_dir).unwrap();
 
+            // Use the facade directly in async context
+            let foundry = crate::core::foundry::get_default_foundry().unwrap();
+            
             // Verify no eprintln! output from core functions (stderr is empty)
-
             // This would require more complex setup to capture stderr
             // For now, we just ensure the function calls work without panicking
-            let specs = list_specs(project_name).unwrap();
+            let specs = foundry.list_specs(project_name).await.unwrap();
 
             // Verify we still get the valid spec despite the malformed one
             assert_eq!(specs.len(), 1);

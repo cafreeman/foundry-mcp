@@ -56,7 +56,32 @@ pub enum ResourceLocator {
     // Future: Linear { project_id: String, issue_id: String, urls: Vec<String> },
 }
 
-// SpecContentStore trait will be added in Phase 1 when EditEngine integration is needed
+/// Content store abstraction for EditEngine I/O via façade
+#[async_trait::async_trait]
+pub trait SpecContentStore: Send + Sync {
+    async fn read_spec_file(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        file_type: SpecFileType,
+    ) -> Result<String>;
+    
+    async fn write_spec_file(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        file_type: SpecFileType,
+        content: &str,
+    ) -> Result<()>;
+    
+    async fn is_file_modified(
+        &self,
+        project_name: &str,
+        spec_name: &str,
+        file_type: SpecFileType,
+        new_content: &str,
+    ) -> Result<bool>;
+}
 
 // Re-export filesystem backend (will be implemented in Phase 1)
 pub mod filesystem;
