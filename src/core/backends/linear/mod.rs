@@ -8,6 +8,7 @@ mod config;
 mod graphql;
 mod helpers;
 pub mod ops;
+pub mod reconcile;
 pub use config::LinearConfig;
 
 use anyhow::Result;
