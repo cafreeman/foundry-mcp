@@ -79,6 +79,184 @@ struct UpdateProjectOp {
     project_update: ProjectPayloadLite,
 }
 
+// ---- Documents ----
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "Document")]
+struct DocumentLite {
+    id: cynic::Id,
+    title: String,
+    url: String,
+}
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "DocumentConnection")]
+struct DocumentConnectionLite {
+    nodes: Vec<DocumentLite>,
+}
+
+#[derive(cynic::InputObject, Debug, Clone)]
+#[cynic(graphql_type = "IDComparator")]
+struct IdEqComparator {
+    eq: Option<cynic::Id>,
+}
+
+#[derive(cynic::InputObject, Debug, Clone)]
+#[cynic(graphql_type = "ProjectFilter")]
+struct ProjectFilterById {
+    id: Option<IdEqComparator>,
+}
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "Project")]
+struct ProjectWithDocuments {
+    #[cynic(rename = "documents")]
+    documents_conn: DocumentConnectionLite,
+}
+
+#[derive(cynic::QueryVariables, Debug, Clone)]
+struct ProjectDocumentsVars {
+    filter: Option<ProjectFilterById>,
+    first: Option<i32>,
+    docs_first: Option<i32>,
+}
+
+#[derive(cynic::QueryBuilder, Debug, Clone)]
+#[cynic(graphql_type = "Query", variables = "ProjectDocumentsVars")]
+struct ProjectDocumentsQuery {
+    #[cynic(rename = "projects")]
+    projects_conn: ProjectConnectionForDocs,
+}
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "ProjectConnection")]
+struct ProjectConnectionForDocs {
+    nodes: Vec<ProjectWithDocuments>,
+}
+
+#[derive(cynic::InputObject, Debug, Clone)]
+#[cynic(graphql_type = "DocumentCreateInput")]
+struct DocumentCreateInputLinear {
+    title: String,
+    content: Option<String>,
+    projectId: Option<String>,
+}
+
+#[derive(cynic::QueryFragment, Debug, Clone)]
+#[cynic(graphql_type = "DocumentPayload")]
+struct DocumentPayloadLite {
+    document: DocumentLite,
+}
+
+#[derive(cynic::QueryVariables, Debug, Clone)]
+struct CreateDocumentVars {
+    input: DocumentCreateInputLinear,
+}
+
+#[derive(cynic::QueryBuilder, Debug, Clone)]
+#[cynic(graphql_type = "Mutation", variables = "CreateDocumentVars")]
+struct CreateDocumentOp {
+    #[cynic(rename = "documentCreate")]
+    document_create: DocumentPayloadLite,
+}
+
+#[derive(cynic::InputObject, Debug, Clone)]
+#[cynic(graphql_type = "DocumentUpdateInput")]
+struct DocumentUpdateInputLinear {
+    title: Option<String>,
+    content: Option<String>,
+}
+
+#[derive(cynic::QueryVariables, Debug, Clone)]
+struct UpdateDocumentVars {
+    id: String,
+    input: DocumentUpdateInputLinear,
+}
+
+#[derive(cynic::QueryBuilder, Debug, Clone)]
+#[cynic(graphql_type = "Mutation", variables = "UpdateDocumentVars")]
+struct UpdateDocumentOp {
+    #[cynic(rename = "documentUpdate")]
+    document_update: DocumentPayloadLite,
+}
+
+/// Upsert the standard project documents (Vision and Tech Stack) by title.
+pub async fn upsert_project_documents(
+    gql: &LinearGraphQl,
+    project_id: &str,
+    project_name: &str,
+    vision_md: &str,
+    tech_stack_md: &str,
+) -> Result<(String, String)> {
+    // Load existing docs for the project (first page)
+    let filter = ProjectFilterById { id: Some(IdEqComparator { eq: Some(cynic::Id::from(project_id.to_string())) }) };
+    let pdq = ProjectDocumentsQuery::builder()
+        .variables(ProjectDocumentsVars { filter: Some(filter), first: Some(1), docs_first: Some(50) })
+        .build();
+    let data = gql.execute(pdq).await?;
+
+    let mut existing_vision: Option<DocumentLite> = None;
+    let mut existing_tech: Option<DocumentLite> = None;
+
+    if let Some(project) = data.projects_conn.nodes.into_iter().next() {
+        for d in project.documents_conn.nodes.into_iter() {
+            if d.title == "Vision" || d.title == format!("{} — Vision", project_name) {
+                existing_vision = Some(d);
+            } else if d.title == "Tech Stack" || d.title == format!("{} — Tech Stack", project_name) {
+                existing_tech = Some(d);
+            }
+        }
+    }
+
+    // Compose content with hidden markers
+    let project_marker = format!("<!-- foundry:project={}; v=1 -->\n", project_name);
+    let vision_body = format!("{}{}", project_marker, vision_md);
+    let tech_body = format!("{}{}", project_marker, tech_stack_md);
+
+    // Upsert Vision
+    let vision_id = if let Some(doc) = existing_vision {
+        let _ = gql
+            .execute(
+                UpdateDocumentOp::builder()
+                    .variables(UpdateDocumentVars { id: doc.id.to_string(), input: DocumentUpdateInputLinear { title: None, content: Some(vision_body.clone()) } })
+                    .build(),
+            )
+            .await?;
+        doc.id.to_string()
+    } else {
+        let created = gql
+            .execute(
+                CreateDocumentOp::builder()
+                    .variables(CreateDocumentVars { input: DocumentCreateInputLinear { title: format!("{} — Vision", project_name), content: Some(vision_body.clone()), projectId: Some(project_id.to_string()) } })
+                    .build(),
+            )
+            .await?;
+        created.document_create.document.id.to_string()
+    };
+
+    // Upsert Tech Stack
+    let tech_id = if let Some(doc) = existing_tech {
+        let _ = gql
+            .execute(
+                UpdateDocumentOp::builder()
+                    .variables(UpdateDocumentVars { id: doc.id.to_string(), input: DocumentUpdateInputLinear { title: None, content: Some(tech_body.clone()) } })
+                    .build(),
+            )
+            .await?;
+        doc.id.to_string()
+    } else {
+        let created = gql
+            .execute(
+                CreateDocumentOp::builder()
+                    .variables(CreateDocumentVars { input: DocumentCreateInputLinear { title: format!("{} — Tech Stack", project_name), content: Some(tech_body.clone()), projectId: Some(project_id.to_string()) } })
+                    .build(),
+            )
+            .await?;
+        created.document_create.document.id.to_string()
+    };
+
+    Ok((vision_id, tech_id))
+}
+
 /// Find an existing project by exact name, or create it with description.
 pub async fn find_or_create_project(
     gql: &LinearGraphQl,
