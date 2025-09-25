@@ -12,17 +12,6 @@ pub mod mcp;
 pub mod types;
 pub mod utils;
 
-// Test environment support
-#[cfg(test)]
-pub mod test_environment;
-
-// Test utilities for unit tests only
-// Integration tests should use tests/common/test_utils.rs instead
-#[cfg(test)]
-pub mod test_utils {
-    pub use crate::test_environment::TestEnvironment;
-}
-
 // Selective reexports from core modules (only what's needed for CLI functionality)
 pub use crate::core::filesystem::{create_dir_all, file_exists, read_file, write_file_atomic};
 pub use crate::core::project::{create_project, list_projects, load_project, project_exists};
@@ -42,4 +31,15 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Get the foundry directory path (~/.foundry)
 pub fn foundry_dir() -> anyhow::Result<std::path::PathBuf> {
     crate::core::filesystem::foundry_dir()
+}
+
+// Test environment support
+#[cfg(test)]
+pub mod test_environment;
+
+// Test utilities for unit tests only
+// Integration tests should use tests/common/test_utils.rs instead
+#[cfg(test)]
+pub mod test_utils {
+    pub use crate::test_environment::TestEnvironment;
 }

@@ -5,6 +5,10 @@
 //!
 //! The shared base implementation is in test_support/test_environment_base.rs
 
+/// Export TestEnvironment for unit tests
+#[cfg(test)]
+pub use test_impl::TestEnvironment;
+
 /// Re-export shared TestEnvironment implementation for unit tests
 #[cfg(test)]
 mod test_impl {
@@ -73,7 +77,3 @@ mod test_impl {
         }
     }
 }
-
-/// Export TestEnvironment for unit tests
-#[cfg(test)]
-pub use test_impl::TestEnvironment;

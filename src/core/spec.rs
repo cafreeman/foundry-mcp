@@ -378,7 +378,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-spec-filtering";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // First create the project
             env.create_test_project(project_name).await.unwrap();
 
@@ -429,7 +429,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-spec-existence";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // First create the project
             env.create_test_project(project_name).await.unwrap();
 
@@ -487,7 +487,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-spec-content-updates";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // First create the project
             env.create_test_project(project_name).await.unwrap();
 
@@ -542,7 +542,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-spec-validation";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // First create the project
             env.create_test_project(project_name).await.unwrap();
 
@@ -591,7 +591,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-latest-spec-retrieval";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create test project first
             env.create_test_project(project_name).await.unwrap();
 
@@ -691,7 +691,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-exact-spec";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create test project first
             env.create_test_project(project_name).await.unwrap();
 
@@ -750,7 +750,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-feature";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create test project first
             env.create_test_project(project_name).await.unwrap();
 
@@ -827,7 +827,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-no-matches";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create test project first
             env.create_test_project(project_name).await.unwrap();
 
@@ -861,7 +861,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-empty";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create test project first (but no specs)
             env.create_test_project(project_name).await.unwrap();
 
@@ -882,7 +882,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-load-fuzzy";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create test project first
             env.create_test_project(project_name).await.unwrap();
 
@@ -934,7 +934,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-load-fuzzy-no-matches";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create test project first
             env.create_test_project(project_name).await.unwrap();
 
@@ -1014,7 +1014,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-multiple-matches";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
             env.create_test_spec(project_name, "user_authentication", "User auth spec")
                 .await
@@ -1043,7 +1043,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-empty-project-with-query";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
 
             // Use the facade directly in async context
@@ -1059,7 +1059,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-performance";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
             env.create_test_spec(project_name, "test_feature", "Test spec")
                 .await
@@ -1083,7 +1083,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-malformed";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
 
             // Create a valid spec
@@ -1112,7 +1112,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-similarity-thresholds";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
 
             // Create test specs with similar names
@@ -1185,7 +1185,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-fuzzy-edge-cases";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
 
             // Test empty string similarity
@@ -1246,7 +1246,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-logging-hygiene";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             env.create_test_project(project_name).await.unwrap();
 
             // Create a spec with a malformed directory to trigger logging

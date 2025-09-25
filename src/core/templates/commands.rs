@@ -706,6 +706,22 @@ Execute single update_spec call with complete commands array:
 
 Note: `commands` is required and must be a JSON array when using MCP tools. When using the CLI directly, pass the same array as a JSON string argument.
 
+### Minimal Valid Example
+```json
+{"name":"update_spec","arguments":{"project_name":"$1","spec_name":"$2","commands":[
+  {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Overview"},"content":"New line"}
+]}}
+```
+
+### Supported Operations
+- Task Management: `set_task_status`, `upsert_task`
+- Content Addition: `append_to_section`
+- Content Removal: `remove_list_item`, `remove_from_section`, `remove_section`
+- Content Replacement: `replace_list_item`, `replace_in_section`, `replace_section_content`
+
+### Recommended Ordering
+1) remove_list_item → 2) replace_in_section → 3) replace_section_content → 4) append_to_section
+
 ## Error Recovery Patterns
 
 **Selector Failures:**
@@ -764,6 +780,9 @@ Note: `commands` is required and must be a JSON array when using MCP tools. When
   - **Error Recovery:** If selector fails, load current spec content and retry with exact text
   - **Batch Operations:** Single call can execute multiple related commands atomically
 "###;
+
+// Addendum: The following quick reference clarifies required args and common pitfalls for update_spec.
+// Appended to the installed command to reduce user error when constructing payloads.
 
 // Cursor-formatted (no frontmatter) variants
 
@@ -1543,6 +1562,22 @@ Based on user intent, choose appropriate command patterns:
 ```
 
 Note: `commands` is required and must be a JSON array when using MCP tools. When using the CLI directly, pass the same array as a JSON string argument.
+
+### Minimal Valid Example
+```json
+{"name":"update_spec","arguments":{"project_name":"$1","spec_name":"$2","commands":[
+  {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Overview"},"content":"New line"}
+]}}
+```
+
+### Supported Operations
+- Task Management: `set_task_status`, `upsert_task`
+- Content Addition: `append_to_section`
+- Content Removal: `remove_list_item`, `remove_from_section`, `remove_section`
+- Content Replacement: `replace_list_item`, `replace_in_section`, `replace_section_content`
+
+### Recommended Ordering
+1) remove_list_item → 2) replace_in_section → 3) replace_section_content → 4) append_to_section
 
 ## Error Recovery & Problem Resolution
 
