@@ -1045,3 +1045,971 @@ fn test_spec_lifecycle_workflow() {
         assert!(!spec_dir.exists());
     });
 }
+
+/// Test remove_list_item operation for removing tasks
+#[test]
+fn test_remove_list_item() {
+    let env = TestEnvironment::new().unwrap();
+    env.with_env_async(|| async {
+        // Setup: Create project and spec
+        let project_args = env.create_project_args("remove-list-test");
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+
+        let spec_args = env.create_spec_args("remove-list-test", "removal_feature");
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: "- [ ] Task to remove\n- [ ] Task to keep\n- [ ] Another task to keep"
+                .to_string(),
+        })
+        .await
+        .unwrap();
+        let spec_name = spec_response.data.spec_name;
+
+        // Test remove_list_item operation
+        let commands = vec![serde_json::json!({
+            "target": "tasks",
+            "command": "remove_list_item",
+            "selector": {"type": "task_text", "value": "Task to remove"}
+        })];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "remove-list-test".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
+
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands_json,
+        })
+        .await
+        .unwrap();
+
+        // Verify response
+        assert_eq!(response.data.applied_count, 1);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert_eq!(response.data.file_updates.len(), 1);
+        assert_eq!(
+            response.data.file_updates[0].target,
+            EditCommandTarget::Tasks
+        );
+
+        // Verify task was removed from file
+        let foundry_dir = env.foundry_dir();
+        let task_file = foundry_dir
+            .join("remove-list-test")
+            .join("specs")
+            .join(&spec_name)
+            .join("task-list.md");
+        let task_content = std::fs::read_to_string(task_file).unwrap();
+
+        assert!(!task_content.contains("Task to remove"));
+        assert!(task_content.contains("Task to keep"));
+        assert!(task_content.contains("Another task to keep"));
+    });
+}
+
+/// Test remove_from_section operation for removing content from sections
+#[test]
+fn test_remove_from_section() {
+    let env = TestEnvironment::new().unwrap();
+    env.with_env_async(|| async {
+        // Setup: Create project and spec with specific content
+        let project_args = env.create_project_args("remove-content-test");
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+
+        let spec_content = r#"# Feature Specification
+
+## Requirements
+- Modern authentication system
+- Ensure backward compatibility with existing configurations
+- Support for multiple providers
+- Comprehensive error handling
+
+## Implementation
+This will be implemented using standard patterns.
+"#;
+
+        let spec_args = env.create_spec_args("remove-content-test", "auth_feature");
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_content.to_string(),
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
+        let spec_name = spec_response.data.spec_name;
+
+        // Test remove_from_section operation - remove backward compatibility requirement
+        let commands = vec![serde_json::json!({
+            "target": "spec",
+            "command": "remove_from_section",
+            "selector": {"type": "section", "value": "## Requirements"},
+            "content": "- Ensure backward compatibility with existing configurations"
+        })];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "remove-content-test".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
+
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands_json,
+        })
+        .await
+        .unwrap();
+
+        // Verify response
+        assert_eq!(response.data.applied_count, 1);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert_eq!(response.data.file_updates.len(), 1);
+        assert_eq!(
+            response.data.file_updates[0].target,
+            EditCommandTarget::Spec
+        );
+
+        // Verify content was removed from section
+        let foundry_dir = env.foundry_dir();
+        let spec_file = foundry_dir
+            .join("remove-content-test")
+            .join("specs")
+            .join(&spec_name)
+            .join("spec.md");
+        let updated_content = std::fs::read_to_string(spec_file).unwrap();
+
+        assert!(!updated_content.contains("Ensure backward compatibility"));
+        assert!(updated_content.contains("Modern authentication system"));
+        assert!(updated_content.contains("Support for multiple providers"));
+        assert!(updated_content.contains("Comprehensive error handling"));
+    });
+}
+
+/// Test remove_section operation for removing entire sections
+#[test]
+fn test_remove_section() {
+    let env = TestEnvironment::new().unwrap();
+    env.with_env_async(|| async {
+        // Setup: Create project and spec
+        let project_args = env.create_project_args("remove-section-test");
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+
+        let notes_content = r#"# Implementation Notes
+
+## Design Decisions
+Important architectural choices made during planning.
+
+## Migration Path
+Since this fixes bugs rather than adding features, no migration is needed. However:
+- Existing servers will continue to work
+- The fix prevents future issues
+- No data structure changes required
+
+## Testing Strategy
+Comprehensive test coverage will be implemented.
+"#;
+
+        let spec_args = env.create_spec_args("remove-section-test", "section_removal");
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: notes_content.to_string(),
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
+        let spec_name = spec_response.data.spec_name;
+
+        // Test remove_section operation - remove Migration Path section
+        let commands = vec![serde_json::json!({
+            "target": "notes",
+            "command": "remove_section",
+            "selector": {"type": "section", "value": "## Migration Path"}
+        })];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "remove-section-test".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
+
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands_json,
+        })
+        .await
+        .unwrap();
+
+        // Verify response
+        assert_eq!(response.data.applied_count, 1);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert_eq!(response.data.file_updates.len(), 1);
+        assert_eq!(
+            response.data.file_updates[0].target,
+            EditCommandTarget::Notes
+        );
+
+        // Verify entire section was removed
+        let foundry_dir = env.foundry_dir();
+        let notes_file = foundry_dir
+            .join("remove-section-test")
+            .join("specs")
+            .join(&spec_name)
+            .join("notes.md");
+        let updated_content = std::fs::read_to_string(notes_file).unwrap();
+
+        assert!(!updated_content.contains("Migration Path"));
+        assert!(!updated_content.contains("no migration is needed"));
+        assert!(!updated_content.contains("Existing servers will continue"));
+        assert!(updated_content.contains("Design Decisions"));
+        assert!(updated_content.contains("Testing Strategy"));
+    });
+}
+
+/// Test backward compatibility cleanup scenario from the real-world use case
+#[test]
+fn test_backward_compatibility_cleanup_scenario() {
+    let env = TestEnvironment::new().unwrap();
+    env.with_env_async(|| async {
+        // Setup: Create project and spec that mirrors the real scenario
+        let project_args = env.create_project_args("backward-compat-cleanup");
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+
+        let spec_content = r#"# Agent Tool Configuration Feature
+
+## Requirements
+### Non-Functional Requirements
+- Maintain TypeScript type safety throughout
+- Preserve existing functionality while fixing inconsistencies
+- Ensure backward compatibility with existing server configurations
+- Follow existing code patterns and conventions
+"#;
+
+        let notes_content = r#"# Implementation Notes
+
+## Implementation Constraints
+
+1. **Backward Compatibility:** Must not break existing saved server configurations
+2. **API Compatibility:** Must work with current backend expectations
+3. **Feature Flag Respect:** Agent tools only visible when flag is enabled
+4. **Performance:** Tool selection should remain responsive with 100+ tools
+
+## Migration Path
+
+Since this fixes bugs rather than adding features, no migration is needed. However:
+- Existing servers will continue to work
+- The fix prevents future issues
+- No data structure changes required
+"#;
+
+        let spec_args = env.create_spec_args("backward-compat-cleanup", "agent_tools");
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_content.to_string(),
+            notes: notes_content.to_string(),
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
+        let spec_name = spec_response.data.spec_name;
+
+        // Execute the cleanup commands in sequence
+        let commands = vec![
+            // Remove backward compatibility requirement from spec
+            serde_json::json!({
+                "target": "spec",
+                "command": "remove_from_section",
+                "selector": {"type": "section", "value": "### Non-Functional Requirements"},
+                "content": "- Ensure backward compatibility with existing server configurations"
+            }),
+            // Remove backward compatibility constraints from notes
+            serde_json::json!({
+                "target": "notes",
+                "command": "remove_list_item",
+                "selector": {"type": "task_text", "value": "1. **Backward Compatibility:** Must not break existing saved server configurations"}
+            }),
+            // Remove API compatibility constraint
+            serde_json::json!({
+                "target": "notes",
+                "command": "remove_list_item",
+                "selector": {"type": "task_text", "value": "2. **API Compatibility:** Must work with current backend expectations"}
+            }),
+            // Remove entire Migration Path section
+            serde_json::json!({
+                "target": "notes",
+                "command": "remove_section",
+                "selector": {"type": "section", "value": "## Migration Path"}
+            })
+        ];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "backward-compat-cleanup".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
+
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands_json,
+        })
+        .await
+        .unwrap();
+
+        // Verify all operations succeeded
+        assert_eq!(response.data.applied_count, 4);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert!(response.data.errors.as_ref().is_none_or(|e| e.is_empty()));
+
+        // Verify spec.md changes
+        let foundry_dir = env.foundry_dir();
+        let spec_file = foundry_dir
+            .join("backward-compat-cleanup")
+            .join("specs")
+            .join(&spec_name)
+            .join("spec.md");
+        let spec_updated = std::fs::read_to_string(spec_file).unwrap();
+
+        assert!(!spec_updated.contains("Ensure backward compatibility"));
+        assert!(spec_updated.contains("Maintain TypeScript type safety"));
+        assert!(spec_updated.contains("Follow existing code patterns"));
+
+        // Verify notes.md changes
+        let notes_file = foundry_dir
+            .join("backward-compat-cleanup")
+            .join("specs")
+            .join(&spec_name)
+            .join("notes.md");
+        let notes_updated = std::fs::read_to_string(notes_file).unwrap();
+
+        assert!(!notes_updated.contains("Backward Compatibility:"));
+        assert!(!notes_updated.contains("API Compatibility:"));
+        assert!(!notes_updated.contains("Migration Path"));
+        assert!(!notes_updated.contains("no migration is needed"));
+        assert!(notes_updated.contains("Feature Flag Respect"));
+        assert!(notes_updated.contains("Performance"));
+    });
+}
+
+/// Test replace_list_item operation for replacing task content
+#[test]
+fn test_replace_list_item() {
+    let env = TestEnvironment::new().unwrap();
+    env.with_env_async(|| async {
+        // Setup: Create project and spec
+        let project_args = env.create_project_args("replace-list-test");
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+
+        let spec_args = env.create_spec_args("replace-list-test", "replacement_feature");
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks:
+                "- [ ] Implement basic authentication\n- [ ] Add error handling\n- [ ] Write tests"
+                    .to_string(),
+        })
+        .await
+        .unwrap();
+        let spec_name = spec_response.data.spec_name;
+
+        // Test replace_list_item operation
+        let commands = vec![serde_json::json!({
+            "target": "tasks",
+            "command": "replace_list_item",
+            "selector": {"type": "task_text", "value": "Implement basic authentication"},
+            "content": "Implement OAuth 2.0 authentication"
+        })];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "replace-list-test".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
+
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands_json,
+        })
+        .await
+        .unwrap();
+
+        // Verify response
+        assert_eq!(response.data.applied_count, 1);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert_eq!(response.data.file_updates.len(), 1);
+        assert_eq!(
+            response.data.file_updates[0].target,
+            EditCommandTarget::Tasks
+        );
+
+        // Verify task was replaced in file
+        let foundry_dir = env.foundry_dir();
+        let task_file = foundry_dir
+            .join("replace-list-test")
+            .join("specs")
+            .join(&spec_name)
+            .join("task-list.md");
+        let task_content = std::fs::read_to_string(task_file).unwrap();
+
+        assert!(!task_content.contains("Implement basic authentication"));
+        assert!(task_content.contains("Implement OAuth 2.0 authentication"));
+        assert!(task_content.contains("Add error handling"));
+        assert!(task_content.contains("Write tests"));
+        // Verify task format is preserved
+        assert!(task_content.contains("- [ ] Implement OAuth 2.0 authentication"));
+    });
+}
+
+/// Test replace_in_section operation for replacing text within sections
+#[test]
+fn test_replace_in_section() {
+    let env = TestEnvironment::new().unwrap();
+    env.with_env_async(|| async {
+        // Setup: Create project and spec with specific content
+        let project_args = env.create_project_args("replace-text-test");
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+
+        let spec_content = r#"# Feature Specification
+
+## Requirements
+- Use PostgreSQL database for persistence
+- Implement RESTful API endpoints
+- Ensure proper input validation
+- Add comprehensive logging
+
+## Implementation
+This will be implemented using standard patterns with PostgreSQL.
+"#;
+
+        let spec_args = env.create_spec_args("replace-text-test", "database_feature");
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_content.to_string(),
+            notes: spec_args.notes,
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
+        let spec_name = spec_response.data.spec_name;
+
+        // Test replace_in_section operation - replace PostgreSQL with MongoDB
+        let commands = vec![serde_json::json!({
+            "target": "spec",
+            "command": "replace_in_section",
+            "selector": {"type": "text_in_section", "section": "## Requirements", "text": "PostgreSQL database"},
+            "content": "MongoDB database"
+        })];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "replace-text-test".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
+
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands_json,
+        })
+        .await
+        .unwrap();
+
+        // Verify response
+        assert_eq!(response.data.applied_count, 1);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert_eq!(response.data.file_updates.len(), 1);
+        assert_eq!(response.data.file_updates[0].target, EditCommandTarget::Spec);
+
+        // Verify text was replaced in section
+        let foundry_dir = env.foundry_dir();
+        let spec_file = foundry_dir
+            .join("replace-text-test")
+            .join("specs")
+            .join(&spec_name)
+            .join("spec.md");
+        let updated_content = std::fs::read_to_string(spec_file).unwrap();
+
+        assert!(!updated_content.contains("PostgreSQL database"));
+        assert!(updated_content.contains("MongoDB database"));
+        assert!(updated_content.contains("RESTful API endpoints"));
+        assert!(updated_content.contains("input validation"));
+        // Verify the Implementation section still references PostgreSQL since we only replaced in Requirements
+        assert!(updated_content.contains("using standard patterns with PostgreSQL"));
+    });
+}
+
+/// Test replace_section_content operation for replacing entire section content
+#[test]
+fn test_replace_section_content() {
+    let env = TestEnvironment::new().unwrap();
+    env.with_env_async(|| async {
+        // Setup: Create project and spec
+        let project_args = env.create_project_args("replace-section-test");
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+
+        let notes_content = r#"# Implementation Notes
+
+## Architecture Decisions
+We will use a microservices architecture for scalability.
+
+## Technology Stack
+- Backend: Node.js with Express
+- Database: PostgreSQL
+- Frontend: React with TypeScript
+
+## Testing Strategy
+Basic unit tests will be sufficient for this project.
+"#;
+
+        let spec_args = env.create_spec_args("replace-section-test", "section_replacement");
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: notes_content.to_string(),
+            tasks: spec_args.tasks,
+        })
+        .await
+        .unwrap();
+        let spec_name = spec_response.data.spec_name;
+
+        // Test replace_section_content operation - replace entire Testing Strategy section
+        let new_testing_content = r#"Comprehensive testing approach will be implemented:
+- Unit tests for all business logic
+- Integration tests for API endpoints
+- End-to-end tests for critical user flows
+- Performance testing for high-load scenarios
+- Security testing for authentication and authorization"#;
+
+        let commands = vec![serde_json::json!({
+            "target": "notes",
+            "command": "replace_section_content",
+            "selector": {"type": "section", "value": "## Testing Strategy"},
+            "content": new_testing_content
+        })];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "replace-section-test".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
+
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands_json,
+        })
+        .await
+        .unwrap();
+
+        // Verify response
+        assert_eq!(response.data.applied_count, 1);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert_eq!(response.data.file_updates.len(), 1);
+        assert_eq!(
+            response.data.file_updates[0].target,
+            EditCommandTarget::Notes
+        );
+
+        // Verify entire section content was replaced
+        let foundry_dir = env.foundry_dir();
+        let notes_file = foundry_dir
+            .join("replace-section-test")
+            .join("specs")
+            .join(&spec_name)
+            .join("notes.md");
+        let updated_content = std::fs::read_to_string(notes_file).unwrap();
+
+        // Old content should be gone
+        assert!(!updated_content.contains("Basic unit tests will be sufficient"));
+
+        // New content should be present
+        assert!(updated_content.contains("Comprehensive testing approach"));
+        assert!(updated_content.contains("Unit tests for all business logic"));
+        assert!(updated_content.contains("Integration tests for API endpoints"));
+        assert!(updated_content.contains("Performance testing"));
+        assert!(updated_content.contains("Security testing"));
+
+        // Other sections should remain unchanged
+        assert!(updated_content.contains("Architecture Decisions"));
+        assert!(updated_content.contains("microservices architecture"));
+        assert!(updated_content.contains("Technology Stack"));
+        assert!(updated_content.contains("Node.js with Express"));
+    });
+}
+
+/// Test replacement operations with idempotent behavior
+#[test]
+fn test_replacement_idempotent_behavior() {
+    let env = TestEnvironment::new().unwrap();
+    env.with_env_async(|| async {
+        // Setup: Create project and spec
+        let project_args = env.create_project_args("idempotent-test");
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+
+        let spec_args = env.create_spec_args("idempotent-test", "idempotent_feature");
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_args.spec,
+            notes: spec_args.notes,
+            tasks: "- [ ] Initial task\n- [ ] Second task".to_string(),
+        })
+        .await
+        .unwrap();
+        let spec_name = spec_response.data.spec_name;
+
+        // First replacement
+        let commands = vec![serde_json::json!({
+            "target": "tasks",
+            "command": "replace_list_item",
+            "selector": {"type": "task_text", "value": "Initial task"},
+            "content": "Updated task"
+        })];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "idempotent-test".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
+
+        let response1 = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name.clone(),
+            spec_name: update_args.spec_name.clone(),
+            commands_json: update_args.commands_json.clone(),
+        })
+        .await
+        .unwrap();
+
+        // Debug output removed
+
+        // Should apply the change
+        assert_eq!(response1.data.applied_count, 1);
+        assert_eq!(response1.data.skipped_idempotent_count, 0);
+
+        // Second replacement - idempotent (replace "Updated task" with "Updated task")
+        let idempotent_commands = vec![serde_json::json!({
+            "target": "tasks",
+            "command": "replace_list_item",
+            "selector": {"type": "task_text", "value": "Updated task"},
+            "content": "Updated task"
+        })];
+
+        let idempotent_args = UpdateSpecArgs {
+            project_name: "idempotent-test".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&idempotent_commands).unwrap(),
+        };
+
+        let response2 = update_spec::run(update_spec::Input {
+            project_name: idempotent_args.project_name,
+            spec_name: idempotent_args.spec_name,
+            commands_json: idempotent_args.commands_json,
+        })
+        .await
+        .unwrap();
+
+        // Should skip because already matches (idempotent)
+        assert_eq!(response2.data.applied_count, 0);
+        assert_eq!(response2.data.skipped_idempotent_count, 1);
+
+        // Verify file contains updated content only once
+        let foundry_dir = env.foundry_dir();
+        let task_file = foundry_dir
+            .join("idempotent-test")
+            .join("specs")
+            .join(&spec_name)
+            .join("task-list.md");
+        let task_content = std::fs::read_to_string(task_file).unwrap();
+
+        assert!(!task_content.contains("Initial task"));
+        assert!(task_content.contains("Updated task"));
+        assert!(task_content.contains("Second task"));
+        // Ensure no duplication
+        assert_eq!(task_content.matches("Updated task").count(), 1);
+    });
+}
+
+/// Test real-world scenario: Upgrading technology stack across specification
+#[test]
+fn test_technology_stack_upgrade_scenario() {
+    let env = TestEnvironment::new().unwrap();
+    env.with_env_async(|| async {
+        // Setup: Create project and spec that mirrors a real technology upgrade scenario
+        let project_args = env.create_project_args("tech-upgrade");
+        create_project::run(create_project::Input {
+            project_name: project_args.project_name,
+            vision: project_args.vision,
+            tech_stack: project_args.tech_stack,
+            summary: project_args.summary,
+        })
+        .await
+        .unwrap();
+
+        let spec_content = r#"# Database Migration Feature
+
+## Requirements
+### Functional Requirements
+- Migrate from MySQL 5.7 to latest version
+- Ensure data integrity during migration
+- Support rollback mechanisms
+- Minimize downtime during migration
+
+### Non-Functional Requirements
+- Migration should complete within 2-hour maintenance window
+- Zero data loss during migration process
+"#;
+
+        let notes_content = r#"# Implementation Notes
+
+## Technology Decisions
+The current MySQL 5.7 database will be upgraded to MySQL 8.0 for better performance and security features.
+
+## Migration Strategy
+We will use MySQL 5.7 native tools for the migration process:
+1. Create backup using mysqldump from MySQL 5.7
+2. Set up new MySQL 5.7 instance
+3. Restore data and validate integrity
+4. Switch application to new MySQL 5.7 database
+
+## Performance Considerations
+MySQL 5.7 has known limitations that will be addressed in this migration.
+"#;
+
+        let tasks_content = r#"- [ ] Set up MySQL 5.7 development environment
+- [ ] Create migration scripts for MySQL 5.7 compatibility
+- [ ] Test data export from current MySQL 5.7 instance
+- [ ] Validate MySQL 5.7 performance benchmarks
+- [ ] Schedule maintenance window for MySQL 5.7 upgrade"#;
+
+        let spec_args = env.create_spec_args("tech-upgrade", "database_migration");
+        let spec_response = create_spec::run(create_spec::Input {
+            project_name: spec_args.project_name,
+            feature_name: spec_args.feature_name,
+            spec: spec_content.to_string(),
+            notes: notes_content.to_string(),
+            tasks: tasks_content.to_string(),
+        })
+        .await
+        .unwrap();
+        let spec_name = spec_response.data.spec_name;
+
+        // Execute comprehensive technology upgrade using replacement operations
+        let commands = vec![
+            // Update the target version in spec requirements
+            serde_json::json!({
+                "target": "spec",
+                "command": "replace_in_section",
+                "selector": {"type": "text_in_section", "section": "### Functional Requirements", "text": "MySQL 5.7 to latest version"},
+                "content": "MySQL 5.7 to MySQL 8.0"
+            }),
+            // Replace the entire technology decision rationale
+            serde_json::json!({
+                "target": "notes",
+                "command": "replace_section_content",
+                "selector": {"type": "section", "value": "## Technology Decisions"},
+                "content": "The database will be upgraded from MySQL 5.7 to MySQL 8.0 to leverage:\n- Improved JSON support and performance\n- Enhanced security features including caching_sha2_password\n- Better query optimization and execution plans\n- Support for common table expressions (CTEs)\n- Improved replication and high availability features"
+            }),
+            // Update migration strategy to reflect MySQL 8.0
+            serde_json::json!({
+                "target": "notes",
+                "command": "replace_in_section",
+                "selector": {"type": "text_in_section", "section": "## Migration Strategy", "text": "MySQL 5.7 native tools"},
+                "content": "MySQL 8.0 utilities and best practices"
+            }),
+            serde_json::json!({
+                "target": "notes",
+                "command": "replace_in_section",
+                "selector": {"type": "text_in_section", "section": "## Migration Strategy", "text": "Set up new MySQL 5.7 instance"},
+                "content": "Set up new MySQL 8.0 instance with proper configuration"
+            }),
+            serde_json::json!({
+                "target": "notes",
+                "command": "replace_in_section",
+                "selector": {"type": "text_in_section", "section": "## Migration Strategy", "text": "Switch application to new MySQL 5.7 database"},
+                "content": "Update application connection strings and test MySQL 8.0 compatibility"
+            }),
+            // Replace performance section entirely
+            serde_json::json!({
+                "target": "notes",
+                "command": "replace_section_content",
+                "selector": {"type": "section", "value": "## Performance Considerations"},
+                "content": "MySQL 8.0 provides significant performance improvements:\n- Up to 2x faster read/write performance compared to 5.7\n- Improved query optimizer with cost-based optimization\n- Better handling of JSON data types and indexing\n- Enhanced memory management for large datasets\n- Reduced replication lag through improved binlog handling"
+            }),
+            // Update all task items to reflect MySQL 8.0
+            serde_json::json!({
+                "target": "tasks",
+                "command": "replace_list_item",
+                "selector": {"type": "task_text", "value": "Set up MySQL 5.7 development environment"},
+                "content": "Set up MySQL 8.0 development environment with proper authentication"
+            }),
+            serde_json::json!({
+                "target": "tasks",
+                "command": "replace_list_item",
+                "selector": {"type": "task_text", "value": "Create migration scripts for MySQL 5.7 compatibility"},
+                "content": "Create migration scripts for MySQL 8.0 compatibility and test new features"
+            }),
+            serde_json::json!({
+                "target": "tasks",
+                "command": "replace_list_item",
+                "selector": {"type": "task_text", "value": "Test data export from current MySQL 5.7 instance"},
+                "content": "Test data export and import between MySQL 5.7 and MySQL 8.0"
+            }),
+            serde_json::json!({
+                "target": "tasks",
+                "command": "replace_list_item",
+                "selector": {"type": "task_text", "value": "Validate MySQL 5.7 performance benchmarks"},
+                "content": "Validate MySQL 8.0 performance improvements and benchmark comparisons"
+            }),
+            serde_json::json!({
+                "target": "tasks",
+                "command": "replace_list_item",
+                "selector": {"type": "task_text", "value": "Schedule maintenance window for MySQL 5.7 upgrade"},
+                "content": "Schedule maintenance window for MySQL 5.7 to 8.0 upgrade"
+            })
+        ];
+
+        let update_args = UpdateSpecArgs {
+            project_name: "tech-upgrade".to_string(),
+            spec_name: spec_name.clone(),
+            commands_json: serde_json::to_string(&commands).unwrap(),
+        };
+
+        let response = update_spec::run(update_spec::Input {
+            project_name: update_args.project_name,
+            spec_name: update_args.spec_name,
+            commands_json: update_args.commands_json,
+        })
+        .await
+        .unwrap();
+
+        // Verify all operations succeeded
+        assert_eq!(response.data.applied_count, 11);
+        assert_eq!(response.data.skipped_idempotent_count, 0);
+        assert!(response.data.errors.as_ref().is_none_or(|e| e.is_empty()));
+
+        // Verify spec.md changes
+        let foundry_dir = env.foundry_dir();
+        let spec_file = foundry_dir
+            .join("tech-upgrade")
+            .join("specs")
+            .join(&spec_name)
+            .join("spec.md");
+        let spec_updated = std::fs::read_to_string(spec_file).unwrap();
+
+        assert!(spec_updated.contains("MySQL 5.7 to MySQL 8.0"));
+        assert!(!spec_updated.contains("MySQL 5.7 to latest version"));
+
+        // Verify notes.md changes - comprehensive technology upgrade
+        let notes_file = foundry_dir
+            .join("tech-upgrade")
+            .join("specs")
+            .join(&spec_name)
+            .join("notes.md");
+        let notes_updated = std::fs::read_to_string(notes_file).unwrap();
+
+        // Technology decisions completely replaced
+        assert!(notes_updated.contains("Enhanced security features including caching_sha2_password"));
+        assert!(notes_updated.contains("common table expressions (CTEs)"));
+        assert!(!notes_updated.contains("The current MySQL 5.7 database will be upgraded"));
+
+        // Migration strategy updated
+        assert!(notes_updated.contains("MySQL 8.0 utilities and best practices"));
+        assert!(notes_updated.contains("Set up new MySQL 8.0 instance with proper configuration"));
+        assert!(!notes_updated.contains("Set up new MySQL 5.7 instance"));
+
+        // Performance section completely replaced
+        assert!(notes_updated.contains("Up to 2x faster read/write performance"));
+        assert!(notes_updated.contains("Enhanced memory management for large datasets"));
+        assert!(!notes_updated.contains("MySQL 5.7 has known limitations"));
+
+        // Verify tasks.md changes - all tasks updated
+        let tasks_file = foundry_dir
+            .join("tech-upgrade")
+            .join("specs")
+            .join(&spec_name)
+            .join("task-list.md");
+        let tasks_updated = std::fs::read_to_string(tasks_file).unwrap();
+
+        assert!(tasks_updated.contains("Set up MySQL 8.0 development environment"));
+        assert!(tasks_updated.contains("MySQL 8.0 compatibility and test new features"));
+        assert!(tasks_updated.contains("between MySQL 5.7 and MySQL 8.0"));
+        assert!(tasks_updated.contains("MySQL 8.0 performance improvements"));
+        assert!(tasks_updated.contains("MySQL 5.7 to 8.0 upgrade"));
+
+        // Ensure no old MySQL 5.7 references remain in tasks
+        assert!(!tasks_updated.contains("Set up MySQL 5.7 development environment"));
+        assert!(!tasks_updated.contains("Create migration scripts for MySQL 5.7 compatibility"));
+    });
+}

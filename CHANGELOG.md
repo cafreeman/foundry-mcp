@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Comprehensive Content Management Operations**: Extended edit operations from 3 to 9 commands for full specification lifecycle management
+  - **Content Removal Operations**: `remove_list_item`, `remove_from_section`, `remove_section` for cleanup and maintenance
+  - **Content Replacement Operations**: `replace_list_item`, `replace_in_section`, `replace_section_content` for updates and migrations
+  - **Enhanced Selector System**: Added `text_in_section` selector for precise text targeting within markdown sections
+  - **Real-world Use Cases**: Supports backward compatibility cleanup, technology stack upgrades, and specification modernization
+  - **Comprehensive Documentation**: All 9 operations documented across MCP schema, help system, and user guides
+  - **Production Testing**: 185 tests including real-world scenarios (technology upgrades, requirement cleanup)
+- **Documentation Clarifications**: update_spec docs now explicitly require a non-empty `commands` array; added minimal valid examples, full operations list, recommended ordering, and numbered-list guidance in installed templates (Cursor rules, Claude subagent, command docs) and README
 - **Backend Abstraction System**: Complete pluggable backend architecture for extensible storage systems
   - **FoundryBackend Trait**: Async trait defining storage contracts for Projects and Specs with Send + Sync bounds
   - **BackendCapabilities**: Feature introspection system with flags for documents, subtasks, URL deeplinks, atomic replace, and strong consistency
@@ -24,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING**: **Core Architecture Refactoring**: Complete migration to backend abstraction system
+- **Selector Ergonomics**: Improved numbered-list matching by normalizing numeric prefixes in edit engine; selectors that omit numbers can match when the remainder is unique (output formatting preserved)
+- **EditSelector**: Added optional `section_context` to `TaskText` (serde-defaulted) for future section-scoped matching; currently documented in templates but not yet enforced by engine scope rules
   - **Core Modules**: Removed direct I/O logic from `core/project.rs` and `core/spec.rs`, delegating to backend via façade
   - **CLI Commands**: Updated all CLI commands to use `Foundry<FilesystemBackend>` instances instead of direct core calls
   - **Domain Logic Centralization**: Moved spec name generation, validation, and fuzzy matching logic to façade for consistency across backends
@@ -57,9 +67,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Enhanced
 
+- **Comprehensive Documentation Update**: Complete documentation overhaul to reflect new content management capabilities
+  - **MCP Tool Schema**: Updated `UpdateSpecArgs` to include all 9 operations in tool introspection for AI assistant discovery
+  - **Help System**: Enhanced `get_foundry_help` with categorized operations (Addition, Removal, Replacement) and comprehensive examples
+  - **Template Files**: Updated Claude subagent and Cursor rules templates to showcase full content management capabilities
+  - **User Documentation**: Transformed README.md from "append-only" to "comprehensive content management" messaging
+  - **Command Guides**: Enhanced `.cursor/commands/foundry_update_spec.md` with removal and replacement operation examples
+  - **Installation Templates**: Updated embedded templates to mention 9 operations instead of original 3
+  - **Workflow Patterns**: Added real-world scenarios for specification cleanup and technology migration workflows
 - **Command Template Documentation**: Improved update_spec command templates with comprehensive edit commands guidance
   - Added explicit note that `commands` parameter is required (MCP array; CLI passes JSON string)
   - Documented selector normalization rules for tasks (ignores checkbox prefix, collapses whitespace, ignores trailing periods)
+  - Documented numbered-list guidance and recommended command ordering for batch operations
   - Added section header matching guidance (case-insensitive, exact header text with hashes)
   - Documented idempotence behavior for all edit commands (repeat-safe operations)
   - Added guidance about selector candidate suggestions on command failures

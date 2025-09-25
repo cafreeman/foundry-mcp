@@ -142,12 +142,39 @@ Day 5: "Let's work on authentication"
 - **Better code quality**: Specifications guide implementation details
 - **Reduced hallucination**: Structured context prevents AI from making assumptions
 
-### ✏️ **Deterministic Edit Commands**
+### ✏️ **Comprehensive Content Management**
 
-- **Intent-based commands**: `set_task_status`, `upsert_task`, `append_to_section` only
-- **Precise selectors**: `task_text` (exact checkbox text) and `section` (case-insensitive headers)
+- **Content Addition**: `set_task_status`, `upsert_task`, `append_to_section` for adding new content
+- **Content Removal**: `remove_list_item`, `remove_from_section`, `remove_section` for cleanup operations
+- **Content Replacement**: `replace_list_item`, `replace_in_section`, `replace_section_content` for updates
+- **Precise selectors**: `task_text` (exact checkbox text), `section` (case-insensitive headers), `text_in_section` (precise text targeting)
 - **Idempotent updates**: Safe to re-run commands without duplication or side effects
 - **Smart error recovery**: Candidate selector suggestions with exact match requirements
+
+#### update_spec usage essentials
+
+- **Required arguments**: `project_name` (string), `spec_name` (string), `commands` (array, non-empty)
+- **Minimal valid example**:
+  ```json
+  {
+    "name": "update_spec",
+    "arguments": {
+      "project_name": "proj",
+      "spec_name": "spec",
+      "commands": [
+        {
+          "target": "spec",
+          "command": "append_to_section",
+          "selector": { "type": "section", "value": "## Overview" },
+          "content": "New line"
+        }
+      ]
+    }
+  }
+  ```
+- **Supported operations**: add (set_task_status, upsert_task, append_to_section), remove (remove_list_item, remove_from_section, remove_section), replace (replace_list_item, replace_in_section, replace_section_content)
+- **Recommended ordering**: 1) remove_list_item → 2) replace_in_section → 3) replace_section_content → 4) append_to_section
+- **Numbered lists**: Prefer including the number in `task_text` (e.g., `1. Title`). Convenience matching without the number is supported when the remainder is unique.
 
 ### 🤝 **Collaborative User Experience**
 
@@ -166,7 +193,7 @@ Once installed, AI assistants have access to these tools:
 - **`list_projects`** - List all available projects with metadata
 - **`create_spec`** - Create timestamped specification with task breakdown
 - **`load_spec`** - Load specification content with project context
-- **`update_spec`** - Edit spec files using intent-based commands: `set_task_status`, `upsert_task`, `append_to_section`
+- **`update_spec`** - Edit spec files using comprehensive content management: addition, removal, and replacement operations
 - **`delete_spec`** - Delete existing specification and all its files
 - **`validate_content`** - Validate content against schema requirements
 - **`get_foundry_help`** - Get workflow guidance and examples

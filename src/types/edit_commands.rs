@@ -14,13 +14,32 @@ pub enum EditCommandName {
     SetTaskStatus,
     UpsertTask,
     AppendToSection,
+    RemoveListItem,
+    RemoveFromSection,
+    RemoveSection,
+    ReplaceListItem,
+    ReplaceInSection,
+    ReplaceSectionContent,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum EditSelector {
-    Section { value: String },
-    TaskText { value: String },
+    Section {
+        value: String,
+    },
+    TaskText {
+        value: String,
+        #[serde(default)]
+        section_context: Option<String>,
+    },
+    TextContent {
+        value: String,
+    },
+    TextInSection {
+        section: String,
+        text: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

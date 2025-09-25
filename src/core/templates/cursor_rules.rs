@@ -113,8 +113,9 @@ Each spec contains:
 - **`update_spec`**: Edit spec files using intent-based commands with precise anchors and idempotent updates
 
   - **File Targets**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
-  - **Commands**: `set_task_status`, `upsert_task`, `append_to_section` only
-  - **Selectors**: `task_text` (exact checkbox text), `section` (case-insensitive header)
+  - **Commands**: Content management (9 operations): Addition (`set_task_status`, `upsert_task`, `append_to_section`), Removal (`remove_list_item`, `remove_from_section`, `remove_section`), Replacement (`replace_list_item`, `replace_in_section`, `replace_section_content`)
+  - **Required Arguments**: `project_name` (string), `spec_name` (string), `commands` (array, non-empty)
+  - **Selectors**: `task_text` (exact checkbox text), `section` (case-insensitive header), `text_in_section` (precise text within sections)
   - **Usage**:
 
     ```json
@@ -124,6 +125,18 @@ Each spec contains:
       {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Requirements"},"content":"- Two-factor authentication support"}
     ]}}
     ```
+
+    #### Minimal Valid Example
+    ```json
+    {"name":"update_spec","arguments":{"project_name":"$1","spec_name":"$2","commands":[
+      {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Overview"},"content":"New line"}
+    ]}}
+    ```
+
+    #### Supported Operations & Recommended Ordering
+    - Supported: set_task_status, upsert_task, append_to_section, remove_list_item, remove_from_section, remove_section, replace_list_item, replace_in_section, replace_section_content
+    - Recommended ordering: 1) remove_list_item → 2) replace_in_section → 3) replace_section_content → 4) append_to_section
+    - Numbered lists: include the number (e.g., `1. Item`) in `task_text` to avoid ambiguity
 
   ### Smart Content Loading Strategy
 

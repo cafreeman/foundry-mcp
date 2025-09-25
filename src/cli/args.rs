@@ -529,12 +529,12 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
                 "type": "object"
             }),
         );
-        commands_prop.insert("description".to_string(), serde_json::json!("Array of edit commands to apply. Each command must include target (spec|tasks|notes), command (set_task_status|upsert_task|append_to_section), selector (task_text|section), and relevant fields (status|content)."));
+        commands_prop.insert("description".to_string(), serde_json::json!("Array of edit commands to apply. Each command must include target (spec|tasks|notes), command (set_task_status|upsert_task|append_to_section|remove_list_item|remove_from_section|remove_section|replace_list_item|replace_in_section|replace_section_content), selector (task_text|section|text_in_section), and relevant fields (status|content)."));
         properties.insert("commands".to_string(), commands_prop);
 
         rust_mcp_sdk::schema::Tool {
             name: "update_spec".to_string(),
-            description: Some("Edit Foundry spec files using intent-based commands; precise anchors; idempotent updates. Provide a 'commands' array of edit operations.".to_string()),
+            description: Some("Edit Foundry spec files using comprehensive content management commands: add, update, remove, and replace content with precise anchors and idempotent updates. Provide a 'commands' array of edit operations.".to_string()),
             title: None,
             input_schema: rust_mcp_sdk::schema::ToolInputSchema::new(
                 vec!["project_name".to_string(), "spec_name".to_string(), "commands".to_string()], // Required fields

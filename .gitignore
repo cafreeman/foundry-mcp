@@ -2,3 +2,4 @@
 **/settings.local.json
 .codanna/
 .fastembed_cache
+.cursor/plans

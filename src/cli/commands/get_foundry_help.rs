@@ -464,11 +464,13 @@ pub fn create_tool_capabilities_help() -> HelpContent {
 pub fn create_edit_commands_help() -> HelpContent {
     HelpContent {
         title: "Edit Commands for Deterministic Spec Updates".to_string(),
-        description: "Use update_spec with a 'commands' array to perform precise, idempotent edits "
+        description: "Use update_spec with a 'commands' array to perform comprehensive content management "
             .to_string()
-            + "with minimal parameters. Supported commands: set_task_status, upsert_task, "
-            + "append_to_section. Selectors: task_text (exact task text), section (header text, "
-            + "case-insensitive).",
+            + "with minimal parameters. Content Addition: set_task_status, upsert_task, append_to_section. "
+            + "Content Removal: remove_list_item, remove_from_section, remove_section. "
+            + "Content Replacement: replace_list_item, replace_in_section, replace_section_content. "
+            + "Selectors: task_text (exact task text), section (header text, case-insensitive), "
+            + "text_in_section (precise text within sections).",
         examples: vec![
             "# Mark a task done".to_string(),
             ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
@@ -491,9 +493,26 @@ pub fn create_edit_commands_help() -> HelpContent {
                 + "\"commands\": [{\"target\": \"spec\", \"command\": \"append_to_section\", "
                 + "\"selector\": {\"type\": \"section\", \"value\": \"## Requirements\"}, "
                 + "\"content\": \"- Two-factor authentication support\"}]}}"),
+            "".to_string(),
+            "# Remove a list item".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"tasks\", \"command\": \"remove_list_item\", "
+                + "\"selector\": {\"type\": \"task_text\", \"value\": \"Outdated task\"}}]}}"),
+            "".to_string(),
+            "# Replace text within a section".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"spec\", \"command\": \"replace_in_section\", "
+                + "\"selector\": {\"type\": \"text_in_section\", \"section\": \"## Requirements\", \"text\": \"MySQL 5.7\"}, "
+                + "\"content\": \"MySQL 8.0\"}]}}"),
         ],
         workflow_guide: vec![
             "Always load current content before editing; copy exact task text and section headers"
+                .to_string(),
+            "Content management: Use addition (append, upsert) for new content, removal for cleanup, replacement for updates"
+                .to_string(),
+            "Selector usage: task_text for list items, section for headers, text_in_section for precise targeting"
                 .to_string(),
             "append_to_section is valid only for spec and notes (not tasks)".to_string(),
             "Idempotent behavior: re-sending same commands is safe".to_string(),

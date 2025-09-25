@@ -502,6 +502,7 @@ mod edit_engine_integration_tests {
                 command: EditCommandName::SetTaskStatus,
                 selector: EditSelector::TaskText {
                     value: "Create feature scaffolding and basic structure".to_string(),
+                    section_context: None,
                 },
                 status: Some(TaskStatus::Done),
                 content: None,
@@ -546,6 +547,7 @@ mod edit_engine_integration_tests {
                 command: EditCommandName::UpsertTask,
                 selector: EditSelector::TaskText {
                     value: "New test task".to_string(),
+                    section_context: None,
                 },
                 status: None,
                 content: Some("- [ ] New test task".to_string()),

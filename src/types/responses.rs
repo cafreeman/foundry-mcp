@@ -276,6 +276,7 @@ pub struct EnvironmentStatus {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config_content: Option<String>,
     /// List of issues found (only included if there are issues)
+    #[serde(default)]
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub issues: Vec<String>,
 }

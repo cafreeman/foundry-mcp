@@ -61,7 +61,7 @@ mod tests {
     fn test_list_projects_rfc3339_timestamps() {
         let env = TestEnvironment::new().unwrap();
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create a test project
             env.create_test_project("test-rfc3339-timestamps")
                 .await
@@ -95,7 +95,7 @@ mod tests {
         let env = TestEnvironment::new().unwrap();
         let project_name = "test-load-rfc3339";
 
-        let _ = env.with_env_async(|| async {
+        env.with_env_async(|| async {
             // Create a test project
             env.create_test_project(project_name).await.unwrap();
 
