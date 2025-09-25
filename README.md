@@ -119,14 +119,15 @@ See docs/backends.md for trait contracts, invariants, and a checklist for adding
 
 Foundry includes an experimental Linear backend that maps Projects/Specs/Notes/Tasks to Linear entities via the GraphQL API.
 
-Current capabilities:
+**Current capabilities:**
 
-- Projects: find-or-create, description upsert
-- Project Documents: upsert "Vision" and "Tech Stack" with hidden project markers
-- Specs: create Issue with humanized title and hidden spec marker; create Notes document and backlink from the Issue
-- Robust transport: shared client with retry/backoff and 429 Retry-After handling
+- **Projects**: Create, load, list with Vision and Tech Stack documents
+- **Specifications**: Full CRUD operations with Linear issues and sub-issues
+- **Task Management**: Phase D integration with sub-issue reconciliation
+- **Robust Transport**: Retry/backoff, rate limiting, error handling
+- **Comprehensive Testing**: Contract tests, resilience tests, integration tests
 
-Prerequisites:
+**Prerequisites:**
 
 - Linear API token in environment: `LINEAR_API_TOKEN` (or `LINEAR_API_KEY`)
 - Team selection (one of):
@@ -134,21 +135,26 @@ Prerequisites:
   - `LINEAR_TEAM_KEY` (e.g., "ENG")
   - `LINEAR_TEAM_NAME` (exact match)
 
-Quick setup (environment variables):
+**Quick setup:**
 
 ```bash
+# Environment variables
 export LINEAR_API_TOKEN=...           # or LINEAR_API_KEY
 export LINEAR_TEAM_ID=...             # or LINEAR_TEAM_KEY/LINEAR_TEAM_NAME
 # optional overrides
 export LINEAR_GRAPHQL_ENDPOINT=https://api.linear.app/graphql
 export LINEAR_HTTP_TIMEOUT_SECS=30
+
+# Install Foundry with the Linear backend (requires feature flag)
+cargo install foundry-mcp --features linear_backend
 ```
 
-Notes & limitations:
+**Notes & limitations:**
 
-- The Linear backend is not the default runtime backend yet; it is being developed behind a façade to avoid breaking changes.
-- Team resolution prefers `LINEAR_TEAM_ID` and falls back to `LINEAR_TEAM_KEY` then `LINEAR_TEAM_NAME`.
-- Sub-issue task reconciliation, listing, loading, and deletion phases are planned next.
+- The Linear backend is gated behind the `linear_backend` feature flag
+- Requires internet connectivity and Linear API access
+- Subject to Linear's GraphQL API rate limits
+- See [docs/backends.md](docs/backends.md) for detailed setup and architecture
 
 ## AI Assistant Benefits
 

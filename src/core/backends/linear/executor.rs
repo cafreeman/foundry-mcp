@@ -2,6 +2,8 @@ use crate::linear_reconcile::{DesiredTask, ReconciliationPlan};
 
 /// Execute a reconciliation plan by invoking provided operations.
 /// Operations must be idempotent; this function avoids duplicates and preserves a stable order.
+#[cfg(any(test, feature = "linear_backend"))]
+#[allow(dead_code)]
 pub fn execute_plan<FCreate, FClose, FReopen, FEnsureLabel>(
     plan: &ReconciliationPlan,
     mut create_sub_issue: FCreate,
@@ -46,7 +48,7 @@ mod tests {
     fn executes_operations_in_order_and_idempotent() {
         let plan = ReconciliationPlan {
             to_create: vec![DesiredTask {
-                text: "New A".into(),
+                text: "New A ".into(),
                 completed: false,
             }],
             to_close: vec!["CLOSE1".into()],
@@ -72,7 +74,7 @@ mod tests {
             vec![
                 "label:LABEL1",
                 "label:LABEL2",
-                "create:New A",
+                "create:New A ",
                 "close:CLOSE1",
                 "reopen:REOPEN1",
             ]

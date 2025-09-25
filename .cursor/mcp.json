@@ -2,20 +2,19 @@
   "mcpServers": {
     "codanna": {
       "command": "codanna",
-      "args": [
-        "serve",
-        "--watch"
-      ],
+      "args": ["serve", "--watch"],
       "env": null
     },
     "foundry": {
       "command": "foundry",
-      "args": [
-        "serve"
-      ],
+      "args": ["serve"],
       "env": {
         "FOUNDRY_LOG_LEVEL": "info"
       }
+    },
+    "graphite": {
+      "command": "gt",
+      "args": ["mcp"]
     }
   }
 }

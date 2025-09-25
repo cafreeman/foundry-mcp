@@ -45,7 +45,7 @@ pub fn foundry_dir() -> anyhow::Result<std::path::PathBuf> {
 }
 
 // Compile Linear Phase D reconciliation logic and its unit tests without enabling the full backend
-#[cfg(test)]
+#[cfg(any(test, feature = "linear_backend"))]
 mod linear_reconcile {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -54,7 +54,7 @@ mod linear_reconcile {
 }
 
 // Compile task parser and unit tests in test builds
-#[cfg(test)]
+#[cfg(any(test, feature = "linear_backend"))]
 mod linear_task_parser {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -63,7 +63,7 @@ mod linear_task_parser {
 }
 
 // Compile Phase D orchestrator tests
-#[cfg(test)]
+#[cfg(any(test, feature = "linear_backend"))]
 mod linear_phase_d {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -72,7 +72,7 @@ mod linear_phase_d {
 }
 
 // Compile reconciliation executor tests
-#[cfg(test)]
+#[cfg(any(test, feature = "linear_backend"))]
 mod linear_executor {
     include!(concat!(
         env!("CARGO_MANIFEST_DIR"),

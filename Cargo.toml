@@ -45,9 +45,11 @@ reqwest = { version = "0.12", features = [
     "rustls-tls",
 ] }
 cynic = { version = "3", features = ["http-reqwest"] }
+comrak = "0.22"
 url = "2.5"
 backoff = { version = "0.4", features = ["tokio"] }
 httpdate = "1.0"
+fastrand = "2.1"
 
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
