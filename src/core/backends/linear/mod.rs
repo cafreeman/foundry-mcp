@@ -4,16 +4,15 @@
 //! preconfigured reqwest::Client supplied to Cynic. In Phase A, the backend
 //! methods intentionally return Unsupported to avoid changing runtime behavior.
 
-mod config;
+pub mod config;
 mod graphql;
-mod helpers;
+pub mod helpers;
 pub mod ops;
 pub mod reconcile;
 pub use config::LinearConfig;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use url::Url;
 
 use crate::core::backends::FoundryBackend;
 use crate::core::backends::ResourceLocator;
@@ -44,12 +43,10 @@ impl FoundryBackend for LinearBackend {
 
         // 1) Find or create the project in Linear
         let (project_id, project_name, _existing_desc) =
-            ops::find_or_create_project(&self.gql, &config.name, config.summary.as_deref()).await?;
+            ops::find_or_create_project(&self.gql, &config.name, Some(&config.summary)).await?;
 
         // 2) Ensure description is up to date with the provided summary
-        if let Some(summary) = config.summary.as_ref() {
-            ops::upsert_project_description(&self.gql, &project_id, summary).await?;
-        }
+        ops::upsert_project_description(&self.gql, &project_id, &config.summary).await?;
 
         // 3) Upsert project documents: Vision and Tech Stack, with hidden marker
         ops::upsert_project_documents(
@@ -71,7 +68,7 @@ impl FoundryBackend for LinearBackend {
             locator: None,
             vision: Some(config.vision),
             tech_stack: Some(config.tech_stack),
-            summary: config.summary,
+            summary: Some(config.summary),
         })
     }
 
@@ -95,7 +92,7 @@ impl FoundryBackend for LinearBackend {
         let (project_id, _project_name, _existing_desc) = ops::find_or_create_project(
             &self.gql,
             &config.project_name,
-            config.content.spec.clone(),
+            Some(&config.content.spec),
         )
         .await?;
 
@@ -127,7 +124,7 @@ impl FoundryBackend for LinearBackend {
         let linear_locator = ResourceLocator::Linear {
             project_id: project_id.clone(),
             issue_id: issue_id.clone(),
-            notes_document_id: notes_doc.id.clone(),
+            notes_document_id: notes_doc.id.clone().into_inner(),
             issue_url: issue_url.clone(),
             notes_url: notes_doc.url.clone(),
         };
@@ -143,12 +140,44 @@ impl FoundryBackend for LinearBackend {
         })
     }
 
-    async fn list_specs(&self, _project_name: &str) -> Result<Vec<SpecMetadata>> {
-        Err(anyhow::anyhow!("LinearBackend not implemented (Phase A)"))
+    async fn list_specs(&self, project_name: &str) -> Result<Vec<SpecMetadata>> {
+        use crate::core::backends::linear::ops::list_spec_issues_by_project;
+
+        // Collect all specs with pagination support
+        let mut all_specs = Vec::new();
+        let mut after_cursor: Option<String> = None;
+
+        loop {
+            let (mut specs, has_next, next_cursor) =
+                list_spec_issues_by_project(&self.gql, project_name, after_cursor, Some(50))
+                    .await?;
+
+            all_specs.append(&mut specs);
+
+            if !has_next {
+                break;
+            }
+
+            after_cursor = next_cursor;
+        }
+
+        // Sort by created_at descending (most recent first)
+        all_specs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+
+        Ok(all_specs)
     }
 
-    async fn load_spec(&self, _project_name: &str, _spec_name: &str) -> Result<Spec> {
-        Err(anyhow::anyhow!("LinearBackend not implemented (Phase A)"))
+    async fn load_spec(&self, project_name: &str, spec_name: &str) -> Result<Spec> {
+        use crate::core::backends::linear::ops::load_spec_by_marker;
+
+        match load_spec_by_marker(&self.gql, project_name, spec_name).await? {
+            Some(spec) => Ok(spec),
+            None => Err(anyhow::anyhow!(
+                "Spec '{}' not found in project '{}'",
+                spec_name,
+                project_name
+            )),
+        }
     }
 
     async fn update_spec_content(
@@ -182,8 +211,10 @@ impl FoundryBackend for LinearBackend {
         }
     }
 
-    async fn delete_spec(&self, _project_name: &str, _spec_name: &str) -> Result<()> {
-        Err(anyhow::anyhow!("LinearBackend not implemented (Phase A)"))
+    async fn delete_spec(&self, project_name: &str, spec_name: &str) -> Result<()> {
+        use crate::core::backends::linear::ops::delete_spec_by_marker;
+
+        delete_spec_by_marker(&self.gql, project_name, spec_name).await
     }
 
     async fn get_latest_spec(&self, _project_name: &str) -> Result<Option<SpecMetadata>> {
@@ -209,29 +240,80 @@ impl LinearBackend {
     #[cfg(feature = "linear_backend")]
     async fn update_tasks_via_linear(
         &self,
-        project_name: &str,
+        _project_name: &str,
         spec_name: &str,
         task_list_markdown: &str,
     ) -> Result<()> {
-        use crate::core::backends::linear::helpers::parse_foundry_task_key_marker;
+        use crate::core::backends::linear::config::LinearConfig;
         use crate::core::backends::linear::ops;
         use crate::core::backends::linear::ops::build_existing_from_tuples;
-        use crate::linear_executor::execute_plan;
         use crate::linear_phase_d::plan_from_markdown_and_existing;
         use crate::linear_reconcile::{ExistingSubIssue, normalize_task_key};
 
-        // 1) Parse tasks and plan later using test-only orchestrator (scoped under feature)
-        // 2) Fetch existing sub-issues for this spec's issue
+        // Get Linear config from environment
+        let cfg = LinearConfig::from_env()?;
 
-        // NOTE: Until full wiring is finished, quickly exit to preserve green builds
-        let _ = (project_name, spec_name, task_list_markdown);
-        // TODO: fetch parent issue id and project id from locator when available.
-        // For now, keep wiring in place without side effects.
-        let existing: Vec<ExistingSubIssue> = build_existing_from_tuples(Vec::new());
+        // TODO: Implement ResourceLocator to get actual issue_id and project_id
+        // For now, this function demonstrates the wiring but needs resource discovery
+        // In a real implementation, we would:
+        // 1. Query Linear for the spec issue by marker or title pattern
+        // 2. Extract issue_id and project_id from the found issue
+        // This is a placeholder that shows the structure but needs resource lookup
+
+        // Placeholder values - in real implementation, get from ResourceLocator
+        let parent_issue_id = "placeholder_issue_id";
+        let project_id = "placeholder_project_id";
+
+        // Note: Until resource lookup is implemented, return early to avoid API calls
+        // with placeholder values. The structure below shows the intended flow.
+        if parent_issue_id == "placeholder_issue_id" {
+            // Structure is correct, but we need resource discovery first
+            return Ok(());
+        }
+
+        // 1) Fetch existing sub-issues for this spec's issue
+        let existing_tuples = ops::list_sub_issues_for_parent(&self.gql, parent_issue_id).await?;
+        let existing: Vec<ExistingSubIssue> = build_existing_from_tuples(existing_tuples);
+
+        // 2) Compute reconciliation plan from markdown and existing sub-issues
         let plan = plan_from_markdown_and_existing(task_list_markdown, &existing);
 
-        // Placeholder executor wiring using no-op closures; will be replaced with real ops
-        execute_plan(&plan, |_t| {}, |_id| {}, |_id| {}, |_id| {});
+        // 3) Execute plan with real operations in stable order
+        // Since the executor expects sync closures but our operations are async,
+        // we'll collect operations and execute them sequentially to preserve order
+
+        // Ensure foundry label exists first
+        let foundry_label_id = ops::ensure_foundry_label(&self.gql).await?;
+
+        // Execute label fixes first
+        for issue_id in &plan.to_keep_label_fix {
+            ops::ensure_label_on_issue(&self.gql, issue_id, &foundry_label_id).await?;
+        }
+
+        // Create missing tasks
+        for task in &plan.to_create {
+            let task_key = normalize_task_key(&task.text);
+            ops::create_sub_issue_with_marker(
+                &self.gql,
+                &cfg,
+                parent_issue_id,
+                project_id,
+                &task.text,
+                spec_name,
+                &task_key,
+            )
+            .await?;
+        }
+
+        // Close extraneous tasks
+        for issue_id in &plan.to_close {
+            ops::close_issue(&self.gql, issue_id).await?;
+        }
+
+        // Reopen tasks that should be open
+        for issue_id in &plan.to_reopen {
+            ops::reopen_issue(&self.gql, issue_id).await?;
+        }
 
         Ok(())
     }

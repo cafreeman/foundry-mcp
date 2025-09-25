@@ -1355,6 +1355,7 @@ dependencies = [
  "cynic",
  "cynic-codegen",
  "dirs",
+ "fastrand",
  "futures",
  "httpdate",
  "httpmock",
