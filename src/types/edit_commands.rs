@@ -33,9 +33,6 @@ pub enum EditSelector {
         #[serde(default)]
         section_context: Option<String>,
     },
-    TextContent {
-        value: String,
-    },
     TextInSection {
         section: String,
         text: String,

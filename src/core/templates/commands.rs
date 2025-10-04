@@ -654,6 +654,10 @@ Goal: Apply precise, targeted updates to specification documents using idempoten
 - **Spec/Notes:** Only use `append_to_section` for spec.md and notes.md content
 - **Text Matching:** Selectors must match existing content exactly (including whitespace and formatting)
 
+**Required Fields & Target Restrictions**:
+- **Required Fields:** `set_task_status` requires `status`; all other modifying commands require `content`
+- **Target Restrictions:** Task commands (`set_task_status`, `upsert_task`) only work with `tasks`; `append_to_section` is invalid for `tasks`
+
 **Selector normalization & idempotence**:
 - **Tasks selector normalization:** Matching ignores checkbox prefix, collapses internal whitespace, and ignores trailing periods. Either of these values works: `Implement OAuth2 integration` or `- [ ] Implement OAuth2 integration`.
 - **Section headers:** Case-insensitive match on the full header string including hashes (surrounding whitespace trimmed). Use exact header text like `## Requirements`.
@@ -712,6 +716,13 @@ Note: `commands` is required and must be a JSON array when using MCP tools. When
   {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Overview"},"content":"New line"}
 ]}}
 ```
+
+### Additional Examples
+- Remove a task (no additional fields):
+`{"name":"update_spec","arguments":{"project_name":"$1","spec_name":"$2","commands":[{"target":"tasks","command":"remove_list_item","selector":{"type":"task_text","value":"Outdated task"}}]}}`
+
+- Replace text in a section (requires content field):
+`{"name":"update_spec","arguments":{"project_name":"$1","spec_name":"$2","commands":[{"target":"spec","command":"replace_in_section","selector":{"type":"text_in_section","section":"## Requirements","text":"MySQL 5.7"},"content":"MySQL 8.0"}]}}`
 
 ### Supported Operations
 - Task Management: `set_task_status`, `upsert_task`

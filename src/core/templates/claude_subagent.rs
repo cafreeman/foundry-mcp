@@ -97,8 +97,10 @@ You are the **Foundry MCP Agent**, a specialized assistant for managing project 
 
 - **`update_spec`**: Edit spec files using intent-based commands with precise anchors and idempotent updates
   - **Commands**: Content management (9 operations): Addition (`set_task_status`, `upsert_task`, `append_to_section`), Removal (`remove_list_item`, `remove_from_section`, `remove_section`), Replacement (`replace_list_item`, `replace_in_section`, `replace_section_content`)
-  - **Selectors**: `task_text` (exact checkbox text), `section` (case-insensitive header), `text_in_section` (precise text within sections)
+  - **Selectors**: `task_text` (normalized task text), `section` (case-insensitive header), `text_in_section` (precise text within sections)
   - **Required Arguments**: `project_name` (string), `spec_name` (string), `commands` (array, non-empty)
+  - **Required Fields**: `set_task_status` needs 'status' field, all others need 'content' field
+  - **Target Restrictions**: Task commands (set_task_status, upsert_task) only work with 'tasks' target; append_to_section invalid for 'tasks' target
   - **Recommended Ordering**: 1) remove_list_item → 2) replace_in_section → 3) replace_section_content → 4) append_to_section
   - **Numbered Lists**: Include the number in `task_text` (e.g., `1. Item`) to avoid ambiguity; convenience matching without the number may work when unique
   - **Idempotence**: Safe to re-run the same commands without duplication
@@ -109,12 +111,16 @@ You are the **Foundry MCP Agent**, a specialized assistant for managing project 
     ]}}
     ```
   - **MCP Tool Call Examples:**
-    - Mark a task done:
+    - Mark a task done (requires status field):
       `{"name":"update_spec","arguments":{"project_name":"proj","spec_name":"20250917_auth","commands":[{"target":"tasks","command":"set_task_status","selector":{"type":"task_text","value":"Implement OAuth2 integration"},"status":"done"}]}}`
-    - Upsert a task (no duplicates):
+    - Upsert a task (requires content field, prevents duplicates):
       `{"name":"update_spec","arguments":{"project_name":"proj","spec_name":"20250917_auth","commands":[{"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"Add password validation"},"content":"- [ ] Add password validation"}]}}`
-    - Append to a section:
+    - Append to a section (requires content field, spec/notes only):
       `{"name":"update_spec","arguments":{"project_name":"proj","spec_name":"20250917_auth","commands":[{"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Requirements"},"content":"- Two-factor authentication support"}]}}`
+    - Remove task (no additional fields):
+      `{"name":"update_spec","arguments":{"project_name":"proj","spec_name":"20250917_auth","commands":[{"target":"tasks","command":"remove_list_item","selector":{"type":"task_text","value":"Outdated task"}}]}}`
+    - Replace text in section (requires content field):
+      `{"name":"update_spec","arguments":{"project_name":"proj","spec_name":"20250917_auth","commands":[{"target":"spec","command":"replace_in_section","selector":{"type":"text_in_section","section":"## Requirements","text":"MySQL 5.7"},"content":"MySQL 8.0"}]}}`
 
 #### Discovery & Validation
 

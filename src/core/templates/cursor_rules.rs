@@ -115,7 +115,9 @@ Each spec contains:
   - **File Targets**: `spec` (spec.md), `tasks` (task-list.md), `notes` (notes.md)
   - **Commands**: Content management (9 operations): Addition (`set_task_status`, `upsert_task`, `append_to_section`), Removal (`remove_list_item`, `remove_from_section`, `remove_section`), Replacement (`replace_list_item`, `replace_in_section`, `replace_section_content`)
   - **Required Arguments**: `project_name` (string), `spec_name` (string), `commands` (array, non-empty)
-  - **Selectors**: `task_text` (exact checkbox text), `section` (case-insensitive header), `text_in_section` (precise text within sections)
+  - **Selectors**: `task_text` (normalized task text), `section` (case-insensitive header), `text_in_section` (precise text within sections)
+  - **Required Fields**: `set_task_status` needs 'status' field, all others need 'content' field
+  - **Target Restrictions**: Task commands (set_task_status, upsert_task) only work with 'tasks' target; `append_to_section` is invalid for 'tasks' target
   - **Usage**:
 
     ```json
@@ -125,6 +127,12 @@ Each spec contains:
       {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Requirements"},"content":"- Two-factor authentication support"}
     ]}}
     ```
+
+    #### MCP Tool Call Examples
+    - Remove task (no additional fields):
+      `{"name":"update_spec","arguments":{"project_name":"project","spec_name":"spec","commands":[{"target":"tasks","command":"remove_list_item","selector":{"type":"task_text","value":"Outdated task"}}]}}`
+    - Replace text in section (requires content field):
+      `{"name":"update_spec","arguments":{"project_name":"project","spec_name":"spec","commands":[{"target":"spec","command":"replace_in_section","selector":{"type":"text_in_section","section":"## Requirements","text":"MySQL 5.7"},"content":"MySQL 8.0"}]}}`
 
     #### Minimal Valid Example
     ```json
