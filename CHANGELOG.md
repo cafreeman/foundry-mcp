@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Documentation/templates: Aligned Cursor rules and Claude subagent guidance for edit commands
+  - Clarified selector normalization for `task_text` (normalized text, not exact literal)
+  - Added explicit Required Fields (`status` for set_task_status; `content` for others)
+  - Added Target Restrictions (task commands only on `tasks`; `append_to_section` invalid for `tasks`)
+  - Added concrete examples for `remove_list_item` and `replace_in_section`
+- Installed command templates: Added "Required Fields & Target Restrictions" block and extra examples to update_spec command docs
+
+### Removed
+
+- Types: Removed unused `TextContent` selector from `EditSelector`
+
 ## [0.7.0] - 2025-09-25
 
 ### Added
