@@ -20,20 +20,31 @@ Perform precise, idempotent updates to specification documents using intelligent
 ### Command Selection & Planning
 
 **Task Management Operations:**
-- **Mark Task Complete:** Use `set_task_status` with exact task text and "done" status
-- **Reopen Task:** Use `set_task_status` with exact task text and "todo" status
-- **Add New Task:** Use `upsert_task` with new task content in proper checkbox format
-- **Modify Task:** Use `upsert_task` with updated task description (replaces existing)
+- **Mark Task Complete:** Use `set_task_status` with exact task text and "done" status (requires status field)
+- **Reopen Task:** Use `set_task_status` with exact task text and "todo" status (requires status field)
+- **Add New Task:** Use `upsert_task` with new task content in proper checkbox format (requires content field)
+- **Modify Task:** Use `upsert_task` with updated task description (replaces existing, requires content field)
 
 **Content Addition Operations:**
-- **Add Requirements:** Use `append_to_section` targeting "## Requirements" or specific subsection
-- **Expand Implementation:** Use `append_to_section` targeting "## Implementation Approach"
-- **Update Notes:** Use `append_to_section` targeting appropriate notes.md section
-- **Extend Acceptance Criteria:** Use `append_to_section` targeting "## Acceptance Criteria"
+- **Add Requirements:** Use `append_to_section` targeting "## Requirements" or specific subsection (requires content field)
+- **Expand Implementation:** Use `append_to_section` targeting "## Implementation Approach" (requires content field)
+- **Update Notes:** Use `append_to_section` targeting appropriate notes.md section (requires content field)
+- **Extend Acceptance Criteria:** Use `append_to_section` targeting "## Acceptance Criteria" (requires content field)
+
+**Content Removal Operations:**
+- **Remove Task:** Use `remove_list_item` with exact task text (no additional fields)
+- **Remove Content:** Use `remove_from_section` with section and content to remove (requires content field)
+- **Remove Section:** Use `remove_section` with section header (no additional fields)
+
+**Content Replacement Operations:**
+- **Replace Task:** Use `replace_list_item` with old task text and new content (requires content field)
+- **Replace Text:** Use `replace_in_section` with section, old text, and new text (requires content field)
+- **Replace Section:** Use `replace_section_content` with section header and new content (requires content field)
 
 **Critical Edit Rules:**
-- **Task Files:** Never use `append_to_section` on task-list.md - only `upsert_task` and `set_task_status`
-- **Spec/Notes Files:** Only use `append_to_section` for adding content to spec.md and notes.md
+- **Required Fields:** `set_task_status` needs 'status' field, all others need 'content' field
+- **Target Restrictions:** Task commands (set_task_status, upsert_task) only work with 'tasks' target
+- **Target Restrictions:** `append_to_section` is invalid for 'tasks' target - use upsert_task instead
 - **Exact Text Matching:** Selectors must match existing content precisely including whitespace
 
 **Selector normalization & idempotence**:
@@ -58,7 +69,7 @@ Perform precise, idempotent updates to specification documents using intelligent
 **Command Type Selection:**
 Based on user intent, choose appropriate command patterns:
 
-**Task Status Updates:**
+**Task Status Updates (requires status field):**
 ```json
 // Mark specific task as completed
 {"target":"tasks","command":"set_task_status","selector":{"type":"task_text","value":"- [ ] Implement user authentication"},"status":"done"}
@@ -67,7 +78,7 @@ Based on user intent, choose appropriate command patterns:
 {"target":"tasks","command":"set_task_status","selector":{"type":"task_text","value":"- [x] Setup database schema"},"status":"todo"}
 ```
 
-**Task Content Management:**
+**Task Content Management (requires content field):**
 ```json
 // Add new implementation task
 {"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"- [ ] Add password reset functionality"},"content":"- [ ] Add password reset functionality"}
@@ -76,7 +87,31 @@ Based on user intent, choose appropriate command patterns:
 {"target":"tasks","command":"upsert_task","selector":{"type":"task_text","value":"- [ ] Basic auth"},"content":"- [ ] Implement JWT-based authentication with refresh tokens"}
 ```
 
-**Specification Content Expansion:**
+**Content Removal Operations:**
+```json
+// Remove task from task list (no additional fields)
+{"target":"tasks","command":"remove_list_item","selector":{"type":"task_text","value":"Outdated task"}}
+
+// Remove content from section (requires content field)
+{"target":"spec","command":"remove_from_section","selector":{"type":"section","value":"## Requirements"},"content":"- Legacy requirement to remove"}
+
+// Remove entire section (no additional fields)
+{"target":"spec","command":"remove_section","selector":{"type":"section","value":"## Deprecated Section"}}
+```
+
+**Content Replacement Operations (requires content field):**
+```json
+// Replace task content
+{"target":"tasks","command":"replace_list_item","selector":{"type":"task_text","value":"Basic auth"},"content":"- [ ] Implement JWT-based authentication with refresh tokens"}
+
+// Replace text within section
+{"target":"spec","command":"replace_in_section","selector":{"type":"text_in_section","section":"## Requirements","text":"MySQL 5.7"},"content":"MySQL 8.0"}
+
+// Replace entire section content
+{"target":"spec","command":"replace_section_content","selector":{"type":"section","value":"## Implementation Approach"},"content":"Complete new implementation approach\n\n- Step 1\n- Step 2"}
+```
+
+**Specification Content Expansion (requires content field):**
 ```json
 // Add new functional requirement
 {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Requirements"},"content":"- Support for two-factor authentication using TOTP"}
@@ -85,7 +120,7 @@ Based on user intent, choose appropriate command patterns:
 {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Implementation Approach"},"content":"Authentication will use JWT tokens with 15-minute expiration and secure refresh mechanism"}
 ```
 
-**Design Notes Enhancement:**
+**Design Notes Enhancement (requires content field):**
 ```json
 // Add implementation insight or decision rationale
 {"target":"notes","command":"append_to_section","selector":{"type":"section","value":"## Technical Decisions"},"content":"Chose JWT over sessions for better scalability in distributed environment"}
@@ -110,6 +145,22 @@ Based on user intent, choose appropriate command patterns:
 ```
 
 Note: `commands` is required and must be a JSON array when using MCP tools. When using the CLI directly, pass the same array as a JSON string argument.
+
+### Minimal Valid Example
+```json
+{"name":"update_spec","arguments":{"project_name":"$1","spec_name":"$2","commands":[
+  {"target":"spec","command":"append_to_section","selector":{"type":"section","value":"## Overview"},"content":"New line"}
+]}}
+```
+
+### Supported Operations
+- Task Management: `set_task_status`, `upsert_task`
+- Content Addition: `append_to_section`
+- Content Removal: `remove_list_item`, `remove_from_section`, `remove_section`
+- Content Replacement: `replace_list_item`, `replace_in_section`, `replace_section_content`
+
+### Recommended Ordering
+1) remove_list_item → 2) replace_in_section → 3) replace_section_content → 4) append_to_section
 
 ## Error Recovery & Problem Resolution
 

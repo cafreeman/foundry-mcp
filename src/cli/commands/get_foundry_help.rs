@@ -466,13 +466,13 @@ pub fn create_edit_commands_help() -> HelpContent {
         title: "Edit Commands for Deterministic Spec Updates".to_string(),
         description: "Use update_spec with a 'commands' array to perform comprehensive content management "
             .to_string()
-            + "with minimal parameters. Content Addition: set_task_status, upsert_task, append_to_section. "
-            + "Content Removal: remove_list_item, remove_from_section, remove_section. "
-            + "Content Replacement: replace_list_item, replace_in_section, replace_section_content. "
-            + "Selectors: task_text (exact task text), section (header text, case-insensitive), "
-            + "text_in_section (precise text within sections).",
+            + "with precise targeting and idempotent updates. Each command requires: target (spec|tasks|notes), "
+            + "command (set_task_status|upsert_task|append_to_section|remove_list_item|remove_from_section|remove_section|replace_list_item|replace_in_section|replace_section_content), "
+            + "selector (section|task_text|text_in_section), and required fields (status for set_task_status, content for others).",
         examples: vec![
-            "# Mark a task done".to_string(),
+            "# TASK MANAGEMENT COMMANDS".to_string(),
+            "".to_string(),
+            "# Mark task as completed (requires status field)".to_string(),
             ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
                 + "\"project_name\": \"proj\", "
                 + "\"spec_name\": \"20250917_auth\", "
@@ -480,45 +480,118 @@ pub fn create_edit_commands_help() -> HelpContent {
                 + "\"selector\": {\"type\": \"task_text\", \"value\": \"Implement OAuth2 integration\"}, "
                 + "\"status\": \"done\"}]}}"),
             "".to_string(),
-            "# Upsert a task (no duplicates)".to_string(),
+            "# Mark task as incomplete (requires status field)".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", "
+                + "\"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"tasks\", \"command\": \"set_task_status\", "
+                + "\"selector\": {\"type\": \"task_text\", \"value\": \"Setup database schema\"}, "
+                + "\"status\": \"todo\"}]}}"),
+            "".to_string(),
+            "# Add new task (requires content field, prevents duplicates)".to_string(),
             ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
                 + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
                 + "\"commands\": [{\"target\": \"tasks\", \"command\": \"upsert_task\", "
                 + "\"selector\": {\"type\": \"task_text\", \"value\": \"Add password validation\"}, "
                 + "\"content\": \"- [ ] Add password validation\"}]}}"),
             "".to_string(),
-            "# Append to a section in spec.md".to_string(),
+            "# CONTENT ADDITION COMMANDS".to_string(),
+            "".to_string(),
+            "# Append to spec.md section (requires content field, spec/notes only)".to_string(),
             ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
                 + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
                 + "\"commands\": [{\"target\": \"spec\", \"command\": \"append_to_section\", "
                 + "\"selector\": {\"type\": \"section\", \"value\": \"## Requirements\"}, "
                 + "\"content\": \"- Two-factor authentication support\"}]}}"),
             "".to_string(),
-            "# Remove a list item".to_string(),
+            "# Append to notes.md section (requires content field)".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"notes\", \"command\": \"append_to_section\", "
+                + "\"selector\": {\"type\": \"section\", \"value\": \"## Implementation Notes\"}, "
+                + "\"content\": \"Authentication will use JWT tokens with 15-minute expiration\"}]}}"),
+            "".to_string(),
+            "# CONTENT REMOVAL COMMANDS".to_string(),
+            "".to_string(),
+            "# Remove task from task list".to_string(),
             ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
                 + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
                 + "\"commands\": [{\"target\": \"tasks\", \"command\": \"remove_list_item\", "
                 + "\"selector\": {\"type\": \"task_text\", \"value\": \"Outdated task\"}}]}}"),
             "".to_string(),
-            "# Replace text within a section".to_string(),
+            "# Remove content from section (requires content field)".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"spec\", \"command\": \"remove_from_section\", "
+                + "\"selector\": {\"type\": \"section\", \"value\": \"## Requirements\"}, "
+                + "\"content\": \"- Legacy requirement to remove\"}]}}"),
+            "".to_string(),
+            "# Remove entire section".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"spec\", \"command\": \"remove_section\", "
+                + "\"selector\": {\"type\": \"section\", \"value\": \"## Deprecated Section\"}}]}}"),
+            "".to_string(),
+            "# CONTENT REPLACEMENT COMMANDS".to_string(),
+            "".to_string(),
+            "# Replace task content (requires content field)".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"tasks\", \"command\": \"replace_list_item\", "
+                + "\"selector\": {\"type\": \"task_text\", \"value\": \"Basic auth\"}, "
+                + "\"content\": \"- [ ] Implement JWT-based authentication with refresh tokens\"}]}}"),
+            "".to_string(),
+            "# Replace text within section (requires content field)".to_string(),
             ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
                 + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
                 + "\"commands\": [{\"target\": \"spec\", \"command\": \"replace_in_section\", "
                 + "\"selector\": {\"type\": \"text_in_section\", \"section\": \"## Requirements\", \"text\": \"MySQL 5.7\"}, "
                 + "\"content\": \"MySQL 8.0\"}]}}"),
+            "".to_string(),
+            "# Replace entire section content (requires content field)".to_string(),
+            ("{\"name\": \"update_spec\", \"arguments\": {".to_string()
+                + "\"project_name\": \"proj\", \"spec_name\": \"20250917_auth\", "
+                + "\"commands\": [{\"target\": \"spec\", \"command\": \"replace_section_content\", "
+                + "\"selector\": {\"type\": \"section\", \"value\": \"## Implementation Approach\"}, "
+                + "\"content\": \"Complete new implementation approach\\n\\n- Step 1\\n- Step 2\"}]}}"),
+            "".to_string(),
+            "# SELECTOR TYPES REFERENCE".to_string(),
+            "".to_string(),
+            "# section: Case-insensitive header matching (## Requirements)".to_string(),
+            "# task_text: Normalized task text (ignores checkbox, whitespace, periods)".to_string(),
+            "# text_in_section: Precise text within specific section".to_string(),
+            "".to_string(),
+            "# COMMAND RESTRICTIONS".to_string(),
+            "".to_string(),
+            "# set_task_status: tasks target only, requires status field".to_string(),
+            "# upsert_task: tasks target only, requires content field".to_string(),
+            "# append_to_section: spec/notes targets only, requires content field".to_string(),
+            "# remove_list_item: any target, no additional fields".to_string(),
+            "# remove_from_section: spec/notes targets only, requires content field".to_string(),
+            "# remove_section: spec/notes targets only, no additional fields".to_string(),
+            "# replace_list_item: any target, requires content field".to_string(),
+            "# replace_in_section: spec/notes targets only, requires content field".to_string(),
+            "# replace_section_content: spec/notes targets only, requires content field".to_string(),
         ],
         workflow_guide: vec![
-            "Always load current content before editing; copy exact task text and section headers"
+            "CRITICAL: Always load current content before editing; copy exact task text and section headers"
                 .to_string(),
-            "Content management: Use addition (append, upsert) for new content, removal for cleanup, replacement for updates"
+            "Required fields: set_task_status needs 'status' field, all others need 'content' field"
                 .to_string(),
-            "Selector usage: task_text for list items, section for headers, text_in_section for precise targeting"
+            "Target restrictions: Task commands (set_task_status, upsert_task) only work with 'tasks' target"
                 .to_string(),
-            "append_to_section is valid only for spec and notes (not tasks)".to_string(),
-            "Idempotent behavior: re-sending same commands is safe".to_string(),
-            "On ambiguity or no match, the tool returns candidate suggestions; re-issue with "
-                .to_string()
-                + "suggested selector",
+            "Target restrictions: append_to_section is invalid for 'tasks' target - use upsert_task instead"
+                .to_string(),
+            "Selector precision: task_text normalizes text (ignores checkbox, whitespace, periods)"
+                .to_string(),
+            "Selector precision: section headers are case-insensitive but must include hashes (## Requirements)"
+                .to_string(),
+            "Idempotent behavior: re-sending same commands is safe and reports skipped/idempotent"
+                .to_string(),
+            "Error recovery: On ambiguity or no match, tool returns candidate suggestions with exact text to use"
+                .to_string(),
+            "Batch operations: Single update_spec call can execute multiple commands atomically"
+                .to_string(),
         ],
     }
 }

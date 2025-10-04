@@ -529,7 +529,7 @@ impl crate::mcp::traits::McpToolDefinition for UpdateSpecArgs {
                 "type": "object"
             }),
         );
-        commands_prop.insert("description".to_string(), serde_json::json!("Array of edit commands to apply. Each command must include target (spec|tasks|notes), command (set_task_status|upsert_task|append_to_section|remove_list_item|remove_from_section|remove_section|replace_list_item|replace_in_section|replace_section_content), selector (task_text|section|text_in_section), and relevant fields (status|content)."));
+        commands_prop.insert("description".to_string(), serde_json::json!("Array of edit commands to apply. Each command must include: target (spec|tasks|notes), command (set_task_status|upsert_task|append_to_section|remove_list_item|remove_from_section|remove_section|replace_list_item|replace_in_section|replace_section_content), selector (section|task_text|text_in_section), and required fields (status for set_task_status, content for upsert_task/append_to_section/remove_from_section/replace_*). See detailed examples in help content."));
         properties.insert("commands".to_string(), commands_prop);
 
         rust_mcp_sdk::schema::Tool {
