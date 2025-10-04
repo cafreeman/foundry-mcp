@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2025-10-04
+
 ### Changed
 
 - Documentation/templates: Aligned Cursor rules and Claude subagent guidance for edit commands
@@ -390,7 +392,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON serialization with serde
 - Workspace support for internal macro crate
 
-[Unreleased]: https://github.com/cafreeman/foundry-mcp/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/cafreeman/foundry-mcp/compare/v0.7.1...HEAD
+[0.7.1]: https://github.com/cafreeman/foundry-mcp/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/cafreeman/foundry-mcp/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/cafreeman/foundry-mcp/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/cafreeman/foundry-mcp/compare/v0.5.1...v0.6.0

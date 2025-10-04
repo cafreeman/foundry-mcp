@@ -3,7 +3,7 @@ members = ["."]
 
 [package]
 name = "foundry-mcp"
-version = "0.7.0"
+version = "0.7.1"
 edition = "2024"
 description = "A comprehensive CLI tool and MCP server for deterministic project management and AI coding assistant integration"
 license = "MIT"
