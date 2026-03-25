@@ -253,3 +253,18 @@ pub fn installed_targets_summary() -> Result<String> {
     }
     Ok(parts.join(", "))
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct InstallStatus {
+    pub claude_code: bool,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub cursor_roots: Vec<String>,
+}
+
+pub fn install_status() -> Result<InstallStatus> {
+    let state = load_state()?;
+    Ok(InstallStatus {
+        claude_code: state.claude_code,
+        cursor_roots: state.cursor_roots,
+    })
+}
