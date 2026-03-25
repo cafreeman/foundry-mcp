@@ -1,9 +1,21 @@
-//! Common test utilities for integration tests
-//!
-//! This module provides shared testing utilities that are used across
-//! multiple integration test files.
+//! Shared helpers for integration tests (`foundry` binary + isolated `HOME`).
 
-pub mod test_utils;
+use std::path::Path;
+use std::process::Output;
 
-#[allow(unused_imports)]
-pub use test_utils::{TestEnvironment, UpdateSpecArgs};
+/// Run the `foundry` binary with `HOME` set to `home`.
+pub fn run_foundry(home: &Path, args: &[&str]) -> Output {
+    std::process::Command::new(env!("CARGO_BIN_EXE_foundry"))
+        .args(args)
+        .env("HOME", home)
+        .output()
+        .expect("spawn foundry")
+}
+
+pub fn utf8(out: &Output) -> String {
+    String::from_utf8_lossy(&out.stdout).into_owned()
+}
+
+pub fn err_utf8(out: &Output) -> String {
+    String::from_utf8_lossy(&out.stderr).into_owned()
+}

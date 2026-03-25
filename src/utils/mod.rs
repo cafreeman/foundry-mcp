@@ -1,11 +1,1 @@
-//! Utility functions
-
-pub mod formatting;
-pub mod paths;
-pub mod response;
-pub mod status_formatter;
-pub mod timestamp;
-pub mod validation;
-
-pub use paths::*;
-pub use timestamp::*;
+//! Small shared utilities (kept minimal in the CLI-focused rewrite)

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-03-25
+
+### Breaking
+
+- Removed the MCP server and MCP-related dependencies; the binary is CLI-only (`foundry` subcommands).
+- Removed content arguments from project/spec commands; Foundry only scaffolds empty files—agents edit markdown directly.
+- Removed `update-spec`, edit engine, backends abstraction, and JSON `FoundryResponse` / workflow-hints style outputs.
+- Installation now deploys bundled skill markdown (`foundry_load.md`, `foundry_new.md`, `foundry_done.md`) instead of MCP config.
+
+### Added
+
+- `foundry project` / `foundry spec` CRUD-style commands (init, load, list, delete with `--confirm` where required).
+- `foundry link` to create a `.foundry` symlink and optional `.gitignore` advisory.
+- `foundry git` for optional git backup of `~/.foundry/` (init, remote, sync) plus auto-commit after scaffold when a repo exists.
+- `foundry install`, `foundry update`, `foundry uninstall`, `foundry status` for skill deployment and bookkeeping.
+
+### Migration
+
+- Uninstall prior MCP integration using the old binary if needed, upgrade to 0.8.0, then run `foundry install <target>` and `foundry link` per project.
+
 ## [0.7.1] - 2025-10-04
 
 ### Changed

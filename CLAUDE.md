@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Foundry MCP is a CLI tool and MCP server for deterministic project management and AI coding assistant integration. It manages project specifications in `~/.foundry/` directory structure, storing project context outside of actual codebases to prevent directory pollution.
+Foundry is a **CLI-only** Rust tool for scaffolding and reading project/spec markdown under `~/.foundry/`, plus optional git backup, a `.foundry` symlink bridge, and installation of bundled agent skills. There is **no MCP server** in current versions (removed in 0.8.0).
 
 ## Development Commands
 
@@ -17,20 +17,17 @@ cargo build
 # Build in release mode
 cargo build --release
 
-# Run all tests (166 tests currently passing)
+# Run all tests
 cargo test
 
 # Run with verbose test output
 cargo test -- --nocapture
 
-# Run integration tests specifically
-cargo test --test integration_tests
-
 # Run specific test
 cargo test test_function_name
 
 # Run Clippy (strict linting - all warnings denied)
-cargo clippy -- -D warnings
+cargo clippy --all-targets -- -D warnings
 
 # Format code
 cargo fmt
@@ -39,29 +36,25 @@ cargo fmt
 ### Running the CLI
 
 ```bash
-# Run as MCP server (default behavior)
-cargo run
-
-# Run CLI commands during development
 cargo run -- --help
-cargo run -- create-project "test-project" "vision content" "tech stack content"
-cargo run -- list-projects
-cargo run -- load-spec "project-name" "spec-id"
-
-# Run with custom foundry directory for testing
-cargo run -- --config-dir ./test-config serve --verbose
+cargo run -- project init my-project
+cargo run -- project load my-project
+cargo run -- spec init my-project my-feature
+cargo run -- link my-project
 ```
+
+Integration tests set a temporary `HOME` and invoke `CARGO_BIN_EXE_foundry`.
 
 ## Architecture Overview
 
 ### Core Module Structure
 
-- **`src/main.rs`** - CLI entry point that dispatches to command handlers
-- **`src/lib.rs`** - Library exports and `foundry_dir()` utility function
-- **`src/cli/`** - Command-line interface with arguments and command implementations
-- **`src/core/`** - Core business logic for projects, specs, and validation
-- **`src/types/`** - Type definitions for requests, responses, and data structures
-- **`src/utils/`** - Utility functions for paths, timestamps, and formatting
+- **`src/main.rs`** - `clap` CLI entry (project, spec, link, git, install/update/uninstall, status)
+- **`src/lib.rs`** - `foundry_dir()` and module exports for tests/library use
+- **`src/core/`** - Paths, project/spec storage, git backup, symlink bridge, skill installer
+- **`src/types/`** - Small structs (`Project`, `Spec`)
+- **`src/skills/`** - `include_str!` bundled skill markdown
+- **`assets/skills/`** - Source files for bundled skills
 
 ### File System Organization
 
@@ -79,23 +72,11 @@ All project data stored in `~/.foundry/` directory:
         └── notes.md       # Additional context
 ```
 
-### CLI Command Pattern
+### CLI behavior
 
-All CLI commands follow the same async pattern:
-
-```rust
-pub async fn execute(args: CommandArgs) -> Result<CommandResponse> {
-    validate_args(&args).context("Invalid arguments")?;
-    let result = perform_operation(&args).context("Operation failed")?;
-    Ok(build_response(result))
-}
-```
-
-All responses include:
-
-- Core data (project, spec, etc.)
-- `next_steps: Vec<String>` - Workflow guidance for LLMs
-- `validation_status: String` - "complete", "partial", or "failed"
+- Commands are synchronous; they print plain text to stdout/stderr and use exit codes.
+- Foundry does **not** validate or generate markdown content; it creates empty files and reads them back for `load` commands.
+- Optional git integration shells out to the system `git` binary.
 
 ## Development Guidelines
 
@@ -151,78 +132,37 @@ option_if_let_else = "deny"
 redundant_closure = "deny"
 ```
 
-### Testing (Modern Pattern)
+### Testing
 
-Foundry uses `assert_fs` + `temp-env` for perfect test isolation:
-
-```rust
-// ✅ Use this pattern for all filesystem tests
-#[test]
-fn test_name() {
-    let env = TestEnvironment::new().unwrap();
-    let _ = env.with_env_async(|| async {
-        // Test logic with real filesystem operations
-        // Perfect isolation - HOME, CURSOR_CONFIG_DIR, etc. are temporary
-    });
-}
-
-// ❌ Avoid this pattern - bypasses TestEnvironment isolation
-#[tokio::test]
-async fn test_name() {
-    // No isolation, potential interference between tests
-    // Use TestEnvironment::with_env_async() instead
-}
-```
-
-**Key Points:**
-
-- Unit tests in `#[cfg(test)] mod tests`
-- Integration tests in `tests/` directory
-- Use `TestEnvironment` from `src/test_utils.rs` for isolation
-- Real filesystem operations, not mocking
-- Automatic cleanup and cross-platform support
+- Unit tests: `#[cfg(test)]` modules in library code (e.g. `core::names`, `core::spec_id`, bundled skills).
+- Integration tests: `tests/*.rs` spawn the `foundry` binary with `HOME` pointing at a temp directory (`assert_fs::TempDir`).
+- Prefer real filesystem operations; avoid touching the developer’s real `~/.foundry/`.
 
 ## Project Context
 
 ### Current Status
 
-- **Production ready**: Core CLI functionality implemented and tested
-- **11 main commands**:
-  - Project: create-project, analyze-project, load-project, list-projects
-  - Spec: create-spec, load-spec, update-spec, delete-spec
-  - Utility: validate-content, get-foundry-help
-  - Installation: install, uninstall, status
-- **166 tests passing** (121 unit + 45 integration)
-- **Rust 2024 edition** with strict Clippy lints (all warnings denied)
-- **Dual interface**: CLI commands and MCP server in single binary
+- **CLI + skills**: `project`, `spec`, `link`, `git`, `install`, `update`, `uninstall`, `status`
+- **Rust 2024** with strict Clippy lints (`cargo clippy --all-targets -- -D warnings`)
+- **Content-agnostic**: scaffolds empty files; agents edit markdown directly
 
 ### Architecture Principles
 
-1. **MCP-first design**: All functionality exposed as MCP tools
-2. **CLI reuses MCP tools**: Command-line interface calls same implementations
-3. **Content agnostic**: Foundry manages structure, LLMs provide content
-4. **Workflow guidance**: All responses include next_steps for AI assistants
-5. **Clean separation**: Project context stored outside codebases (`~/.foundry/`)
+1. **CLI-only surface**: No MCP protocol or JSON tool schema in-process
+2. **Structure, not authorship**: Foundry creates paths and empty files; agents own content
+3. **Symlink bridge**: `foundry link` exposes `~/.foundry/<project>/` as `./.foundry`
+4. **Optional git backup**: subprocess `git` on `~/.foundry/`
+5. **Bundled skills**: `include_str!` assets installed to Claude/Cursor paths
 
-## Installation Commands
-
-Foundry includes installation management for AI development environments:
+## Skills installation
 
 ```bash
-# Install MCP server for supported environments
-cargo run -- install claude-code  # May require --binary-path
-cargo run -- install cursor       # Uses foundry from PATH
-
-# Check installation status (comprehensive troubleshooting)
-cargo run -- status --detailed
-
-# Uninstall configurations
+cargo run -- install claude-code
+cargo run -- install cursor
+cargo run -- update
+cargo run -- uninstall claude-code
 cargo run -- uninstall cursor
+cargo run -- status
 ```
 
-**Key Features:**
-
-- Always overwrites existing configurations (no --force flag needed)
-- PATH-based reliability for Cursor integration
-- Comprehensive status checking with troubleshooting guidance
-- Cross-platform support (macOS, Linux, Windows)
+Skill files are overwritten on install/update. Uninstall removes only `foundry_*.md` in the target directories.
