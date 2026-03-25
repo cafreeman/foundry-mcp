@@ -14,7 +14,7 @@ Foundry: Rust CLI for scaffolding and reading project/spec markdown under `~/.fo
 - **[src/lib.rs](mdc:src/lib.rs)** - Library exports and `foundry_dir()`
 - **[src/core/](mdc:src/core/)** - Paths, project/spec storage, git, link, skill installer
 - **[src/types/](mdc:src/types/)** - `Project`, `Spec`
-- **[src/skills/](mdc:src/skills/)** - Bundled skill content (`include_str!`)
+- **[src/skills.rs](mdc:src/skills.rs)** - Bundled skill content (`include_str!`)
 - **[assets/skills/](mdc:assets/skills/)** - Source `.md` files for those skills
 
 ## Project Structure

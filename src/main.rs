@@ -1,5 +1,6 @@
 use anyhow::{Result, bail};
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand, ValueEnum};
+use foundry_mcp::core::{git, link, paths, project, skill_install, spec_store};
 
 #[derive(Parser)]
 #[command(name = "foundry")]
@@ -35,17 +36,32 @@ enum Commands {
     /// Install bundled skills for an AI tool
     Install {
         /// `claude-code` or `cursor`
-        target: String,
+        target: SkillInstallTarget,
     },
     /// Update installed skill files to the versions bundled in this binary
     Update,
     /// Remove Foundry-installed skill files for a target
     Uninstall {
         /// `claude-code` or `cursor`
-        target: String,
+        target: SkillInstallTarget,
     },
     /// Show Foundry store and install status
     Status,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+enum SkillInstallTarget {
+    ClaudeCode,
+    Cursor,
+}
+
+impl SkillInstallTarget {
+    const fn as_str(self) -> &'static str {
+        match self {
+            Self::ClaudeCode => "claude-code",
+            Self::Cursor => "cursor",
+        }
+    }
 }
 
 #[derive(Subcommand)]
@@ -111,12 +127,12 @@ fn main() -> Result<()> {
     match cli.command {
         Commands::Project { cmd } => match cmd {
             ProjectCmd::Init { name } => {
-                let p = foundry_mcp::core::project::init(&name)?;
+                let p = project::init(&name)?;
                 println!("{}", p.path.display());
             }
-            ProjectCmd::Load { name } => foundry_mcp::core::project::load_print(&name)?,
+            ProjectCmd::Load { name } => project::load_print(&name)?,
             ProjectCmd::List => {
-                let names = foundry_mcp::core::project::list_names()?;
+                let names = project::list_names()?;
                 if names.is_empty() {
                     println!("No projects found");
                 } else {
@@ -129,19 +145,19 @@ fn main() -> Result<()> {
                 if !confirm {
                     bail!("Refusing to delete without `--confirm`");
                 }
-                foundry_mcp::core::project::delete_confirmed(&name)?;
+                project::delete_confirmed(&name)?;
             }
         },
         Commands::Spec { cmd } => match cmd {
             SpecCmd::Init { project, feature } => {
-                let s = foundry_mcp::core::spec_store::init(&project, &feature)?;
+                let s = spec_store::init(&project, &feature)?;
                 println!("{}", s.path.display());
             }
             SpecCmd::Load { project, id } => {
-                foundry_mcp::core::spec_store::load_print(&project, &id)?;
+                spec_store::load_print(&project, &id)?;
             }
             SpecCmd::List { project } => {
-                let ids = foundry_mcp::core::spec_store::list_ids(&project)?;
+                let ids = spec_store::list_ids(&project)?;
                 if ids.is_empty() {
                     println!("No specs found for {project}");
                 } else {
@@ -158,52 +174,52 @@ fn main() -> Result<()> {
                 if !confirm {
                     bail!("Refusing to delete without `--confirm`");
                 }
-                foundry_mcp::core::spec_store::delete_confirmed(&project, &id)?;
+                spec_store::delete_confirmed(&project, &id)?;
             }
         },
         Commands::Link { name } => {
-            let cwd = foundry_mcp::core::link::current_dir()?;
+            let cwd = link::current_dir()?;
             let project = match name {
                 Some(n) => n,
-                None => foundry_mcp::core::link::detect_project_name(&cwd)?,
+                None => link::detect_project_name(&cwd)?,
             };
-            foundry_mcp::core::link::link(&cwd, &project)?;
+            link::link(&cwd, &project)?;
         }
         Commands::Git { cmd } => {
-            let root = foundry_mcp::core::paths::ensure_foundry_dir()?;
+            let root = paths::ensure_foundry_dir()?;
             match cmd {
-                GitCmd::Init => foundry_mcp::core::git::init_foundry_repo(&root)?,
-                GitCmd::Remote { url } => foundry_mcp::core::git::set_origin_remote(&root, &url)?,
+                GitCmd::Init => git::init_foundry_repo(&root)?,
+                GitCmd::Remote { url } => git::set_origin_remote(&root, &url)?,
                 GitCmd::Sync { message } => {
                     let msg = message.join(" ");
-                    foundry_mcp::core::git::sync(&root, &msg)?;
+                    git::sync(&root, &msg)?;
                 }
             }
         }
         Commands::Install { target } => {
-            let cwd = foundry_mcp::core::link::current_dir()?;
-            foundry_mcp::core::skill_install::install(&target, &cwd)?;
+            let cwd = link::current_dir()?;
+            skill_install::install(target.as_str(), &cwd)?;
         }
-        Commands::Update => foundry_mcp::core::skill_install::update()?,
+        Commands::Update => skill_install::update()?,
         Commands::Uninstall { target } => {
-            let cwd = foundry_mcp::core::link::current_dir()?;
-            foundry_mcp::core::skill_install::uninstall(&target, &cwd)?;
+            let cwd = link::current_dir()?;
+            skill_install::uninstall(target.as_str(), &cwd)?;
         }
         Commands::Status => {
-            let root = foundry_mcp::core::paths::foundry_dir()?;
+            let root = paths::foundry_dir()?;
             println!("store: {}", root.display());
 
-            let projects = foundry_mcp::core::project::list_names()?.len();
+            let projects = project::list_names()?.len();
             println!("projects: {projects}");
 
-            let git = if foundry_mcp::core::git::is_git_repo(&root) {
+            let git = if git::is_git_repo(&root) {
                 "initialized"
             } else {
                 "not initialized"
             };
             println!("git: {git}");
 
-            let targets = foundry_mcp::core::skill_install::installed_targets_summary()?;
+            let targets = skill_install::installed_targets_summary()?;
             if targets.is_empty() {
                 println!("skills: (none recorded)");
             } else {

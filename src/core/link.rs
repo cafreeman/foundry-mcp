@@ -96,24 +96,26 @@ pub fn link(cwd: &Path, project: &str) -> Result<()> {
 
     let link_path = cwd.join(".foundry");
 
-    if link_path.symlink_metadata().is_ok() {
-        let meta = link_path
-            .symlink_metadata()
-            .context("Failed to read .foundry metadata")?;
-        if meta.file_type().is_symlink() {
-            fs::remove_file(&link_path).context("Failed to remove existing .foundry symlink")?;
-            println!("Replaced existing .foundry symlink");
-        } else {
+    match link_path.symlink_metadata() {
+        Ok(meta) => {
+            if meta.file_type().is_symlink() {
+                fs::remove_file(&link_path)
+                    .context("Failed to remove existing .foundry symlink")?;
+                println!("Replaced existing .foundry symlink");
+            } else {
+                bail!(
+                    ".foundry exists and is not a symlink; remove it or pick a different location (found at {})",
+                    link_path.display()
+                );
+            }
+        }
+        Err(_) if link_path.exists() => {
             bail!(
-                ".foundry exists and is not a symlink; remove it or pick a different location (found at {})",
+                ".foundry exists and is not a symlink; remove it before linking ({})",
                 link_path.display()
             );
         }
-    } else if link_path.exists() {
-        bail!(
-            ".foundry exists and is not a symlink; remove it before linking ({})",
-            link_path.display()
-        );
+        Err(_) => {}
     }
 
     create_symlink(&target, &link_path)?;

@@ -89,7 +89,11 @@ fn project_list_sorts_names() {
     let home = isolated_home(&temp);
 
     for name in ["gamma", "alpha", "beta"] {
-        assert!(run_foundry(&home, &["project", "init", name]).status.success());
+        assert!(
+            run_foundry(&home, &["project", "init", name])
+                .status
+                .success()
+        );
     }
 
     let o = run_foundry(&home, &["project", "list"]);

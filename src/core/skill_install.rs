@@ -92,7 +92,7 @@ fn install_cursor(cwd: &Path) -> Result<()> {
     if !state
         .cursor_roots
         .iter()
-        .any(|p| p == root.to_string_lossy().as_ref())
+        .any(|p| Path::new(p) == root.as_path())
     {
         state.cursor_roots.push(root.to_string_lossy().into_owned());
     }

@@ -9,7 +9,7 @@ globs: ['src/**/*.rs', 'tests/**/*.rs']
 - **Entry**: `src/main.rs` — synchronous `clap` dispatch; `anyhow::Result` to the process (errors on stderr).
 - **Logic**: `src/core/` — `paths`, `project`, `spec_store`, `spec_id`, `names`, `git`, `link`, `skill_install`, `fsutil`.
 - **Types**: `src/types/` — small `Project` / `Spec` structs.
-- **Bundled skills**: `assets/skills/*.md` + `src/skills/mod.rs` (`include_str!`).
+- **Bundled skills**: `assets/skills/*.md` + `src/skills.rs` (`include_str!`).
 
 ## Style
 
@@ -30,7 +30,7 @@ globs: ['src/**/*.rs', 'tests/**/*.rs']
 ## Tests
 
 - **Unit**: `#[cfg(test)]` next to `core::names`, `core::spec_id`, bundled skills in `lib.rs`.
-- **Integration**: `tests/*.rs` spawn `CARGO_BIN_EXE_foundry` with temp `HOME` and `assert_fs::TempDir`; helpers in `tests/common/mod.rs`.
+- **Integration**: `tests/*.rs` spawn `CARGO_BIN_EXE_foundry` with temp `HOME` and `assert_fs::TempDir`; shared helpers in `tests/common/mod.rs` (directory module avoids an extra integration test crate).
 
 ## Content boundary
 

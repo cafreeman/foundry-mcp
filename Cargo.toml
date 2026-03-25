@@ -1,10 +1,12 @@
 [workspace]
 members = ["."]
+resolver = "3"
 
 [package]
 name = "foundry-mcp"
 version = "0.8.0"
 edition = "2024"
+rust-version = "1.85"
 description = "CLI for scaffolding and syncing Foundry project context in ~/.foundry/"
 license = "MIT"
 authors = ["Chris Freeman <cfreeman86@gmail.com>"]
@@ -24,19 +26,16 @@ name = "foundry"
 path = "src/main.rs"
 
 [dependencies]
-anyhow = "1.0.99"
-chrono = { version = "0.4.41", default-features = false, features = ["clock", "std"] }
-clap = { version = "4.4", features = ["derive"] }
-dirs = "6.0.0"
-serde = { version = "1.0.219", features = ["derive"] }
-serde_json = "1.0.142"
+anyhow = "1.0"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+clap = { version = "4", features = ["derive"] }
+dirs = "6"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
 toml = "0.8"
 
 [dev-dependencies]
 assert_fs = "1.1"
-predicates = "3.0"
-temp-env = "0.3.6"
-tempfile = "3.10.1"
 
 [lints.clippy]
 all = "deny"

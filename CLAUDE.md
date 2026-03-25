@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Foundry is a **CLI-only** Rust tool for scaffolding and reading project/spec markdown under `~/.foundry/`, plus optional git backup, a `.foundry` symlink bridge, and installation of bundled agent skills. There is **no MCP server** in current versions (removed in 0.8.0).
+Foundry is a **CLI-only** Rust tool for scaffolding and reading project/spec markdown under `~/.foundry/`, plus optional git backup, a `.foundry` symlink bridge, and installation of bundled agent skills. There is **no MCP server** in current versions (removed in 0.8.0). The crate uses **Rust 2024**; **`rust-version` in `Cargo.toml`** is the MSRV for building from source.
 
 ## Development Commands
 
@@ -51,9 +51,9 @@ Integration tests set a temporary `HOME` and invoke `CARGO_BIN_EXE_foundry`.
 
 - **`src/main.rs`** - `clap` CLI entry (project, spec, link, git, install/update/uninstall, status)
 - **`src/lib.rs`** - `foundry_dir()` and module exports for tests/library use
-- **`src/core/`** - Paths, project/spec storage, git backup, symlink bridge, skill installer
-- **`src/types/`** - Small structs (`Project`, `Spec`)
-- **`src/skills/`** - `include_str!` bundled skill markdown
+- **`src/core.rs`** + **`src/core/`** - Paths, project/spec storage, git backup, symlink bridge, skill installer
+- **`src/types.rs`** + **`src/types/`** - Small structs (`Project`, `Spec`)
+- **`src/skills.rs`** - `include_str!` bundled skill markdown
 - **`assets/skills/`** - Source files for bundled skills
 
 ### File System Organization

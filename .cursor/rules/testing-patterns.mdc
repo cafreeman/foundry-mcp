@@ -12,7 +12,7 @@ description: Use when adding or changing tests in this repository.
 
 ## Integration tests (`tests/`)
 
-- Each file is its own test crate; share helpers via `mod common;` → `tests/common/mod.rs`.
+- Each top-level `tests/*.rs` file is its own integration test crate. Share helpers via `mod common;` and **`tests/common/mod.rs`** (not `tests/common.rs`—that file would also compile as its own empty test binary).
 - Run the real binary: `env!("CARGO_BIN_EXE_foundry")` with `.env("HOME", temp_home)`.
 - Use **`assert_fs::TempDir`** for the temp tree; create `home` under it and pass that as `HOME`.
 - Example pattern:
@@ -34,7 +34,7 @@ assert!(o.status.success());
 
 ## Dev-dependencies
 
-- **`assert_fs`**, **`tempfile`**, **`temp-env`** (as needed), **`predicates`** if you add predicate-style assertions.
+- **`assert_fs`** for temp directories under an isolated `HOME`.
 
 ## Anti-patterns
 

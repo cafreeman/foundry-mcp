@@ -1,4 +1,7 @@
 //! Shared helpers for integration tests (`foundry` binary + isolated `HOME`).
+//!
+//! Lives under `tests/common/mod.rs` (not `tests/common.rs`) so Cargo does not compile
+//! helpers as a separate integration test crate.
 
 use std::path::Path;
 use std::process::Output;
