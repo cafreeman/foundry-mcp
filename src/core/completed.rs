@@ -28,18 +28,17 @@ pub struct CompletedSpecEntry {
 }
 
 pub fn list_completed_entries(project: &str) -> Result<Vec<CompletedSpecEntry>> {
-    let ids = list_completed_ids(project)?;
-    let mut out = Vec::new();
-    for id in ids {
-        let dir = completed_spec_dir(project, &id)?;
-        let summary = dir.join(SUMMARY_FILE);
-        out.push(CompletedSpecEntry {
-            id,
-            path: dir,
-            summary_exists: summary.is_file(),
-        });
-    }
-    Ok(out)
+    list_completed_ids(project)?
+        .into_iter()
+        .map(|id| {
+            let dir = completed_spec_dir(project, &id)?;
+            Ok(CompletedSpecEntry {
+                summary_exists: dir.join(SUMMARY_FILE).is_file(),
+                id,
+                path: dir,
+            })
+        })
+        .collect()
 }
 
 pub fn list_completed_ids(project: &str) -> Result<Vec<String>> {
@@ -48,15 +47,24 @@ pub fn list_completed_ids(project: &str) -> Result<Vec<String>> {
     if !root.is_dir() {
         return Ok(Vec::new());
     }
-    let mut ids = Vec::new();
-    for entry in
-        fs::read_dir(&root).with_context(|| format!("Failed to read {}", root.display()))?
-    {
-        let entry = entry.with_context(|| format!("Failed to read entry in {}", root.display()))?;
-        if entry.file_type()?.is_dir() {
-            ids.push(entry.file_name().to_string_lossy().into_owned());
-        }
-    }
+
+    let ids = fs::read_dir(&root)
+        .with_context(|| format!("Failed to read {}", root.display()))?
+        .map(|entry| {
+            let entry =
+                entry.with_context(|| format!("Failed to read entry in {}", root.display()))?;
+            let ty = entry.file_type().with_context(|| {
+                format!("Failed to read file type for {}", entry.path().display())
+            })?;
+            Ok(ty
+                .is_dir()
+                .then(|| entry.file_name().to_string_lossy().into_owned()))
+        })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .collect();
+
     Ok(sort_spec_ids(ids))
 }
 
@@ -102,7 +110,7 @@ pub fn collapse_finalize(project: &str, spec_id: &str) -> Result<PathBuf> {
     }
 
     let completed = completed_spec_dir(project, spec_id)?;
-    let summary = completed.join(SUMMARY_FILE);
+    let summary = completed_summary_path(project, spec_id)?;
     if !summary.is_file() {
         bail!(
             "Run `foundry spec collapse prepare` first; missing {}",
@@ -134,19 +142,55 @@ pub fn collapse_finalize(project: &str, spec_id: &str) -> Result<PathBuf> {
         }
     }
 
-    // Remove any other loose files in active spec dir (except if non-empty)
-    for entry in
-        fs::read_dir(&active).with_context(|| format!("Failed to read {}", active.display()))?
-    {
-        let entry = entry?;
-        let path = entry.path();
-        if path.is_file() {
-            bail!(
-                "Unexpected file in active spec dir {}; move or delete it before finalize: {}",
-                active.display(),
-                path.display()
-            );
-        }
+    let remaining_entries = fs::read_dir(&active)
+        .with_context(|| format!("Failed to read {}", active.display()))?
+        .map(|entry| {
+            let entry =
+                entry.with_context(|| format!("Failed to read entry in {}", active.display()))?;
+            let ty = entry.file_type().with_context(|| {
+                format!("Failed to read file type for {}", entry.path().display())
+            })?;
+            Ok((entry.path(), ty))
+        })
+        .collect::<Result<Vec<_>>>()?;
+
+    let unexpected_files: Vec<String> = remaining_entries
+        .iter()
+        .filter(|(_, ty)| ty.is_file())
+        .map(|(path, _)| path.display().to_string())
+        .collect();
+    if !unexpected_files.is_empty() {
+        bail!(
+            "Unexpected files in active spec dir {}; move or delete them before finalize:\n{}",
+            active.display(),
+            unexpected_files.join("\n")
+        );
+    }
+
+    let unexpected_subdirs: Vec<String> = remaining_entries
+        .iter()
+        .filter(|(_, ty)| ty.is_dir())
+        .map(|(path, _)| path.display().to_string())
+        .collect();
+    if !unexpected_subdirs.is_empty() {
+        bail!(
+            "Unexpected subdirectories in active spec dir {}; move or delete them before finalize:\n{}",
+            active.display(),
+            unexpected_subdirs.join("\n")
+        );
+    }
+
+    let unexpected_entries: Vec<String> = remaining_entries
+        .iter()
+        .filter(|(_, ty)| !ty.is_file() && !ty.is_dir())
+        .map(|(path, _)| path.display().to_string())
+        .collect();
+    if !unexpected_entries.is_empty() {
+        bail!(
+            "Unexpected entries in active spec dir {}; move or delete them before finalize:\n{}",
+            active.display(),
+            unexpected_entries.join("\n")
+        );
     }
 
     fs::remove_dir(&active)
@@ -163,6 +207,6 @@ pub fn collapse_finalize(project: &str, spec_id: &str) -> Result<PathBuf> {
     Ok(completed)
 }
 
-pub fn completed_summary_path(project: &str, spec_id: &str) -> Result<PathBuf> {
+pub(crate) fn completed_summary_path(project: &str, spec_id: &str) -> Result<PathBuf> {
     Ok(completed_spec_dir(project, spec_id)?.join(SUMMARY_FILE))
 }

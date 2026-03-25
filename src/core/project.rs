@@ -70,18 +70,22 @@ pub fn list_names() -> Result<Vec<String>> {
         return Ok(Vec::new());
     }
 
-    let mut names = Vec::new();
-    for entry in
-        fs::read_dir(&root).with_context(|| format!("Failed to read {}", root.display()))?
-    {
-        let entry = entry.with_context(|| format!("Failed to read entry in {}", root.display()))?;
-        let ty = entry
-            .file_type()
-            .with_context(|| format!("Failed to read file type for {}", entry.path().display()))?;
-        if ty.is_dir() {
-            names.push(entry.file_name().to_string_lossy().into_owned());
-        }
-    }
+    let mut names: Vec<String> = fs::read_dir(&root)
+        .with_context(|| format!("Failed to read {}", root.display()))?
+        .map(|entry| {
+            let entry =
+                entry.with_context(|| format!("Failed to read entry in {}", root.display()))?;
+            let ty = entry.file_type().with_context(|| {
+                format!("Failed to read file type for {}", entry.path().display())
+            })?;
+            Ok(ty
+                .is_dir()
+                .then(|| entry.file_name().to_string_lossy().into_owned()))
+        })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .collect();
 
     names.sort();
     Ok(names)

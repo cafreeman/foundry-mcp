@@ -162,6 +162,59 @@ fn spec_collapse_prepare_finalize_moves_archive() {
 }
 
 #[test]
+fn spec_collapse_finalize_rejects_unexpected_subdirectories_with_name() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+    assert!(
+        run_foundry(&home, &["project", "init", "col"])
+            .status
+            .success()
+    );
+    let o = run_foundry(&home, &["spec", "init", "col", "done-feat"]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    let init: Value = serde_json::from_str(utf8(&o).trim()).unwrap();
+    let id = init.get("id").and_then(|x| x.as_str()).unwrap().to_string();
+    let spec_dir = init
+        .get("path")
+        .and_then(|x| x.as_str())
+        .unwrap()
+        .to_string();
+
+    fs::write(Path::new(&spec_dir).join("spec.md"), "# Done\n").unwrap();
+    fs::write(
+        Path::new(&spec_dir).join("task-list.md"),
+        "- [x] only task\n",
+    )
+    .unwrap();
+
+    let o = run_foundry(&home, &["spec", "collapse", "prepare", "col", &id]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    let summary = home
+        .join(".foundry")
+        .join("col")
+        .join("completed")
+        .join(&id)
+        .join("summary.md");
+    fs::write(&summary, "# Shipped\n\nWe shipped done-feat.\n").unwrap();
+
+    let stray_dir = Path::new(&spec_dir).join("scratch");
+    fs::create_dir_all(&stray_dir).unwrap();
+    fs::write(stray_dir.join("extra.md"), "left behind\n").unwrap();
+
+    let o = run_foundry(
+        &home,
+        &["spec", "collapse", "finalize", "col", &id, "--confirm"],
+    );
+    assert!(!o.status.success(), "finalize should reject stray dir");
+    let err = err_utf8(&o);
+    assert!(
+        err.contains("Unexpected subdirector")
+            || (err.contains("Unexpected subdirectories") && err.contains("scratch")),
+        "stderr should name the unexpected directory: {err}"
+    );
+}
+
+#[test]
 fn project_arg_rejects_path_like_names() {
     let temp = TempDir::new().unwrap();
     let home = isolated_home(&temp);

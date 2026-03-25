@@ -82,19 +82,22 @@ pub fn list_ids(project: &str) -> Result<Vec<String>> {
         return Ok(Vec::new());
     }
 
-    let mut ids = Vec::new();
-    for entry in fs::read_dir(&specs_root)
+    let ids = fs::read_dir(&specs_root)
         .with_context(|| format!("Failed to read {}", specs_root.display()))?
-    {
-        let entry =
-            entry.with_context(|| format!("Failed to read entry in {}", specs_root.display()))?;
-        let ty = entry
-            .file_type()
-            .with_context(|| format!("Failed to read file type for {}", entry.path().display()))?;
-        if ty.is_dir() {
-            ids.push(entry.file_name().to_string_lossy().into_owned());
-        }
-    }
+        .map(|entry| {
+            let entry = entry
+                .with_context(|| format!("Failed to read entry in {}", specs_root.display()))?;
+            let ty = entry.file_type().with_context(|| {
+                format!("Failed to read file type for {}", entry.path().display())
+            })?;
+            Ok(ty
+                .is_dir()
+                .then(|| entry.file_name().to_string_lossy().into_owned()))
+        })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .collect();
 
     Ok(sort_spec_ids(ids))
 }
@@ -116,36 +119,39 @@ pub fn list_active_entries(project: &str) -> Result<Vec<ActiveSpecEntry>> {
         return Ok(Vec::new());
     }
 
-    let mut out = Vec::new();
-    for entry in fs::read_dir(&specs_root)
+    let out: Vec<ActiveSpecEntry> = fs::read_dir(&specs_root)
         .with_context(|| format!("Failed to read {}", specs_root.display()))?
-    {
-        let entry =
-            entry.with_context(|| format!("Failed to read entry in {}", specs_root.display()))?;
-        if !entry.file_type()?.is_dir() {
-            continue;
-        }
-        let id = entry.file_name().to_string_lossy().into_owned();
-        let (timestamp_prefix, feature) = parse_spec_id(&id)
-            .map(|(ts, f)| (Some(ts), Some(f)))
-            .unwrap_or((None, None));
-        out.push(ActiveSpecEntry {
-            id,
-            feature,
-            timestamp_prefix,
-            path: entry.path(),
-        });
-    }
+        .map(|entry| {
+            let entry = entry
+                .with_context(|| format!("Failed to read entry in {}", specs_root.display()))?;
+            let ty = entry.file_type().with_context(|| {
+                format!("Failed to read file type for {}", entry.path().display())
+            })?;
+            Ok(ty.is_dir().then(|| {
+                let id = entry.file_name().to_string_lossy().into_owned();
+                let (timestamp_prefix, feature) = parse_spec_id(&id)
+                    .map(|(ts, f)| (Some(ts), Some(f)))
+                    .unwrap_or((None, None));
+                ActiveSpecEntry {
+                    id,
+                    feature,
+                    timestamp_prefix,
+                    path: entry.path(),
+                }
+            }))
+        })
+        .collect::<Result<Vec<_>>>()?
+        .into_iter()
+        .flatten()
+        .collect();
 
     let sorted_ids = sort_spec_ids(out.iter().map(|e| e.id.clone()).collect());
     let mut by_id: HashMap<String, ActiveSpecEntry> =
         out.into_iter().map(|e| (e.id.clone(), e)).collect();
-    let mut ordered = Vec::new();
-    for id in sorted_ids {
-        if let Some(e) = by_id.remove(&id) {
-            ordered.push(e);
-        }
-    }
+    let ordered = sorted_ids
+        .into_iter()
+        .filter_map(|id| by_id.remove(&id))
+        .collect();
     Ok(ordered)
 }
 

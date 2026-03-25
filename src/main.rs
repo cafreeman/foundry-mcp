@@ -34,21 +34,18 @@ enum Commands {
         cmd: SpecCmd,
     },
     /// Create a `.foundry` symlink in the current directory
-    Link {
-        name: Option<String>,
-    },
+    Link { name: Option<String> },
     /// Git backup for ~/.foundry/
     Git {
         #[command(subcommand)]
         cmd: GitCmd,
     },
-    Install {
-        target: SkillInstallTarget,
-    },
+    /// Install bundled skills into the selected agent target
+    Install { target: SkillInstallTarget },
+    /// Update bundled skills in every supported installed target
     Update,
-    Uninstall {
-        target: SkillInstallTarget,
-    },
+    /// Remove bundled skills from the selected agent target
+    Uninstall { target: SkillInstallTarget },
     /// Store status (JSON: path, git, skills, cwd link)
     Status,
 }
@@ -183,8 +180,7 @@ fn list_completed_for_project(project: &str) -> Result<()> {
 }
 
 fn resolve_spec(project: &str, partial: &str) -> Result<String> {
-    project::validate_project_name(project)?;
-    let specs_root = paths::project_path(project)?.join("specs");
+    let specs_root = project::assert_project_exists(project)?.join("specs");
     if !specs_root.is_dir() {
         bail!("No specs directory for project {:?}", project);
     }

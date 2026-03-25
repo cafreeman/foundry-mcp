@@ -230,3 +230,22 @@ fn spec_load_ambiguous_partial_fails_with_matches() {
         "expected ambiguity listing; got: {msg}"
     );
 }
+
+#[test]
+fn top_level_help_describes_skill_commands() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+
+    let o = run_foundry(&home, &["--help"]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    let help = utf8(&o);
+    assert!(help.contains("install"));
+    assert!(help.contains("update"));
+    assert!(help.contains("uninstall"));
+    assert!(
+        help.contains("Install bundled skills")
+            && help.contains("Update bundled skills")
+            && help.contains("Remove bundled skills"),
+        "expected help text for skill commands: {help}"
+    );
+}

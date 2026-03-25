@@ -213,6 +213,7 @@ pub struct SpecStatusJson {
 }
 
 pub fn build_spec_status(project: &str, spec_id: &str) -> Result<SpecStatusJson> {
+    let _ = crate::core::project::assert_project_exists(project)?;
     let dir = paths::spec_dir_path(project, spec_id)?;
     if !dir.is_dir() {
         anyhow::bail!("Spec {:?} not found for project {:?}", spec_id, project);
@@ -287,6 +288,7 @@ pub struct TaskJson {
 }
 
 pub fn build_instructions_apply(project: &str, spec_id: &str) -> Result<SpecInstructionsApplyJson> {
+    let _ = crate::core::project::assert_project_exists(project)?;
     let dir = paths::spec_dir_path(project, spec_id)?;
     if !dir.is_dir() {
         anyhow::bail!("Spec {:?} not found for project {:?}", spec_id, project);
@@ -302,7 +304,7 @@ pub fn build_instructions_apply(project: &str, spec_id: &str) -> Result<SpecInst
         .iter()
         .enumerate()
         .map(|(i, t)| TaskJson {
-            id: format!("{}", i + 1),
+            id: (i + 1).to_string(),
             description: t.description.clone(),
             done: t.done,
         })
@@ -366,6 +368,7 @@ pub fn build_instructions_collapse(
     project: &str,
     spec_id: &str,
 ) -> Result<SpecInstructionsCollapseJson> {
+    let _ = crate::core::project::assert_project_exists(project)?;
     let active = paths::spec_dir_path(project, spec_id)?;
     if !active.is_dir() {
         anyhow::bail!(
@@ -383,7 +386,7 @@ pub fn build_instructions_collapse(
     }
     let completed = paths::completed_spec_dir(project, spec_id)?;
     let needs_prepare = !completed.is_dir();
-    let summary_path = completed.join(crate::core::completed::SUMMARY_FILE);
+    let summary_path = crate::core::completed::completed_summary_path(project, spec_id)?;
     let archive_dir = completed.join(crate::core::completed::ARCHIVE_DIR);
     let context_files = context_files_for_spec(&active);
 
