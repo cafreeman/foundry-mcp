@@ -1,5 +1,5 @@
 [copy-patterns]
-include = [".env*", ".codanna", "mise*"]
+include = [".env*", "mise*"]
 exclude = [
   "node_modules/",
   "target/",

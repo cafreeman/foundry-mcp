@@ -352,7 +352,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Multi-file update capability for specifications
 - Iterative spec workflow commands and enhanced LLM prompting
 - User-driven decision support to prevent LLM autopilot behavior
-- Codanna MCP integration for enhanced code exploration
 - Console dependency for improved CLI user experience
 - Declarative macro system for MCP tool definitions with validation constraints
 

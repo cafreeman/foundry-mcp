@@ -1,9 +1,3 @@
 {
-  "mcpServers": {
-    "codanna": {
-      "command": "codanna",
-      "args": ["serve", "--watch"],
-      "env": null
-    }
-  }
+  "mcpServers": {}
 }
