@@ -33,14 +33,13 @@ Foundry: Rust CLI for scaffolding and reading project/spec markdown under `~/.fo
 
 ## Core Principles
 
-- **Content Agnostic**: Foundry manages structure, NOT content opinions
-- **LLM-Driven**: LLMs provide file content as arguments, not file paths
-- **User-Controlled**: Users control content, CLI manages structure
-- **Workflow-Aware**: Tools provide next-steps guidance for LLM decision-making
+- **Content agnostic**: Foundry manages structure and paths, not editorial judgment on markdown
+- **Agent-authored content**: Init creates empty files; agents fill them with normal file tools
+- **User-controlled**: Users own prose; CLI scaffolds directories and validates names
+- **Subprocess-friendly**: Plain CLI output; no in-process JSON tool layer in this crate
 
-## Development Priorities
+## Development priorities
 
-1. CLI functionality first, then MCP server
-2. Identical functionality between CLI and MCP interfaces
-3. JSON responses with workflow guidance
-4. Support iterative spec evolution
+1. Reliable filesystem and naming behavior under `~/.foundry/`
+2. `foundry link`, optional git backup, and skill installation stay aligned with README
+3. Integration tests use a temp `HOME` and the real `foundry` binary
