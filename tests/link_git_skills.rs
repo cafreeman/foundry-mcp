@@ -142,11 +142,13 @@ fn install_uninstall_claude_code_skills() {
     assert!(o.status.success(), "{}", err_utf8(&o));
 
     assert!(skills.join("foundry_load.md").exists());
+    assert!(skills.join("foundry_work.md").exists());
 
     let o = run_foundry(&home, &["uninstall", "claude-code"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
 
     assert!(!skills.join("foundry_load.md").exists());
+    assert!(!skills.join("foundry_work.md").exists());
 }
 
 #[test]
@@ -164,8 +166,9 @@ fn install_update_cursor_skills() {
         .unwrap();
     assert!(o.status.success(), "{}", err_utf8(&o));
 
-    let p = cwd.join(".cursor").join("rules").join("foundry_load.md");
-    assert!(p.exists());
+    let rules = cwd.join(".cursor").join("rules");
+    assert!(rules.join("foundry_load.md").exists());
+    assert!(rules.join("foundry_work.md").exists());
 
     let o = Command::new(env!("CARGO_BIN_EXE_foundry"))
         .args(["update"])
