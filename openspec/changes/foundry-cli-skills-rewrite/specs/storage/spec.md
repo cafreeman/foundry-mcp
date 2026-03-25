@@ -5,7 +5,7 @@
 
 #### Scenario: Successful project init
 - **WHEN** user runs `foundry project init my-project` and `~/.foundry/my-project/` does not exist
-- **THEN** the directory is created with `vision.md`, `tech-stack.md`, `summary.md` (all empty), and `specs/` subdirectory; the command exits 0 and prints the created path
+- **THEN** the directory is created with `vision.md`, `tech-stack.md`, `summary.md` (all empty), and `specs/` subdirectory; the command exits 0 and prints JSON to stdout with at least `name` and `path` fields
 
 #### Scenario: Duplicate project name
 - **WHEN** user runs `foundry project init my-project` and `~/.foundry/my-project/` already exists
@@ -31,15 +31,15 @@
 - **THEN** exit non-zero with a clear error; nothing written to stdout
 
 ### Requirement: Project listing
-`foundry project list` SHALL print the names of all projects in `~/.foundry/` to stdout, one per line. If no projects exist, the command SHALL print a message indicating the store is empty and exit 0.
+`foundry list projects` SHALL print a JSON array to stdout describing all projects in `~/.foundry/` (each entry includes at least `name` and `path`). If no projects exist, the command SHALL print an empty JSON array `[]` and exit 0.
 
 #### Scenario: List multiple projects
 - **WHEN** `~/.foundry/` contains `alpha/`, `beta/`, `gamma/`
-- **THEN** stdout contains `alpha`, `beta`, `gamma` (one per line); exit 0
+- **THEN** stdout is JSON listing those three projects; exit 0
 
 #### Scenario: Empty store
 - **WHEN** `~/.foundry/` exists but contains no project directories
-- **THEN** stdout contains a message like "No projects found"; exit 0
+- **THEN** stdout is `[]`; exit 0
 
 ### Requirement: Project deletion
 `foundry project delete <name>` SHALL remove `~/.foundry/<name>/` and all its contents after printing the path being deleted. The command SHALL require a `--confirm` flag to prevent accidental deletion.
@@ -61,7 +61,7 @@
 
 #### Scenario: Successful spec init
 - **WHEN** user runs `foundry spec init my-project auth-flow` and `my-project` exists
-- **THEN** a timestamped directory is created under `~/.foundry/my-project/specs/` with the three empty files; stdout prints the created path; exit 0
+- **THEN** a timestamped directory is created under `~/.foundry/my-project/specs/` with the three empty files; stdout prints JSON with at least `id`, `project`, `feature`, and `path`; exit 0
 
 #### Scenario: Spec init for nonexistent project
 - **WHEN** user runs `foundry spec init no-such-project auth-flow`
@@ -83,15 +83,15 @@
 - **THEN** exit non-zero listing the matching spec IDs; user must be more specific
 
 ### Requirement: Spec listing
-`foundry spec list <project>` SHALL print all spec directory names under `~/.foundry/<project>/specs/` to stdout, one per line, sorted by timestamp ascending.
+`foundry list specs <project>` SHALL print a JSON array to stdout for all spec directories under `~/.foundry/<project>/specs/`, sorted by timestamp ascending (each entry includes at least `id` and `path`).
 
 #### Scenario: List specs
 - **WHEN** `~/.foundry/my-project/specs/` contains multiple spec directories
-- **THEN** stdout lists them in chronological order; exit 0
+- **THEN** stdout is JSON listing them in chronological order; exit 0
 
 #### Scenario: No specs
 - **WHEN** `~/.foundry/my-project/specs/` is empty
-- **THEN** stdout prints a message like "No specs found for my-project"; exit 0
+- **THEN** stdout is `[]`; exit 0
 
 ### Requirement: Spec deletion
 `foundry spec delete <project> <spec-id>` SHALL remove the identified spec directory and its contents. Requires `--confirm` flag. Supports same partial-match logic as spec load.

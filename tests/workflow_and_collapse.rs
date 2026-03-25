@@ -13,11 +13,11 @@ fn isolated_home(temp: &TempDir) -> std::path::PathBuf {
 }
 
 #[test]
-fn status_json_has_store_and_skills_shape() {
+fn status_emits_json_store_and_skills_shape() {
     let temp = TempDir::new().unwrap();
     let home = isolated_home(&temp);
 
-    let o = run_foundry(&home, &["--json", "status"]);
+    let o = run_foundry(&home, &["status"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
     let v: Value = serde_json::from_str(utf8(&o).trim()).expect("valid json");
     assert!(v.get("store").is_some());
@@ -26,7 +26,7 @@ fn status_json_has_store_and_skills_shape() {
 }
 
 #[test]
-fn list_projects_json() {
+fn list_projects_returns_one_entry() {
     let temp = TempDir::new().unwrap();
     let home = isolated_home(&temp);
     assert!(
@@ -35,7 +35,7 @@ fn list_projects_json() {
             .success()
     );
 
-    let o = run_foundry(&home, &["--json", "list", "projects"]);
+    let o = run_foundry(&home, &["list", "projects"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
     let arr: Vec<Value> = serde_json::from_str(utf8(&o).trim()).unwrap();
     assert_eq!(arr.len(), 1);
@@ -43,7 +43,7 @@ fn list_projects_json() {
 }
 
 #[test]
-fn spec_status_and_instructions_apply_json() {
+fn spec_status_and_instructions_apply_emit_json() {
     let temp = TempDir::new().unwrap();
     let home = isolated_home(&temp);
     assert!(
@@ -53,12 +53,13 @@ fn spec_status_and_instructions_apply_json() {
     );
     let o = run_foundry(&home, &["spec", "init", "wp", "feat-a"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    let spec_dir = utf8(&o).trim().to_string();
-    let id = Path::new(&spec_dir)
-        .file_name()
+    let init: Value = serde_json::from_str(utf8(&o).trim()).unwrap();
+    let id = init.get("id").and_then(|x| x.as_str()).unwrap().to_string();
+    let spec_dir = init
+        .get("path")
+        .and_then(|x| x.as_str())
         .unwrap()
-        .to_string_lossy()
-        .into_owned();
+        .to_string();
 
     let spec_root = Path::new(&spec_dir);
     fs::write(spec_root.join("spec.md"), "# Feat A\n\nDo the thing.\n").unwrap();
@@ -68,7 +69,7 @@ fn spec_status_and_instructions_apply_json() {
     )
     .unwrap();
 
-    let o = run_foundry(&home, &["--json", "spec", "status", "wp", &id]);
+    let o = run_foundry(&home, &["spec", "status", "wp", &id]);
     assert!(o.status.success(), "{}", err_utf8(&o));
     let st: Value = serde_json::from_str(utf8(&o).trim()).unwrap();
     assert_eq!(
@@ -76,10 +77,7 @@ fn spec_status_and_instructions_apply_json() {
         Some("implementing")
     );
 
-    let o = run_foundry(
-        &home,
-        &["--json", "spec", "instructions", "apply", "wp", &id],
-    );
+    let o = run_foundry(&home, &["spec", "instructions", "apply", "wp", &id]);
     assert!(o.status.success(), "{}", err_utf8(&o));
     let app: Value = serde_json::from_str(utf8(&o).trim()).unwrap();
     assert_eq!(
@@ -103,12 +101,13 @@ fn spec_collapse_prepare_finalize_moves_archive() {
     );
     let o = run_foundry(&home, &["spec", "init", "col", "done-feat"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    let spec_dir = utf8(&o).trim().to_string();
-    let id = Path::new(&spec_dir)
-        .file_name()
+    let init: Value = serde_json::from_str(utf8(&o).trim()).unwrap();
+    let id = init.get("id").and_then(|x| x.as_str()).unwrap().to_string();
+    let spec_dir = init
+        .get("path")
+        .and_then(|x| x.as_str())
         .unwrap()
-        .to_string_lossy()
-        .into_owned();
+        .to_string();
 
     fs::write(Path::new(&spec_dir).join("spec.md"), "# Done\n").unwrap();
     fs::write(
@@ -145,14 +144,21 @@ fn spec_collapse_prepare_finalize_moves_archive() {
     assert!(summary.is_file());
 
     let o = run_foundry(&home, &["list", "specs", "col"]);
-    let specs_out = utf8(&o);
+    let specs: Vec<Value> = serde_json::from_str(utf8(&o).trim()).unwrap();
     assert!(
-        !specs_out.contains(&id),
-        "active list should not contain collapsed id: {specs_out}"
+        !specs
+            .iter()
+            .any(|e| e.get("id").and_then(|x| x.as_str()) == Some(id.as_str())),
+        "active list should not contain collapsed id"
     );
 
     let o = run_foundry(&home, &["list", "completed", "col"]);
-    assert!(utf8(&o).contains(&id), "completed list should include id");
+    let done: Vec<Value> = serde_json::from_str(utf8(&o).trim()).unwrap();
+    assert!(
+        done.iter()
+            .any(|e| e.get("id").and_then(|x| x.as_str()) == Some(id.as_str())),
+        "completed list should include id"
+    );
 }
 
 #[test]

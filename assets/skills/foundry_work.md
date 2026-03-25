@@ -19,13 +19,13 @@ Use when the user wants to **implement** work tracked in a Foundry spec (`task-l
 1. Resolve the spec if needed:
 
    ```bash
-   foundry --json list specs <project>
+   foundry list specs <project>
    ```
 
 2. Fetch apply instructions:
 
    ```bash
-   foundry --json spec instructions apply <project> <spec-id-or-partial>
+   foundry spec instructions apply <project> <spec-id-or-partial>
    ```
 
 3. Parse the payload:

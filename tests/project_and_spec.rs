@@ -2,6 +2,7 @@ mod common;
 
 use assert_fs::TempDir;
 use common::{err_utf8, run_foundry, utf8};
+use serde_json::Value;
 use std::fs;
 use std::path::Path;
 
@@ -11,6 +12,29 @@ fn isolated_home(temp: &TempDir) -> std::path::PathBuf {
     home
 }
 
+fn json_project_init_path(stdout: &str) -> String {
+    let v: Value = serde_json::from_str(stdout.trim()).expect("project init JSON");
+    v.get("path")
+        .and_then(|x| x.as_str())
+        .expect("path field")
+        .to_string()
+}
+
+fn json_spec_init(stdout: &str) -> (String, String) {
+    let v: Value = serde_json::from_str(stdout.trim()).expect("spec init JSON");
+    let id = v
+        .get("id")
+        .and_then(|x| x.as_str())
+        .expect("id field")
+        .to_string();
+    let path = v
+        .get("path")
+        .and_then(|x| x.as_str())
+        .expect("path field")
+        .to_string();
+    (id, path)
+}
+
 #[test]
 fn project_init_load_list_delete() {
     let temp = TempDir::new().unwrap();
@@ -18,7 +42,7 @@ fn project_init_load_list_delete() {
 
     let o = run_foundry(&home, &["project", "init", "my-project"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    let created = utf8(&o).trim().to_string();
+    let created = json_project_init_path(&utf8(&o));
     assert!(Path::new(&created).join("vision.md").exists());
 
     let o = run_foundry(&home, &["project", "load", "my-project"]);
@@ -27,9 +51,14 @@ fn project_init_load_list_delete() {
     assert!(text.contains("=== vision.md ==="));
     assert!(text.contains("(empty)"));
 
-    let o = run_foundry(&home, &["project", "list"]);
+    let o = run_foundry(&home, &["list", "projects"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    assert_eq!(utf8(&o).lines().filter(|l| !l.is_empty()).count(), 1);
+    let arr: Vec<Value> = serde_json::from_str(utf8(&o).trim()).unwrap();
+    assert_eq!(arr.len(), 1);
+    assert_eq!(
+        arr[0].get("name").and_then(|x| x.as_str()),
+        Some("my-project")
+    );
 
     let o = run_foundry(&home, &["project", "delete", "my-project"]);
     assert!(!o.status.success());
@@ -39,13 +68,14 @@ fn project_init_load_list_delete() {
 }
 
 #[test]
-fn project_list_empty_store() {
+fn list_projects_empty_store() {
     let temp = TempDir::new().unwrap();
     let home = isolated_home(&temp);
 
-    let o = run_foundry(&home, &["project", "list"]);
+    let o = run_foundry(&home, &["list", "projects"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    assert!(utf8(&o).contains("No projects found"));
+    let arr: Vec<Value> = serde_json::from_str(utf8(&o).trim()).unwrap();
+    assert!(arr.is_empty());
 }
 
 #[test]
@@ -61,19 +91,22 @@ fn spec_init_load_list_delete() {
 
     let o = run_foundry(&home, &["spec", "init", "p1", "auth-flow"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    let spec_path = utf8(&o).trim().to_string();
+    let (id, spec_path) = json_spec_init(&utf8(&o));
     assert!(spec_path.contains("auth-flow"));
+    assert!(Path::new(&spec_path).join("spec.md").exists());
 
-    let o = run_foundry(&home, &["spec", "list", "p1"]);
+    let o = run_foundry(&home, &["list", "specs", "p1"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    let list_out = utf8(&o);
-    let id_line = list_out.lines().find(|l| l.contains("auth-flow")).unwrap();
-    let id = id_line.trim();
+    let entries: Vec<Value> = serde_json::from_str(utf8(&o).trim()).unwrap();
+    let found = entries
+        .iter()
+        .find(|e| e.get("id").and_then(|x| x.as_str()) == Some(id.as_str()));
+    assert!(found.is_some(), "list specs should include new spec id");
 
     let o = run_foundry(&home, &["spec", "load", "p1", "auth-flow"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
 
-    let o = run_foundry(&home, &["spec", "load", "p1", id]);
+    let o = run_foundry(&home, &["spec", "load", "p1", &id]);
     assert!(o.status.success(), "{}", err_utf8(&o));
 
     let o = run_foundry(&home, &["spec", "delete", "p1", "auth-flow"]);
@@ -84,7 +117,7 @@ fn spec_init_load_list_delete() {
 }
 
 #[test]
-fn project_list_sorts_names() {
+fn list_projects_sorts_names() {
     let temp = TempDir::new().unwrap();
     let home = isolated_home(&temp);
 
@@ -96,11 +129,14 @@ fn project_list_sorts_names() {
         );
     }
 
-    let o = run_foundry(&home, &["project", "list"]);
+    let o = run_foundry(&home, &["list", "projects"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    let out = utf8(&o);
-    let lines: Vec<&str> = out.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(lines, vec!["alpha", "beta", "gamma"]);
+    let arr: Vec<Value> = serde_json::from_str(utf8(&o).trim()).unwrap();
+    let names: Vec<&str> = arr
+        .iter()
+        .map(|e| e.get("name").and_then(|x| x.as_str()).unwrap())
+        .collect();
+    assert_eq!(names, vec!["alpha", "beta", "gamma"]);
 }
 
 #[test]
@@ -132,7 +168,7 @@ fn project_init_rejects_non_kebab_name() {
 }
 
 #[test]
-fn spec_list_sorted_by_timestamp_ascending() {
+fn list_specs_sorted_by_timestamp_ascending() {
     let temp = TempDir::new().unwrap();
     let home = isolated_home(&temp);
 
@@ -154,13 +190,16 @@ fn spec_list_sorted_by_timestamp_ascending() {
         fs::write(dir.join("notes.md"), "").unwrap();
     }
 
-    let o = run_foundry(&home, &["spec", "list", "chrono"]);
+    let o = run_foundry(&home, &["list", "specs", "chrono"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    let out = utf8(&o);
-    let lines: Vec<&str> = out.lines().filter(|l| !l.is_empty()).collect();
-    assert_eq!(lines.len(), 2);
-    assert!(lines[0].contains("20240115"));
-    assert!(lines[1].contains("20240615"));
+    let entries: Vec<Value> = serde_json::from_str(utf8(&o).trim()).unwrap();
+    assert_eq!(entries.len(), 2);
+    let ids: Vec<&str> = entries
+        .iter()
+        .map(|e| e.get("id").and_then(|x| x.as_str()).unwrap())
+        .collect();
+    assert!(ids[0].contains("20240115"));
+    assert!(ids[1].contains("20240615"));
 }
 
 #[test]

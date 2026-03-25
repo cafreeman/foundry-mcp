@@ -1,8 +1,8 @@
 # Foundry
 
-**Project context and specs in `~/.foundry/`, with JSON-first workflow commands for agents, a `.foundry` symlink into your repo, and optional git backup of the whole store.**
+**Project context and specs in `~/.foundry/`, with JSON workflow output for inventory and spec state, a `.foundry` symlink into your repo, and optional git backup of the whole store.**
 
-Foundry is a Rust CLI: it scaffolds markdown under `~/.foundry/`, derives spec workflow state from `task-list.md` checkboxes, exposes **`--json`** for skills and automation, and can **collapse** finished specs into `completed/<spec-id>/summary.md` plus an `archive/` of the working files. Agents author all prose; the binary does not generate spec content.
+Foundry is a Rust CLI: it scaffolds markdown under `~/.foundry/`, derives spec workflow state from `task-list.md` checkboxes, prints **JSON** for inventory/status/spec workflow commands (no flag), and can **collapse** finished specs into `completed/<spec-id>/summary.md` plus an `archive/` of the working files. Agents author all prose; the binary does not generate spec content. **Plain text** is reserved for `project load`, `spec load`, `link`, `git`, and skill install commands.
 
 ## Install
 
@@ -15,26 +15,32 @@ Rust **1.85+** (see `rust-version` in `Cargo.toml`).
 ## Quick start
 
 ```bash
-foundry project init my-app
+foundry project init my-app            # stdout: JSON with path (use `path` to locate the dir)
 foundry link my-app                    # in your repo; optional name if auto-detect works
-foundry spec init my-app auth-flow     # then edit .foundry/specs/... or paths under ~/.foundry/
+foundry spec init my-app auth-flow     # stdout: JSON with id + path; then edit files under that path or `.foundry/`
 
 foundry git init                       # optional backup of ~/.foundry/
 foundry git remote https://github.com/you/foundry-backup.git
 foundry git sync "checkpoint message"
 ```
 
-## Agent-oriented commands (`--json`)
+## JSON workflow commands (stdout is always JSON)
 
 ```bash
-foundry --json status                  # store path, git, skills, cwd .foundry -> project
-foundry --json list projects
-foundry --json list specs my-app
-foundry --json list completed my-app
+foundry status
+foundry list projects
+foundry list specs my-app
+foundry list completed my-app
 
-foundry --json spec status my-app <spec-id-or-partial>
-foundry --json spec instructions apply my-app <spec-id-or-partial>
-foundry --json spec instructions collapse my-app <spec-id-or-partial>   # JSON only
+foundry project init <name>            # { name, path }
+foundry spec init <project> <feature>  # { id, project, feature, path }
+
+foundry spec status my-app <spec-id-or-partial>
+foundry spec instructions apply my-app <spec-id-or-partial>
+foundry spec instructions collapse my-app <spec-id-or-partial>
+
+foundry spec collapse prepare my-app <spec-id-or-partial>    # { summary_path, … }
+foundry spec collapse finalize my-app <spec-id-or-partial> --confirm
 ```
 
 ## Collapse a finished spec (completed-work record)
@@ -65,12 +71,10 @@ Bundled skills: **foundry:load**, **foundry:new**, **foundry:work**, **foundry:d
 
 | Area | Commands |
 |------|-----------|
-| Inventory | `foundry list projects`, `list specs <p>`, `list completed <p>` (+ `--json`) |
-| Projects | `foundry project init \| load \| list \| delete <name> --confirm` |
-| Specs | `foundry spec init \| load \| list \| delete …`, `spec status`, `spec instructions …`, `spec collapse …` |
-| Link | `foundry link [project]` |
-| Git | `foundry git init`, `remote <url>`, `sync <message...>` |
-| Skills | `install`, `update`, `uninstall`, `status` |
+| Inventory (JSON) | `list projects`, `list specs <p>`, `list completed <p>` |
+| Projects | `project init` (JSON), `project load` (text), `project delete … --confirm` (text) |
+| Specs | `spec init` (JSON), `spec load` (text), `spec delete …` (text), `spec status` / `instructions` / `collapse` (JSON) |
+| Link / Git / Skills | plain-text CLI output; `status` is JSON |
 
 ## Layout
 
@@ -80,7 +84,7 @@ Bundled skills: **foundry:load**, **foundry:new**, **foundry:work**, **foundry:d
   tech-stack.md
   summary.md
   specs/<YYYYMMDD_HHMMSS>_<feature>/
-    meta.json
+    meta.json               # optional; phase_hint must match spec.md + task-list.md if set
     spec.md
     task-list.md
     notes.md
@@ -93,8 +97,10 @@ Bundled skills: **foundry:load**, **foundry:new**, **foundry:work**, **foundry:d
 ## Migrating from 0.8.x
 
 - Run `foundry install …` again to pick up the fourth skill (`foundry_work.md`).
-- Prefer `--json` for agent flows; human text defaults are unchanged for most commands.
+- **No `--json` flag:** `list`, `status`, `project init`, `spec init`, `spec status`, `spec instructions …`, and `spec collapse …` **always** print JSON to stdout. Drop `--json` from scripts and skills.
+- `project load`, `spec load`, `link`, `git`, installs remain plain text.
 - New specs get `meta.json`; old spec dirs still work (defaults apply).
+- Inventory is only `foundry list …` (not `project list` / `spec list`).
 
 ## Migrating from 0.7.x (MCP)
 

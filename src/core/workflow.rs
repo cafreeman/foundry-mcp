@@ -4,7 +4,7 @@ use crate::core::paths::{self, read_file_opt};
 use crate::core::spec_id::parse_spec_id;
 use crate::core::spec_meta::{SpecMeta, SpecPhaseHint, read_meta};
 use crate::core::task_parse::{TaskListSummary, parse_task_list};
-use anyhow::Result;
+use anyhow::{Result, bail};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -52,6 +52,78 @@ fn trim_or_empty(s: &Option<String>) -> &str {
     s.as_deref().map(str::trim).unwrap_or("")
 }
 
+fn validate_phase_hint_for_content(
+    hint: SpecPhaseHint,
+    spec_body: &str,
+    task_summary: &TaskListSummary,
+) -> Result<()> {
+    let spec_empty = spec_body.trim().is_empty();
+    let total = task_summary.total;
+    let complete = task_summary.complete;
+
+    match hint {
+        SpecPhaseHint::CompletedPendingCollapse => {
+            if total == 0 {
+                bail!(
+                    "meta.json phase_hint `completed_pending_collapse` requires at least one task in task-list.md"
+                );
+            }
+            if complete != total {
+                bail!(
+                    "meta.json phase_hint `completed_pending_collapse` conflicts with task-list.md (not all checkboxes are checked); fix tasks or remove phase_hint"
+                );
+            }
+        }
+        SpecPhaseHint::EmptyScaffold => {
+            if !spec_empty {
+                bail!(
+                    "meta.json phase_hint `empty_scaffold` conflicts with non-empty spec.md; remove or adjust phase_hint"
+                );
+            }
+            if total > 0 {
+                bail!(
+                    "meta.json phase_hint `empty_scaffold` conflicts with task-list.md (tasks exist); remove or adjust phase_hint"
+                );
+            }
+        }
+        SpecPhaseHint::Drafting => {
+            if total > 0 {
+                bail!(
+                    "meta.json phase_hint `drafting` conflicts with task-list.md (tasks exist); remove phase_hint or use a later phase"
+                );
+            }
+        }
+        SpecPhaseHint::ReadyForImplementation => {
+            if spec_empty {
+                bail!(
+                    "meta.json phase_hint `ready_for_implementation` conflicts with empty spec.md"
+                );
+            }
+            if total == 0 {
+                bail!(
+                    "meta.json phase_hint `ready_for_implementation` requires tasks in task-list.md"
+                );
+            }
+            if complete > 0 {
+                bail!(
+                    "meta.json phase_hint `ready_for_implementation` conflicts with task-list.md (implementation already started or finished); remove or adjust phase_hint"
+                );
+            }
+        }
+        SpecPhaseHint::Implementing => {
+            if total == 0 {
+                bail!("meta.json phase_hint `implementing` requires tasks in task-list.md");
+            }
+            if complete == total {
+                bail!(
+                    "meta.json phase_hint `implementing` conflicts with task-list.md (all tasks checked); use `completed_pending_collapse` or remove phase_hint"
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
 fn derive_phase(meta: &SpecMeta, spec_body: &str, task_summary: &TaskListSummary) -> DerivedPhase {
     if let Some(h) = meta.phase_hint {
         return match h {
@@ -91,6 +163,9 @@ pub fn load_spec_snapshot(
     let spec_body = trim_or_empty(&spec_md);
     let task_src = task_list_md.as_deref().unwrap_or("");
     let task_summary = parse_task_list(task_src);
+    if let Some(h) = meta.phase_hint {
+        validate_phase_hint_for_content(h, spec_body, &task_summary)?;
+    }
     let derived_phase = derive_phase(&meta, spec_body, &task_summary);
 
     let (timestamp_prefix, feature) = parse_spec_id(spec_id)
@@ -268,7 +343,7 @@ fn apply_state_and_instruction(
         ),
         DerivedPhase::CompletedPendingCollapse => (
             "all_done",
-            "All tasks complete. Use `foundry spec instructions collapse --json` and then collapse prepare/finalize."
+            "All tasks complete. Use `foundry spec instructions collapse` and then collapse prepare/finalize."
                 .to_string(),
         ),
     }
@@ -335,4 +410,62 @@ pub fn build_instructions_collapse(
         context_files,
         instruction,
     })
+}
+
+#[cfg(test)]
+mod phase_hint_tests {
+    use super::{SpecPhaseHint, validate_phase_hint_for_content};
+    use crate::core::task_parse::TaskListSummary;
+
+    fn summary(total: usize, complete: usize) -> TaskListSummary {
+        TaskListSummary {
+            total,
+            complete,
+            items: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn completed_hint_requires_all_checked() {
+        assert!(
+            validate_phase_hint_for_content(
+                SpecPhaseHint::CompletedPendingCollapse,
+                "done",
+                &summary(2, 1)
+            )
+            .is_err()
+        );
+        validate_phase_hint_for_content(
+            SpecPhaseHint::CompletedPendingCollapse,
+            "done",
+            &summary(2, 2),
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn empty_scaffold_rejects_tasks_or_spec() {
+        assert!(
+            validate_phase_hint_for_content(SpecPhaseHint::EmptyScaffold, "text", &summary(0, 0))
+                .is_err()
+        );
+        assert!(
+            validate_phase_hint_for_content(SpecPhaseHint::EmptyScaffold, "", &summary(1, 0))
+                .is_err()
+        );
+        validate_phase_hint_for_content(SpecPhaseHint::EmptyScaffold, "", &summary(0, 0)).unwrap();
+    }
+
+    #[test]
+    fn implementing_rejects_all_done_or_no_tasks() {
+        assert!(
+            validate_phase_hint_for_content(SpecPhaseHint::Implementing, "s", &summary(1, 1))
+                .is_err()
+        );
+        assert!(
+            validate_phase_hint_for_content(SpecPhaseHint::Implementing, "s", &summary(0, 0))
+                .is_err()
+        );
+        validate_phase_hint_for_content(SpecPhaseHint::Implementing, "s", &summary(2, 1)).unwrap();
+    }
 }

@@ -9,19 +9,16 @@ use serde::Serialize;
 #[command(name = "foundry")]
 #[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(
-    about = "Foundry: central ~/.foundry specs, workflow JSON for agents, optional git backup"
+    about = "Foundry: central ~/.foundry specs, JSON workflow output for agents, optional git backup"
 )]
 struct Cli {
-    /// Emit machine-readable JSON for supported commands (skills and automation)
-    #[arg(long, global = true)]
-    json: bool,
     #[command(subcommand)]
     command: Commands,
 }
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Inventory: projects, active specs, or completed-work records
+    /// Inventory (JSON): projects, active specs, or completed-work records
     List {
         #[command(subcommand)]
         cmd: ListCmd,
@@ -52,17 +49,17 @@ enum Commands {
     Uninstall {
         target: SkillInstallTarget,
     },
-    /// Store status (path, git, skills, cwd link)
+    /// Store status (JSON: path, git, skills, cwd link)
     Status,
 }
 
 #[derive(Subcommand)]
 enum ListCmd {
-    /// List projects in ~/.foundry/
+    /// List projects in ~/.foundry/ (JSON array of `{ name, path }`)
     Projects,
-    /// List active specs for a project
+    /// List active specs for a project (JSON array)
     Specs { project: String },
-    /// List collapsed completed-work records
+    /// List collapsed completed-work records (JSON array)
     Completed { project: String },
 }
 
@@ -76,16 +73,13 @@ enum SpecCmd {
         project: String,
         id: String,
     },
-    List {
-        project: String,
-    },
     Delete {
         project: String,
         id: String,
         #[arg(long, action = ArgAction::SetTrue)]
         confirm: bool,
     },
-    /// Workflow status for one active spec
+    /// Workflow status for one active spec (JSON)
     Status {
         project: String,
         id: String,
@@ -102,17 +96,17 @@ enum SpecCmd {
 
 #[derive(Subcommand)]
 enum SpecInstructionsCmd {
-    /// Next-step guidance for implementing tasks (JSON-first for agents)
+    /// Next-step guidance for implementing tasks (JSON)
     Apply { project: String, id: String },
-    /// Guidance for collapsing a finished spec into a completed-work record
+    /// Guidance for collapsing a finished spec (JSON)
     Collapse { project: String, id: String },
 }
 
 #[derive(Subcommand)]
 enum SpecCollapseCmd {
-    /// Create ~/.foundry/<project>/completed/<id>/ and empty summary.md
+    /// Create completed record dir and empty summary.md (JSON)
     Prepare { project: String, id: String },
-    /// Move active spec files into archive/ after summary.md is written
+    /// Move active spec files into archive/ after summary.md is written (JSON)
     Finalize {
         project: String,
         id: String,
@@ -123,13 +117,10 @@ enum SpecCollapseCmd {
 
 #[derive(Subcommand)]
 enum ProjectCmd {
-    Init {
-        name: String,
-    },
-    Load {
-        name: String,
-    },
-    List,
+    /// Create project (JSON: `name`, `path`)
+    Init { name: String },
+    /// Print vision / tech-stack / summary (plain text)
+    Load { name: String },
     Delete {
         name: String,
         #[arg(long, action = ArgAction::SetTrue)]
@@ -179,6 +170,18 @@ fn print_json<T: Serialize>(v: &T) -> Result<()> {
     Ok(())
 }
 
+fn list_projects() -> Result<()> {
+    print_json(&project::list_project_entries()?)
+}
+
+fn list_specs_for_project(project: &str) -> Result<()> {
+    print_json(&spec_store::list_active_entries(project)?)
+}
+
+fn list_completed_for_project(project: &str) -> Result<()> {
+    print_json(&completed::list_completed_entries(project)?)
+}
+
 fn resolve_spec(project: &str, partial: &str) -> Result<String> {
     project::validate_project_name(project)?;
     let specs_root = paths::project_path(project)?.join("specs");
@@ -193,86 +196,20 @@ fn main() -> Result<()> {
 
     match cli.command {
         Commands::List { cmd } => match cmd {
-            ListCmd::Projects => {
-                if cli.json {
-                    let entries = project::list_project_entries()?;
-                    print_json(&entries)?;
-                } else {
-                    let names = project::list_names()?;
-                    if names.is_empty() {
-                        println!("No projects found");
-                    } else {
-                        for n in names {
-                            println!("{n}");
-                        }
-                    }
-                }
-            }
-            ListCmd::Specs { project: p } => {
-                if cli.json {
-                    let entries = spec_store::list_active_entries(&p)?;
-                    print_json(&entries)?;
-                } else {
-                    let entries = spec_store::list_active_entries(&p)?;
-                    if entries.is_empty() {
-                        println!("No specs found for {p}");
-                    } else {
-                        for e in entries {
-                            println!("{}", e.id);
-                        }
-                    }
-                }
-            }
-            ListCmd::Completed { project: p } => {
-                if cli.json {
-                    let entries = completed::list_completed_entries(&p)?;
-                    print_json(&entries)?;
-                } else {
-                    let ids = completed::list_completed_ids(&p)?;
-                    if ids.is_empty() {
-                        println!("No completed records for {p}");
-                    } else {
-                        for id in ids {
-                            println!("{id}");
-                        }
-                    }
-                }
-            }
+            ListCmd::Projects => list_projects()?,
+            ListCmd::Specs { project: p } => list_specs_for_project(&p)?,
+            ListCmd::Completed { project: p } => list_completed_for_project(&p)?,
         },
         Commands::Project { cmd } => match cmd {
             ProjectCmd::Init { name } => {
                 let proj = project::init(&name)?;
-                if cli.json {
-                    print_json(&serde_json::json!({
-                        "name": proj.name,
-                        "path": proj.path.display().to_string(),
-                    }))?;
-                } else {
-                    println!("{}", proj.path.display());
-                }
+                print_json(&serde_json::json!({
+                    "name": proj.name,
+                    "path": proj.path.display().to_string(),
+                }))?;
             }
             ProjectCmd::Load { name } => {
-                if cli.json {
-                    bail!(
-                        "Use plain text `project load` for file dumps; JSON bundle not implemented here"
-                    );
-                }
                 project::load_print(&name)?;
-            }
-            ProjectCmd::List => {
-                if cli.json {
-                    let entries = project::list_project_entries()?;
-                    print_json(&entries)?;
-                } else {
-                    let names = project::list_names()?;
-                    if names.is_empty() {
-                        println!("No projects found");
-                    } else {
-                        for n in names {
-                            println!("{n}");
-                        }
-                    }
-                }
             }
             ProjectCmd::Delete { name, confirm } => {
                 if !confirm {
@@ -284,39 +221,15 @@ fn main() -> Result<()> {
         Commands::Spec { cmd } => match cmd {
             SpecCmd::Init { project, feature } => {
                 let s = spec_store::init(&project, &feature)?;
-                if cli.json {
-                    print_json(&serde_json::json!({
-                        "id": s.id,
-                        "project": s.project_name,
-                        "feature": s.feature,
-                        "path": s.path.display().to_string(),
-                    }))?;
-                } else {
-                    println!("{}", s.path.display());
-                }
+                print_json(&serde_json::json!({
+                    "id": s.id,
+                    "project": s.project_name,
+                    "feature": s.feature,
+                    "path": s.path.display().to_string(),
+                }))?;
             }
             SpecCmd::Load { project, id } => {
-                if cli.json {
-                    bail!(
-                        "Use `spec status` / `spec instructions apply --json` for structured context"
-                    );
-                }
                 spec_store::load_print(&project, &id)?;
-            }
-            SpecCmd::List { project } => {
-                if cli.json {
-                    let entries = spec_store::list_active_entries(&project)?;
-                    print_json(&entries)?;
-                } else {
-                    let ids = spec_store::list_ids(&project)?;
-                    if ids.is_empty() {
-                        println!("No specs found for {project}");
-                    } else {
-                        for id in ids {
-                            println!("{id}");
-                        }
-                    }
-                }
             }
             SpecCmd::Delete {
                 project,
@@ -332,42 +245,17 @@ fn main() -> Result<()> {
             SpecCmd::Status { project, id } => {
                 let resolved = resolve_spec(&project, &id)?;
                 let st = workflow::build_spec_status(&project, &resolved)?;
-                if cli.json {
-                    print_json(&st)?;
-                } else {
-                    println!("project: {}", st.project);
-                    println!("spec_id: {}", st.spec_id);
-                    println!("path: {}", st.path.display());
-                    println!("phase: {:?}", st.derived_phase);
-                    println!("state: {}", st.state);
-                    println!("tasks: {} / {}", st.task_list.complete, st.task_list.total);
-                    println!();
-                    println!("{}", st.instruction);
-                }
+                print_json(&st)?;
             }
             SpecCmd::Instructions { cmd } => match cmd {
                 SpecInstructionsCmd::Apply { project, id } => {
                     let resolved = resolve_spec(&project, &id)?;
                     let j = workflow::build_instructions_apply(&project, &resolved)?;
-                    if cli.json {
-                        print_json(&j)?;
-                    } else {
-                        println!("change: {}", j.change_name);
-                        println!("state: {}", j.state);
-                        println!(
-                            "progress: {}/{} ({} remaining)",
-                            j.progress.complete, j.progress.total, j.progress.remaining
-                        );
-                        println!();
-                        println!("{}", j.instruction);
-                    }
+                    print_json(&j)?;
                 }
                 SpecInstructionsCmd::Collapse { project, id } => {
                     let resolved = resolve_spec(&project, &id)?;
                     let j = workflow::build_instructions_collapse(&project, &resolved)?;
-                    if !cli.json {
-                        bail!("`spec instructions collapse` is intended for `--json`; pass --json");
-                    }
                     print_json(&j)?;
                 }
             },
@@ -375,16 +263,12 @@ fn main() -> Result<()> {
                 SpecCollapseCmd::Prepare { project, id } => {
                     let resolved = resolve_spec(&project, &id)?;
                     let summary_path = completed::collapse_prepare(&project, &resolved)?;
-                    if cli.json {
-                        print_json(&serde_json::json!({
-                            "project": project,
-                            "spec_id": resolved,
-                            "summary_path": summary_path.display().to_string(),
-                            "instruction": "Edit summary.md with the completed-work narrative, then run `foundry spec collapse finalize --confirm`.",
-                        }))?;
-                    } else {
-                        println!("{}", summary_path.display());
-                    }
+                    print_json(&serde_json::json!({
+                        "project": project,
+                        "spec_id": resolved,
+                        "summary_path": summary_path.display().to_string(),
+                        "instruction": "Edit summary.md with the completed-work narrative, then run `foundry spec collapse finalize --confirm`.",
+                    }))?;
                 }
                 SpecCollapseCmd::Finalize {
                     project,
@@ -396,15 +280,11 @@ fn main() -> Result<()> {
                     }
                     let resolved = resolve_spec(&project, &id)?;
                     let done_dir = completed::collapse_finalize(&project, &resolved)?;
-                    if cli.json {
-                        print_json(&serde_json::json!({
-                            "project": project,
-                            "spec_id": resolved,
-                            "completed_dir": done_dir.display().to_string(),
-                        }))?;
-                    } else {
-                        println!("Collapsed into {}", done_dir.display());
-                    }
+                    print_json(&serde_json::json!({
+                        "project": project,
+                        "spec_id": resolved,
+                        "completed_dir": done_dir.display().to_string(),
+                    }))?;
                 }
             },
         },
@@ -444,35 +324,13 @@ fn main() -> Result<()> {
                 None
             };
 
-            if cli.json {
-                print_json(&StoreStatusJson {
-                    store: root.display().to_string(),
-                    projects: project::list_names()?.len(),
-                    git_initialized: git::is_git_repo(&root),
-                    skills: skill_install::install_status()?,
-                    cwd_link_project: link_project,
-                })?;
-            } else {
-                println!("store: {}", root.display());
-                println!("projects: {}", project::list_names()?.len());
-                println!(
-                    "git: {}",
-                    if git::is_git_repo(&root) {
-                        "initialized"
-                    } else {
-                        "not initialized"
-                    }
-                );
-                if let Some(p) = link_project {
-                    println!("cwd link -> project: {p}");
-                }
-                let targets = skill_install::installed_targets_summary()?;
-                if targets.is_empty() {
-                    println!("skills: (none recorded)");
-                } else {
-                    println!("skills: {targets}");
-                }
-            }
+            print_json(&StoreStatusJson {
+                store: root.display().to_string(),
+                projects: project::list_names()?.len(),
+                git_initialized: git::is_git_repo(&root),
+                skills: skill_install::install_status()?,
+                cwd_link_project: link_project,
+            })?;
         }
     }
 

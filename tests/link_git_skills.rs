@@ -2,6 +2,7 @@ mod common;
 
 use assert_fs::TempDir;
 use common::{err_utf8, run_foundry, utf8};
+use serde_json::Value;
 use std::fs;
 use std::path::Path;
 use std::process::{Command, Output};
@@ -194,9 +195,9 @@ fn status_shows_store_and_git() {
 
     let o = run_foundry(&home, &["status"]);
     assert!(o.status.success(), "{}", err_utf8(&o));
-    let t = utf8(&o);
-    assert!(t.contains("store:"));
-    assert!(t.contains("git:"));
+    let v: Value = serde_json::from_str(utf8(&o).trim()).unwrap();
+    assert!(v.get("store").is_some());
+    assert_eq!(v.get("git_initialized"), Some(&Value::Bool(false)));
 }
 
 #[test]

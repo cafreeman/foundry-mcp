@@ -1,4 +1,20 @@
 use anyhow::{Result, bail};
+use std::path::{Component, Path};
+
+/// One filesystem path segment for spec ids and similar (no `.`, `..`, or separators).
+pub fn validate_single_path_segment(id: &str) -> Result<()> {
+    if id.is_empty() {
+        bail!("Name cannot be empty");
+    }
+    if id.contains('/') || id.contains('\\') {
+        bail!("Name cannot contain path separators");
+    }
+    let mut components = Path::new(id).components();
+    match (components.next(), components.next()) {
+        (Some(Component::Normal(_)), None) => Ok(()),
+        _ => bail!("Name must be a single path segment (not `.` or `..`)"),
+    }
+}
 
 /// Validate a kebab-case identifier (project names, symlink-detected names, spec features).
 ///
@@ -78,5 +94,17 @@ mod tests {
     fn validate_rejects_path_segments() {
         assert!(validate_kebab_case("..").is_err());
         assert!(validate_kebab_case("foo/bar").is_err());
+    }
+
+    #[test]
+    fn single_segment_accepts_spec_style_ids() {
+        validate_single_path_segment("20240315_120000_auth-flow").unwrap();
+    }
+
+    #[test]
+    fn single_segment_rejects_dot_dot_and_slash() {
+        assert!(validate_single_path_segment("..").is_err());
+        assert!(validate_single_path_segment("a/b").is_err());
+        assert!(validate_single_path_segment(".").is_err());
     }
 }

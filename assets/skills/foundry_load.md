@@ -17,7 +17,7 @@ Use when you need project or spec context from the central Foundry store.
 1. **Store overview (optional but recommended)**
 
    ```bash
-   foundry --json status
+   foundry status
    ```
 
    Use `cwd_link_project` when present to infer the default project for a linked repo.
@@ -25,19 +25,19 @@ Use when you need project or spec context from the central Foundry store.
 2. **Project list**
 
    ```bash
-   foundry --json list projects
+   foundry list projects
    ```
 
 3. **Active specs for a project**
 
    ```bash
-   foundry --json list specs <project>
+   foundry list specs <project>
    ```
 
 4. **Structured status for one spec** (paths + phase + task counts + instruction)
 
    ```bash
-   foundry --json spec status <project> <spec-id-or-partial>
+   foundry spec status <project> <spec-id-or-partial>
    ```
 
    Read the `context_files` paths from JSON, then open those files (or read under `.foundry/` when linked).

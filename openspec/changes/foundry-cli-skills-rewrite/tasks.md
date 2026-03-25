@@ -25,7 +25,7 @@
 
 - [x] 3.1 Implement `foundry project init <name>`: validate kebab-case name, create `~/.foundry/<name>/` with empty `vision.md`, `tech-stack.md`, `summary.md`, `specs/`
 - [x] 3.2 Implement `foundry project load <name>`: read and print all three files with headers; handle empty files gracefully
-- [x] 3.3 Implement `foundry project list`: list project directory names in `~/.foundry/`; handle empty store
+- [x] 3.3 Implement `foundry list projects`: list project directory names in `~/.foundry/`; handle empty store
 - [x] 3.4 Implement `foundry project delete <name> --confirm`: remove project directory; require `--confirm` flag
 - [x] 3.5 Wire all four project subcommands into CLI dispatch in `src/main.rs`
 
@@ -33,7 +33,7 @@
 
 - [x] 4.1 Implement `foundry spec init <project> <feature>`: create timestamped dir with empty `spec.md`, `task-list.md`, `notes.md`
 - [x] 4.2 Implement `foundry spec load <project> <id>`: partial-match ID, print all three files with headers
-- [x] 4.3 Implement `foundry spec list <project>`: list spec dirs sorted by timestamp ascending
+- [x] 4.3 Implement `foundry list specs <project>`: list spec dirs sorted by timestamp ascending
 - [x] 4.4 Implement `foundry spec delete <project> <id> --confirm`: partial-match, require `--confirm`
 - [x] 4.5 Wire all four spec subcommands into CLI dispatch
 
@@ -84,8 +84,8 @@
 - [x] 10.1 Set up `TestEnvironment` (temp `HOME`, temp foundry dir) for the new codebase — adapt or port from existing `src/test_environment.rs`
 - [x] 10.2 Unit tests for kebab-case validation and name normalization
 - [x] 10.3 Unit tests for spec ID timestamp generation and partial matching
-- [x] 10.4 Integration tests for `project init` / `project load` / `project list` / `project delete`
-- [x] 10.5 Integration tests for `spec init` / `spec load` / `spec list` / `spec delete`
+- [x] 10.4 Integration tests for `project init` / `project load` / `list projects` / `project delete`
+- [x] 10.5 Integration tests for `spec init` / `spec load` / `list specs` / `spec delete`
 - [x] 10.6 Integration tests for `foundry link` (symlink creation, auto-detect, `.gitignore` advisory)
 - [x] 10.7 Integration tests for `foundry git` commands (mock git subprocess or use real git in temp dir)
 - [x] 10.8 Unit tests for skill content embedding (verify `include_str!` files are non-empty)

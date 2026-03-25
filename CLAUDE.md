@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Foundry is a **CLI-only** Rust tool for scaffolding and reading project/spec markdown under `~/.foundry/`, plus optional git backup, a `.foundry` symlink bridge, **`--json` workflow commands** for agents, and installation of bundled skills. There is **no MCP server** (removed in 0.8.0). The crate uses **Rust 2024**; **`rust-version` in `Cargo.toml`** is the MSRV for building from source.
+Foundry is a **CLI-only** Rust tool for scaffolding and reading project/spec markdown under `~/.foundry/`, plus optional git backup, a `.foundry` symlink bridge, **JSON stdout for inventory and spec workflow commands** (no flag), and installation of bundled skills. There is **no MCP server** (removed in 0.8.0). The crate uses **Rust 2024**; **`rust-version` in `Cargo.toml`** is the MSRV for building from source.
 
 ## Development Commands
 
@@ -54,7 +54,7 @@ Integration tests set a temporary `HOME` and invoke `CARGO_BIN_EXE_foundry`.
 
 ### Core Module Structure
 
-- **`src/main.rs`** - `clap` CLI entry (`list`, `project`, `spec` workflow, `link`, `git`, skills, `status`); global `--json`
+- **`src/main.rs`** - `clap` CLI entry (`list`, `project`, `spec` workflow, `link`, `git`, skills, `status`); JSON vs text per subcommand (no global `--json`)
 - **`src/lib.rs`** - `foundry_dir()` and module exports for tests/library use
 - **`src/core.rs`** + **`src/core/`** - `paths`, `project`, `spec_store`, `spec_id`, `spec_meta`, `task_parse`, `workflow`, `completed`, `git`, `link`, `skill_install`, `fsutil`, `names`
 - **`src/types.rs`** + **`src/types/`** - Small structs (`Project`, `Spec`)
@@ -84,7 +84,7 @@ All project data stored in `~/.foundry/` directory:
 
 ### CLI behavior
 
-- Commands are synchronous; they print plain text or **`--json`** on stdout and use exit codes.
+- Commands are synchronous; inventory/spec workflow commands print **JSON**; `project load`, `spec load`, `link`, `git`, and skill installs print **plain text**; exit codes signal success/failure.
 - Foundry does **not** author spec/vision prose; it scaffolds empty files (except `meta.json` on spec init). Agents write markdown—including **`summary.md`** on collapse.
 - Optional git integration shells out to the system `git` binary (`commit_project_subtree` for collapse).
 
@@ -149,13 +149,13 @@ redundant_closure = "deny"
 
 ### Current Status
 
-- **CLI + skills**: `list`, `project`, `spec` (status / instructions / collapse), `link`, `git`, `install`, `update`, `uninstall`, `status`; global `--json`
+- **CLI + skills**: `list` / `status` / `spec status|instructions|collapse` / `project init` / `spec init` → JSON; `project load`, `spec load`, deletes, `link`, `git`, skill commands → text
 - **Rust 2024** with strict Clippy lints (`cargo clippy --all-targets -- -D warnings`)
 - **Content-agnostic**: scaffolds files and filesystem moves; agents author markdown (including completed-work summaries)
 
 ### Architecture Principles
 
-1. **CLI-only surface**: No MCP protocol; structured **`--json` stdout** for agents, not an in-process tool RPC
+1. **CLI-only surface**: No MCP protocol; structured **JSON stdout** for workflow commands, not an in-process tool RPC
 2. **Structure, not authorship**: Foundry creates paths and empty files; agents own content
 3. **Symlink bridge**: `foundry link` exposes `~/.foundry/<project>/` as `./.foundry`
 4. **Optional git backup**: subprocess `git` on `~/.foundry/`

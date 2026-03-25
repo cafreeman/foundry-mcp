@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Global `--json` for agent-oriented output on `status`, `list`, `spec status`, `spec instructions apply`, and collapse prepare/finalize.
+- JSON stdout (no flag) for `status`, `list projects|specs|completed`, `project init`, `spec init`, `spec status`, `spec instructions apply|collapse`, and `spec collapse prepare|finalize`.
 - `list projects`, `list specs <project>`, `list completed <project>` inventory commands.
-- Spec workflow helpers: `spec status`, `spec instructions apply`, `spec instructions collapse` (JSON-only), `spec collapse prepare|finalize`.
+- Spec workflow helpers: `spec status`, `spec instructions apply`, `spec instructions collapse`, `spec collapse prepare|finalize`.
 - Completed-work layout: `~/.foundry/<project>/completed/<spec-id>/summary.md` plus `archive/` for the former active spec files.
 - `meta.json` in each new spec directory (optional `phase_hint` for advanced workflows).
 - Task-list checkbox parsing for derived workflow phase.
@@ -19,11 +19,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Skills **foundry:load**, **foundry:new**, **foundry:done** rewritten to prefer JSON + structured commands.
+- Skills **foundry:load**, **foundry:new**, **foundry:done**, **foundry:work** use workflow commands without a `--json` flag (stdout is JSON for those subcommands by default).
+
+### Breaking
+
+- Removed global `--json`. Dropped `project list` and `spec list` in favor of `list projects` and `list specs <project>`.
+- **Output shape**: `list`, `status`, `project init`, `spec init`, and spec workflow/collapse commands **always** emit JSON. `project load`, `spec load`, `link`, `git`, and skill install/uninstall output remain plain text.
 
 ### Fixed
 
 - Validate every CLI `<project>` argument as a single kebab-case store segment so values like `..` or `a/b` cannot resolve outside `~/.foundry/`.
+- Validate spec ids as single path segments in `spec_dir_path` / `completed_spec_dir`.
+- Reject `meta.json` `phase_hint` values that contradict `spec.md` or `task-list.md`.
 
 ## [0.8.0] - 2026-03-25
 

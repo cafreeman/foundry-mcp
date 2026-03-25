@@ -31,7 +31,7 @@ Use after a meaningful chunk of work, or when a spec is **fully complete** and s
 1. Confirm all tasks are checked:
 
    ```bash
-   foundry --json spec status <project> <spec-id-or-partial>
+   foundry spec status <project> <spec-id-or-partial>
    ```
 
    Expect derived phase / state indicating **completed_pending_collapse** before collapsing.
@@ -39,7 +39,7 @@ Use after a meaningful chunk of work, or when a spec is **fully complete** and s
 2. Get collapse guidance (JSON only):
 
    ```bash
-   foundry --json spec instructions collapse <project> <spec-id-or-partial>
+   foundry spec instructions collapse <project> <spec-id-or-partial>
    ```
 
    Follow `instruction` and `needs_prepare`.
@@ -50,7 +50,7 @@ Use after a meaningful chunk of work, or when a spec is **fully complete** and s
    foundry spec collapse prepare <project> <spec-id-or-partial>
    ```
 
-4. **Write** `summary.md` at the path implied by `~/.foundry/<project>/completed/<spec-id>/summary.md` (or from the prepare JSON when using `--json`). Include what shipped, scope, and key decisions.
+4. **Write** `summary.md` at the path implied by `~/.foundry/<project>/completed/<spec-id>/summary.md` (or use `summary_path` from `spec collapse prepare` JSON). Include what shipped, scope, and key decisions.
 
 5. Finalize (moves `spec.md`, `task-list.md`, `notes.md`, `meta.json` into `archive/`):
 

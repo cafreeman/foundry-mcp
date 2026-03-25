@@ -1,3 +1,4 @@
+use crate::core::names::validate_single_path_segment;
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -25,6 +26,7 @@ pub fn project_path(name: &str) -> Result<PathBuf> {
 
 /// `~/.foundry/<project>/specs/<id>/`
 pub fn spec_dir_path(project: &str, spec_id: &str) -> Result<PathBuf> {
+    validate_single_path_segment(spec_id)?;
     Ok(project_path(project)?.join("specs").join(spec_id))
 }
 
@@ -35,6 +37,7 @@ pub fn completed_root(project: &str) -> Result<PathBuf> {
 
 /// `~/.foundry/<project>/completed/<spec_id>/`
 pub fn completed_spec_dir(project: &str, spec_id: &str) -> Result<PathBuf> {
+    validate_single_path_segment(spec_id)?;
     Ok(completed_root(project)?.join(spec_id))
 }
 

@@ -27,7 +27,7 @@ Use when starting a new feature or change as a Foundry spec.
    foundry spec init <project> <feature>
    ```
 
-   Note the printed path or capture `--json` output from your tooling if you wrap this command.
+   Init prints JSON (`path` field); parse it or read the path from stdout when wrapping this command.
 
 3. **Immediately** open the new directory (under `.foundry/specs/<timestamp>_<feature>/` when linked) and edit:
 
@@ -38,7 +38,7 @@ Use when starting a new feature or change as a Foundry spec.
 4. Check workflow state:
 
    ```bash
-   foundry --json spec status <project> <spec-id-or-partial>
+   foundry spec status <project> <spec-id-or-partial>
    ```
 
    Follow the `instruction` field until tasks exist and you are ready to implement.
