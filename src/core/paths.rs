@@ -28,6 +28,16 @@ pub fn spec_dir_path(project: &str, spec_id: &str) -> Result<PathBuf> {
     Ok(project_path(project)?.join("specs").join(spec_id))
 }
 
+/// `~/.foundry/<project>/completed/` — historical collapsed specs.
+pub fn completed_root(project: &str) -> Result<PathBuf> {
+    Ok(project_path(project)?.join("completed"))
+}
+
+/// `~/.foundry/<project>/completed/<spec_id>/`
+pub fn completed_spec_dir(project: &str, spec_id: &str) -> Result<PathBuf> {
+    Ok(completed_root(project)?.join(spec_id))
+}
+
 /// Read a file if it exists; otherwise `Ok(None)`.
 pub fn read_file_opt(path: &Path) -> Result<Option<String>> {
     if !path.exists() {

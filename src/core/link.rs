@@ -1,5 +1,6 @@
 use crate::core::names::normalize_to_kebab_case;
 use crate::core::paths::project_path;
+use crate::core::project::validate_project_name;
 use anyhow::{Context, Result, bail};
 use std::env;
 use std::fs;
@@ -85,6 +86,7 @@ fn repo_name_from_remote_url(url: &str) -> Option<String> {
 }
 
 pub fn link(cwd: &Path, project: &str) -> Result<()> {
+    validate_project_name(project)?;
     let target = project_path(project)?;
     if !target.is_dir() {
         bail!(
@@ -173,4 +175,34 @@ fn gitignore_advisory(cwd: &Path) -> Result<()> {
 
 pub fn current_dir() -> Result<PathBuf> {
     env::current_dir().context("Failed to determine current directory")
+}
+
+/// If `./.foundry` is a symlink into `~/.foundry/<project>/`, return that project name.
+pub fn resolve_dot_foundry_project(cwd: &Path) -> Result<Option<String>> {
+    let link = cwd.join(".foundry");
+    let meta = match fs::symlink_metadata(&link) {
+        Ok(m) if m.file_type().is_symlink() => m,
+        _ => return Ok(None),
+    };
+    let _ = meta;
+    let target = fs::read_link(&link).context("Failed to read .foundry symlink")?;
+    let foundry = crate::core::paths::foundry_dir()?;
+    let target_abs = if target.is_absolute() {
+        fs::canonicalize(&target).ok()
+    } else {
+        fs::canonicalize(cwd.join(&target)).ok()
+    };
+    let Some(target_abs) = target_abs else {
+        return Ok(None);
+    };
+    let foundry_canon = fs::canonicalize(&foundry).unwrap_or(foundry);
+    let rel = match target_abs.strip_prefix(&foundry_canon) {
+        Ok(r) => r,
+        Err(_) => return Ok(None),
+    };
+    let mut components = rel.components();
+    let Some(std::path::Component::Normal(first)) = components.next() else {
+        return Ok(None);
+    };
+    Ok(Some(first.to_string_lossy().into_owned()))
 }

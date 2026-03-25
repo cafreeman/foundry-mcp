@@ -159,6 +159,34 @@ pub fn auto_commit_scaffold(foundry_root: &Path, message: String, paths: &[PathB
     Ok(())
 }
 
+/// Stage all changes under a project directory (including deletions) and commit if needed.
+pub fn commit_project_subtree(
+    foundry_root: &Path,
+    project_dir: &Path,
+    message: &str,
+) -> Result<()> {
+    if !is_git_repo(foundry_root) {
+        return Ok(());
+    }
+
+    let rel = path_relative_to(project_dir, foundry_root)?;
+    git_run(&["add", "-A", "--", &rel], foundry_root)?;
+
+    let has_staged = !Command::new("git")
+        .args(["diff", "--cached", "--quiet"])
+        .current_dir(foundry_root)
+        .status()
+        .context("Failed to check staged changes")?
+        .success();
+
+    if !has_staged {
+        return Ok(());
+    }
+
+    git_run(&["commit", "-m", message], foundry_root)?;
+    Ok(())
+}
+
 fn path_relative_to(path: &Path, root: &Path) -> Result<String> {
     let rel = path
         .strip_prefix(root)

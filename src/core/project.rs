@@ -3,11 +3,17 @@ use crate::core::names::validate_kebab_case;
 use crate::core::paths::{self, project_path};
 use crate::types::Project;
 use anyhow::{Context, Result, bail};
+use serde::Serialize;
 use std::fs;
 use std::path::PathBuf;
 
+/// Reject path-like segments (`..`, `/`, etc.): project args must be a single kebab-case store name.
+pub fn validate_project_name(name: &str) -> Result<()> {
+    validate_kebab_case(name)
+}
+
 pub fn init(name: &str) -> Result<Project> {
-    validate_kebab_case(name)?;
+    validate_project_name(name)?;
     let root = paths::ensure_foundry_dir()?;
     let path = root.join(name);
     if path.exists() {
@@ -35,6 +41,7 @@ pub fn init(name: &str) -> Result<Project> {
 }
 
 pub fn load_print(name: &str) -> Result<()> {
+    validate_project_name(name)?;
     let path = project_path(name)?;
     if !path.is_dir() {
         bail!("Project {:?} not found", name);
@@ -80,7 +87,25 @@ pub fn list_names() -> Result<Vec<String>> {
     Ok(names)
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct ProjectEntry {
+    pub name: String,
+    pub path: PathBuf,
+}
+
+pub fn list_project_entries() -> Result<Vec<ProjectEntry>> {
+    let names = list_names()?;
+    names
+        .into_iter()
+        .map(|name| {
+            let path = project_path(&name)?;
+            Ok(ProjectEntry { name, path })
+        })
+        .collect()
+}
+
 pub fn delete_confirmed(name: &str) -> Result<()> {
+    validate_project_name(name)?;
     let path = project_path(name)?;
     if !path.is_dir() {
         bail!("Project {:?} not found", name);
@@ -92,6 +117,7 @@ pub fn delete_confirmed(name: &str) -> Result<()> {
 }
 
 pub fn assert_project_exists(name: &str) -> Result<PathBuf> {
+    validate_project_name(name)?;
     let path = project_path(name)?;
     if !path.is_dir() {
         bail!("Project {:?} not found", name);

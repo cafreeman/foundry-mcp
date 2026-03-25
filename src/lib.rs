@@ -16,5 +16,6 @@ mod tests {
         assert!(!crate::skills::FOUNDRY_LOAD.trim().is_empty());
         assert!(!crate::skills::FOUNDRY_NEW.trim().is_empty());
         assert!(!crate::skills::FOUNDRY_DONE.trim().is_empty());
+        assert!(!crate::skills::FOUNDRY_WORK.trim().is_empty());
     }
 }

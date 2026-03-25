@@ -73,4 +73,10 @@ mod tests {
     fn validate_rejects_uppercase() {
         assert!(validate_kebab_case("My-app").is_err());
     }
+
+    #[test]
+    fn validate_rejects_path_segments() {
+        assert!(validate_kebab_case("..").is_err());
+        assert!(validate_kebab_case("foo/bar").is_err());
+    }
 }
