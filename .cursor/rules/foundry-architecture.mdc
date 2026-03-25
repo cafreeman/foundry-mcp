@@ -2,20 +2,20 @@
 alwaysApply: true
 ---
 
-# Foundry MCP Architecture
+# Foundry Architecture
 
 ## Project Overview
 
-Foundry MCP: CLI tool and MCP server for deterministic project management and AI coding assistant integration. Manages project specifications in `~/.foundry/` directory structure.
+Foundry: Rust CLI for scaffolding and reading project/spec markdown under `~/.foundry/`, plus optional git backup, `foundry link`, and skill installation. There is no MCP server in the current codebase.
 
 ## Module Organization
 
-- **[src/main.rs](mdc:src/main.rs)** - CLI entry point
-- **[src/lib.rs](mdc:src/lib.rs)** - Library exports and foundry_dir() utility
-- **[src/cli/](mdc:src/cli/)** - CLI arguments and commands
-- **[src/core/](mdc:src/core/)** - Core business logic
-- **[src/types/](mdc:src/types/)** - Type definitions
-- **[src/utils/](mdc:src/utils/)** - Utility functions
+- **[src/main.rs](mdc:src/main.rs)** - `clap` CLI entry point
+- **[src/lib.rs](mdc:src/lib.rs)** - Library exports and `foundry_dir()`
+- **[src/core/](mdc:src/core/)** - Paths, project/spec storage, git, link, skill installer
+- **[src/types/](mdc:src/types/)** - `Project`, `Spec`
+- **[src/skills/](mdc:src/skills/)** - Bundled skill content (`include_str!`)
+- **[assets/skills/](mdc:assets/skills/)** - Source `.md` files for those skills
 
 ## Project Structure
 

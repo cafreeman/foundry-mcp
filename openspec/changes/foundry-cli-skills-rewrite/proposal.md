@@ -10,7 +10,7 @@ Foundry's MCP server model creates unnecessary friction: agents are better at ed
 - Full ground-up rewrite as a pure CLI binary (~40% of current code size)
 - Add `foundry link` command: creates `.foundry -> ~/.foundry/<project>/` symlink in working directory so agents can read/write foundry files using relative paths
 - Add git backup: `~/.foundry/` becomes an optional git repo; foundry auto-commits on scaffold writes; `foundry sync "<message>"` commits agent changes and pushes to remote
-- Replace MCP installation with skill file installation: `foundry install claude-code` deploys `.md` skill files to `~/.claude/skills/`; `foundry install cursor` deploys to `.cursor/skills/`
+- Replace MCP installation with skill file installation: `foundry install claude-code` deploys `.md` skill files to `~/.claude/skills/`; `foundry install cursor` deploys to `.cursor/rules/` in the current working directory
 - Ship a lightweight lifecycle skill set: `foundry:load`, `foundry:new`, `foundry:done` — skills direct agents through the workflow and call `foundry sync` at appropriate points
 - Remove: `analyze-project`, `validate-content`, `get-foundry-help` commands (workflow guidance now lives in skills)
 

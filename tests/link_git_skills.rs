@@ -3,12 +3,31 @@ mod common;
 use assert_fs::TempDir;
 use common::{err_utf8, run_foundry, utf8};
 use std::fs;
-use std::process::Command;
+use std::path::Path;
+use std::process::{Command, Output};
 
 fn isolated_home(temp: &TempDir) -> std::path::PathBuf {
     let home = temp.path().join("home");
     fs::create_dir_all(&home).unwrap();
     home
+}
+
+fn run_foundry_in_dir(home: &Path, cwd: &Path, args: &[&str]) -> Output {
+    Command::new(env!("CARGO_BIN_EXE_foundry"))
+        .args(args)
+        .env("HOME", home)
+        .current_dir(cwd)
+        .output()
+        .expect("spawn foundry")
+}
+
+fn run_foundry_with_env(home: &Path, env_pairs: &[(&str, &str)], args: &[&str]) -> Output {
+    let mut cmd = Command::new(env!("CARGO_BIN_EXE_foundry"));
+    cmd.args(args).env("HOME", home);
+    for (key, value) in env_pairs {
+        cmd.env(key, value);
+    }
+    cmd.output().expect("spawn foundry")
 }
 
 #[test]
@@ -175,4 +194,147 @@ fn status_shows_store_and_git() {
     let t = utf8(&o);
     assert!(t.contains("store:"));
     assert!(t.contains("git:"));
+}
+
+#[test]
+fn link_detects_project_from_cargo_toml() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+    let cwd = temp.path().join("crate-root");
+    fs::create_dir_all(&cwd).unwrap();
+    fs::write(
+        cwd.join("Cargo.toml"),
+        r#"[package]
+name = "detected-crate"
+version = "0.1.0"
+edition = "2021"
+"#,
+    )
+    .unwrap();
+
+    assert!(
+        run_foundry(&home, &["project", "init", "detected-crate"])
+            .status
+            .success()
+    );
+
+    let o = run_foundry_in_dir(&home, &cwd, &["link"]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    assert!(cwd.join(".foundry").is_symlink());
+}
+
+#[test]
+fn link_detects_project_from_package_json_scope() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+    let cwd = temp.path().join("js-root");
+    fs::create_dir_all(&cwd).unwrap();
+    fs::write(
+        cwd.join("package.json"),
+        r#"{"name": "@org/my-app", "version": "1.0.0"}"#,
+    )
+    .unwrap();
+
+    assert!(
+        run_foundry(&home, &["project", "init", "my-app"])
+            .status
+            .success()
+    );
+
+    let o = run_foundry_in_dir(&home, &cwd, &["link"]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    assert!(cwd.join(".foundry").is_symlink());
+}
+
+#[test]
+fn link_detects_project_from_git_remote() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+    let cwd = temp.path().join("git-only");
+    fs::create_dir_all(&cwd).unwrap();
+
+    assert!(
+        Command::new("git")
+            .args(["init"])
+            .current_dir(&cwd)
+            .status()
+            .unwrap()
+            .success()
+    );
+    assert!(
+        Command::new("git")
+            .args([
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/user/my-repo.git",
+            ])
+            .current_dir(&cwd)
+            .status()
+            .unwrap()
+            .success()
+    );
+
+    assert!(
+        run_foundry(&home, &["project", "init", "my-repo"])
+            .status
+            .success()
+    );
+
+    let o = run_foundry_in_dir(&home, &cwd, &["link"]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    assert!(cwd.join(".foundry").is_symlink());
+}
+
+#[test]
+fn link_detects_project_from_directory_name() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+    let cwd = temp.path().join("linked-proj");
+    fs::create_dir_all(&cwd).unwrap();
+
+    assert!(
+        run_foundry(&home, &["project", "init", "linked-proj"])
+            .status
+            .success()
+    );
+
+    let o = run_foundry_in_dir(&home, &cwd, &["link"]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    assert!(cwd.join(".foundry").is_symlink());
+}
+
+#[test]
+fn git_init_fails_when_git_not_on_path() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+    assert!(
+        run_foundry(&home, &["project", "init", "solo"])
+            .status
+            .success()
+    );
+
+    let o = run_foundry_with_env(&home, &[("PATH", "")], &["git", "init"]);
+    assert!(
+        !o.status.success(),
+        "expected failure when git is not discoverable via PATH"
+    );
+    let combined = format!("{}{}", err_utf8(&o), utf8(&o));
+    assert!(
+        combined.to_lowercase().contains("git"),
+        "expected git-related error, got: {combined}"
+    );
+}
+
+#[test]
+fn install_rejects_unknown_target() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+    let o = run_foundry(&home, &["install", "vscode"]);
+    assert!(!o.status.success());
+    let msg = format!("{}{}", err_utf8(&o), utf8(&o));
+    assert!(
+        msg.contains("claude-code") && msg.contains("cursor"),
+        "expected supported targets in error: {msg}"
+    );
 }

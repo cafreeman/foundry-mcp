@@ -3,7 +3,6 @@
 pub mod core;
 pub mod skills;
 pub mod types;
-pub mod utils;
 
 /// Resolve `~/.foundry` without creating it.
 pub fn foundry_dir() -> anyhow::Result<std::path::PathBuf> {
