@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Foundry is a **CLI-only** Rust tool for scaffolding and reading project/spec markdown under `~/.foundry/`, plus optional git backup, a `.foundry` symlink bridge, and installation of bundled agent skills. There is **no MCP server** in current versions (removed in 0.8.0). The crate uses **Rust 2024**; **`rust-version` in `Cargo.toml`** is the MSRV for building from source.
+Foundry is a **CLI-only** Rust tool for scaffolding and reading project/spec markdown under `~/.foundry/`, plus optional git backup, a `.foundry` symlink bridge, **`--json` workflow commands** for agents, and installation of bundled skills. There is **no MCP server** (removed in 0.8.0). The crate uses **Rust 2024**; **`rust-version` in `Cargo.toml`** is the MSRV for building from source.
 
 ## Development Commands
 
@@ -45,15 +45,20 @@ cargo run -- link my-project
 
 Integration tests set a temporary `HOME` and invoke `CARGO_BIN_EXE_foundry`.
 
+## Versioning and changelog
+
+- **`Cargo.toml` `version`**: Must equal the **latest published** crates.io release between ships; unreleased work does not get a forward-looking version bump in-tree.
+- **`CHANGELOG.md`**: Accumulate changes under **`## [Unreleased]`**; dated sections and version bumps are handled by **`cargo release`** per **`release.toml`** (see **`RELEASE.md`**).
+
 ## Architecture Overview
 
 ### Core Module Structure
 
-- **`src/main.rs`** - `clap` CLI entry (project, spec, link, git, install/update/uninstall, status)
+- **`src/main.rs`** - `clap` CLI entry (`list`, `project`, `spec` workflow, `link`, `git`, skills, `status`); global `--json`
 - **`src/lib.rs`** - `foundry_dir()` and module exports for tests/library use
-- **`src/core.rs`** + **`src/core/`** - Paths, project/spec storage, git backup, symlink bridge, skill installer
+- **`src/core.rs`** + **`src/core/`** - `paths`, `project`, `spec_store`, `spec_id`, `spec_meta`, `task_parse`, `workflow`, `completed`, `git`, `link`, `skill_install`, `fsutil`, `names`
 - **`src/types.rs`** + **`src/types/`** - Small structs (`Project`, `Spec`)
-- **`src/skills.rs`** - `include_str!` bundled skill markdown
+- **`src/skills.rs`** - `include_str!` bundled skill markdown (four files)
 - **`assets/skills/`** - Source files for bundled skills
 
 ### File System Organization
@@ -67,25 +72,27 @@ All project data stored in `~/.foundry/` directory:
 ├── summary.md     # Concise summary for context loading
 └── specs/
     └── YYYYMMDD_HHMMSS_FEATURE_NAME/
+        ├── meta.json      # Optional workflow hints
         ├── spec.md        # Feature specification
-        ├── task-list.md   # Implementation checklist
+        ├── task-list.md   # Markdown checkboxes drive derived phase
         └── notes.md       # Additional context
+└── completed/
+    └── <same-spec-id>/
+        ├── summary.md     # Agent-written shipped-work record (after collapse)
+        └── archive/       # Former spec files moved on finalize
 ```
 
 ### CLI behavior
 
-- Commands are synchronous; they print plain text to stdout/stderr and use exit codes.
-- Foundry does **not** validate or generate markdown content; it creates empty files and reads them back for `load` commands.
-- Optional git integration shells out to the system `git` binary.
+- Commands are synchronous; they print plain text or **`--json`** on stdout and use exit codes.
+- Foundry does **not** author spec/vision prose; it scaffolds empty files (except `meta.json` on spec init). Agents write markdown—including **`summary.md`** on collapse.
+- Optional git integration shells out to the system `git` binary (`commit_project_subtree` for collapse).
 
 ## Development Guidelines
 
 ### Content Philosophy
 
-**Critical**: The CLI never generates content automatically. LLMs must provide all content as arguments:
-
-- ✅ `create-project "name" "vision content" "tech stack content"`
-- ❌ CLI generating summaries or content from other content
+**Critical**: The CLI does not generate spec or summary prose. LLMs edit markdown files (including completed-work `summary.md` after `spec collapse prepare`).
 
 ### Error Handling
 
@@ -142,13 +149,13 @@ redundant_closure = "deny"
 
 ### Current Status
 
-- **CLI + skills**: `project`, `spec`, `link`, `git`, `install`, `update`, `uninstall`, `status`
+- **CLI + skills**: `list`, `project`, `spec` (status / instructions / collapse), `link`, `git`, `install`, `update`, `uninstall`, `status`; global `--json`
 - **Rust 2024** with strict Clippy lints (`cargo clippy --all-targets -- -D warnings`)
-- **Content-agnostic**: scaffolds empty files; agents edit markdown directly
+- **Content-agnostic**: scaffolds files and filesystem moves; agents author markdown (including completed-work summaries)
 
 ### Architecture Principles
 
-1. **CLI-only surface**: No MCP protocol or JSON tool schema in-process
+1. **CLI-only surface**: No MCP protocol; structured **`--json` stdout** for agents, not an in-process tool RPC
 2. **Structure, not authorship**: Foundry creates paths and empty files; agents own content
 3. **Symlink bridge**: `foundry link` exposes `~/.foundry/<project>/` as `./.foundry`
 4. **Optional git backup**: subprocess `git` on `~/.foundry/`

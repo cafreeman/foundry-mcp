@@ -1,8 +1,8 @@
 # Foundry
 
-**Project context and specs in `~/.foundry/`, wired into your repo with a CLI and optional skills.**
+**Project context and specs in `~/.foundry/`, with JSON-first workflow commands for agents, a `.foundry` symlink into your repo, and optional git backup of the whole store.**
 
-Foundry is a small Rust CLI: it scaffolds empty markdown files for projects and timestamped specs, optionally backs up `~/.foundry/` with git, and installs lifecycle skills for Claude Code and Cursor. Agents edit content with their normal file tools—Foundry does not run an MCP server and does not take spec or vision text on the command line.
+Foundry is a Rust CLI: it scaffolds markdown under `~/.foundry/`, derives spec workflow state from `task-list.md` checkboxes, exposes **`--json`** for skills and automation, and can **collapse** finished specs into `completed/<spec-id>/summary.md` plus an `archive/` of the working files. Agents author all prose; the binary does not generate spec content.
 
 ## Install
 
@@ -10,47 +10,67 @@ Foundry is a small Rust CLI: it scaffolds empty markdown files for projects and 
 cargo install foundry-mcp
 ```
 
+Rust **1.85+** (see `rust-version` in `Cargo.toml`).
+
 ## Quick start
 
 ```bash
-# Create a project scaffold (kebab-case name)
 foundry project init my-app
+foundry link my-app                    # in your repo; optional name if auto-detect works
+foundry spec init my-app auth-flow     # then edit .foundry/specs/... or paths under ~/.foundry/
 
-# In a codebase directory, link ~/.foundry/my-app as ./.foundry
-foundry link my-app
-
-# New spec (kebab-case feature); then edit files under .foundry/specs/...
-foundry spec init my-app auth-flow
-
-# Optional: turn ~/.foundry into a git repo and sync
-foundry git init
+foundry git init                       # optional backup of ~/.foundry/
 foundry git remote https://github.com/you/foundry-backup.git
 foundry git sync "checkpoint message"
 ```
 
+## Agent-oriented commands (`--json`)
+
+```bash
+foundry --json status                  # store path, git, skills, cwd .foundry -> project
+foundry --json list projects
+foundry --json list specs my-app
+foundry --json list completed my-app
+
+foundry --json spec status my-app <spec-id-or-partial>
+foundry --json spec instructions apply my-app <spec-id-or-partial>
+foundry --json spec instructions collapse my-app <spec-id-or-partial>   # JSON only
+```
+
+## Collapse a finished spec (completed-work record)
+
+When every task checkbox is checked:
+
+```bash
+foundry spec collapse prepare my-app <spec-id-or-partial>
+# Edit ~/.foundry/my-app/completed/<id>/summary.md — you write the shipped-work summary
+foundry spec collapse finalize my-app <spec-id-or-partial> --confirm
+```
+
+Active files move to `completed/<id>/archive/`; the spec disappears from `specs/`.
+
 ## Skills (Claude Code / Cursor)
 
 ```bash
-foundry install claude-code   # ~/.claude/skills/foundry_*.md
-foundry install cursor      # ./.cursor/rules/foundry_*.md (current directory)
-
-foundry update              # refresh previously installed copies
+foundry install claude-code
+foundry install cursor
+foundry update
 foundry uninstall claude-code
-foundry uninstall cursor
 foundry status
 ```
 
-Bundled skills: **foundry:load**, **foundry:new**, **foundry:done** (see `assets/skills/`).
+Bundled skills: **foundry:load**, **foundry:new**, **foundry:work**, **foundry:done** (`assets/skills/`).
 
 ## Commands (summary)
 
 | Area | Commands |
 |------|-----------|
+| Inventory | `foundry list projects`, `list specs <p>`, `list completed <p>` (+ `--json`) |
 | Projects | `foundry project init \| load \| list \| delete <name> --confirm` |
-| Specs | `foundry spec init \| load \| list \| delete <project> <id> --confirm` |
-| Link | `foundry link [project]` (auto-detect name from Cargo.toml, package.json, git remote, or directory) |
-| Git | `foundry git init`, `foundry git remote <url>`, `foundry git sync <message...>` |
-| Skills | `foundry install`, `foundry update`, `foundry uninstall`, `foundry status` |
+| Specs | `foundry spec init \| load \| list \| delete …`, `spec status`, `spec instructions …`, `spec collapse …` |
+| Link | `foundry link [project]` |
+| Git | `foundry git init`, `remote <url>`, `sync <message...>` |
+| Skills | `install`, `update`, `uninstall`, `status` |
 
 ## Layout
 
@@ -60,16 +80,26 @@ Bundled skills: **foundry:load**, **foundry:new**, **foundry:done** (see `assets
   tech-stack.md
   summary.md
   specs/<YYYYMMDD_HHMMSS>_<feature>/
+    meta.json
     spec.md
     task-list.md
     notes.md
+  completed/<same-spec-id>/
+    summary.md              # agent-written record of shipped work
+    archive/                # former spec.md, task-list.md, notes.md, meta.json
+      ...
 ```
+
+## Migrating from 0.8.x
+
+- Run `foundry install …` again to pick up the fourth skill (`foundry_work.md`).
+- Prefer `--json` for agent flows; human text defaults are unchanged for most commands.
+- New specs get `meta.json`; old spec dirs still work (defaults apply).
 
 ## Migrating from 0.7.x (MCP)
 
-- The MCP server and JSON tool layer are removed; use the CLI and direct file edits.
-- Uninstall old MCP-related config from your environment, then `foundry install claude-code` / `foundry install cursor` for the new skill files.
-- Use `foundry link` so `.foundry/` points at the right project in each repo.
+- Use the CLI and file tools only; there is no MCP server.
+- Use `foundry link` and the skills above.
 
 ## License
 

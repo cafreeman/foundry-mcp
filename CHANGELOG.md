@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Global `--json` for agent-oriented output on `status`, `list`, `spec status`, `spec instructions apply`, and collapse prepare/finalize.
+- `list projects`, `list specs <project>`, `list completed <project>` inventory commands.
+- Spec workflow helpers: `spec status`, `spec instructions apply`, `spec instructions collapse` (JSON-only), `spec collapse prepare|finalize`.
+- Completed-work layout: `~/.foundry/<project>/completed/<spec-id>/summary.md` plus `archive/` for the former active spec files.
+- `meta.json` in each new spec directory (optional `phase_hint` for advanced workflows).
+- Task-list checkbox parsing for derived workflow phase.
+- Bundled skill **foundry:work** (`foundry_work.md`) for instruction-driven implementation.
+
+### Changed
+
+- Skills **foundry:load**, **foundry:new**, **foundry:done** rewritten to prefer JSON + structured commands.
+
+### Fixed
+
+- Validate every CLI `<project>` argument as a single kebab-case store segment so values like `..` or `a/b` cannot resolve outside `~/.foundry/`.
+
 ## [0.8.0] - 2026-03-25
 
 ### Breaking
@@ -411,7 +429,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON serialization with serde
 - Workspace support for internal macro crate
 
-[Unreleased]: https://github.com/cafreeman/foundry-mcp/compare/v0.7.1...HEAD
+[Unreleased]: https://github.com/cafreeman/foundry-mcp/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/cafreeman/foundry-mcp/compare/v0.7.1...v0.8.0
 [0.7.1]: https://github.com/cafreeman/foundry-mcp/compare/v0.7.0...v0.7.1
 [0.7.0]: https://github.com/cafreeman/foundry-mcp/compare/v0.6.1...v0.7.0
 [0.6.1]: https://github.com/cafreeman/foundry-mcp/compare/v0.6.0...v0.6.1

@@ -2,6 +2,12 @@
 
 Manual releases using [cargo-release](https://github.com/crate-ci/cargo-release). The repository is a **single package** (`foundry-mcp` on crates.io; binary name `foundry`).
 
+## Versioning and changelog (between releases)
+
+- **`Cargo.toml` / `Cargo.lock`**: Keep the **version that matches the latest published crates.io release** (what users already have). Do **not** bump the crate version for unreleased work—**`cargo release`** applies the next version when you ship.
+- **`CHANGELOG.md`**: Put all unreleased notes under **`## [Unreleased]`** only. Do **not** add a dated `## [x.y.z] - …` section by hand; **`release.toml`** pre-release replacements create that header and fix compare links when you run **`cargo release … --execute`**.
+- **Footer link**: `[Unreleased]` should compare **`v<last-published>...HEAD`** (e.g. after 0.8.0 shipped, `…/compare/v0.8.0...HEAD`). After a release, cargo-release rewrites this to `v<new>...HEAD` and adds the new version link.
+
 ## Prerequisites
 
 1. Install cargo-release:
