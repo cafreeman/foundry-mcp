@@ -97,6 +97,8 @@ enum SpecInstructionsCmd {
     Apply { project: String, id: String },
     /// Guidance for collapsing a finished spec (JSON)
     Collapse { project: String, id: String },
+    /// Verify implementation matches spec before collapse (JSON)
+    Verify { project: String, id: String },
 }
 
 #[derive(Subcommand)]
@@ -252,6 +254,11 @@ fn main() -> Result<()> {
                 SpecInstructionsCmd::Collapse { project, id } => {
                     let resolved = resolve_spec(&project, &id)?;
                     let j = workflow::build_instructions_collapse(&project, &resolved)?;
+                    print_json(&j)?;
+                }
+                SpecInstructionsCmd::Verify { project, id } => {
+                    let resolved = resolve_spec(&project, &id)?;
+                    let j = workflow::build_instructions_verify(&project, &resolved)?;
                     print_json(&j)?;
                 }
             },
