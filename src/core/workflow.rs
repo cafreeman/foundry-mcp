@@ -415,6 +415,62 @@ pub fn build_instructions_collapse(
     })
 }
 
+#[derive(Debug, Clone, Serialize)]
+pub struct SpecInstructionsVerifyJson {
+    pub project: String,
+    pub spec_id: String,
+    pub state: String,
+    pub context_files: SpecContextFiles,
+    pub tasks: Vec<TaskJson>,
+    pub instruction: String,
+}
+
+pub fn build_instructions_verify(
+    project: &str,
+    spec_id: &str,
+) -> Result<SpecInstructionsVerifyJson> {
+    let _ = crate::core::project::assert_project_exists(project)?;
+    let dir = paths::spec_dir_path(project, spec_id)?;
+    if !dir.is_dir() {
+        anyhow::bail!(
+            "Active spec {:?} not found for project {:?}",
+            spec_id,
+            project
+        );
+    }
+    let snap = load_spec_snapshot(project, &dir, spec_id)?;
+    if snap.derived_phase != DerivedPhase::CompletedPendingCollapse {
+        anyhow::bail!(
+            "Spec is not ready to verify (phase {:?}). Complete all task-list checkboxes first.",
+            snap.derived_phase
+        );
+    }
+    let context_files = context_files_for_spec(&dir);
+    let tasks: Vec<TaskJson> = snap
+        .task_list
+        .items
+        .iter()
+        .enumerate()
+        .map(|(i, t)| TaskJson {
+            id: (i + 1).to_string(),
+            description: t.description.clone(),
+            done: t.done,
+        })
+        .collect();
+
+    Ok(SpecInstructionsVerifyJson {
+        project: project.to_string(),
+        spec_id: spec_id.to_string(),
+        state: "ready_to_verify".to_string(),
+        context_files,
+        tasks,
+        instruction: "Read every file in context_files and verify that the implementation \
+            matches the spec. For each task, confirm the work was actually completed as \
+            described. Report any gaps or drift before proceeding to collapse."
+            .to_string(),
+    })
+}
+
 #[cfg(test)]
 mod phase_hint_tests {
     use super::{SpecPhaseHint, validate_phase_hint_for_content};
