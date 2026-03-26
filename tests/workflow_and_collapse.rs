@@ -245,3 +245,85 @@ fn project_arg_rejects_path_like_names() {
         err_utf8(&o)
     );
 }
+
+#[test]
+fn spec_instructions_verify_returns_json_when_all_tasks_done() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+    assert!(
+        run_foundry(&home, &["project", "init", "vp"])
+            .status
+            .success()
+    );
+    let o = run_foundry(&home, &["spec", "init", "vp", "verify-feat"]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    let init: Value = serde_json::from_str(utf8(&o).trim()).unwrap();
+    let id = init.get("id").and_then(|x| x.as_str()).unwrap().to_string();
+    let spec_dir = init
+        .get("path")
+        .and_then(|x| x.as_str())
+        .unwrap()
+        .to_string();
+
+    fs::write(Path::new(&spec_dir).join("spec.md"), "# Verify Feat\n\nDo the thing.\n").unwrap();
+    fs::write(
+        Path::new(&spec_dir).join("task-list.md"),
+        "- [x] implement thing\n- [x] write tests\n",
+    )
+    .unwrap();
+
+    let o = run_foundry(&home, &["spec", "instructions", "verify", "vp", &id]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    let v: Value = serde_json::from_str(utf8(&o).trim()).expect("valid json");
+
+    assert_eq!(v.get("state").and_then(|s| s.as_str()), Some("ready_to_verify"));
+    assert_eq!(v.get("project").and_then(|s| s.as_str()), Some("vp"));
+
+    let tasks = v.get("tasks").and_then(|t| t.as_array()).unwrap();
+    assert_eq!(tasks.len(), 2);
+    assert_eq!(
+        tasks[0].get("description").and_then(|s| s.as_str()),
+        Some("implement thing")
+    );
+    assert_eq!(tasks[0].get("done").and_then(|b| b.as_bool()), Some(true));
+
+    let cf = v.get("context_files").unwrap();
+    assert!(cf.get("spec_md").and_then(|s| s.as_str()).is_some());
+    assert!(cf.get("task_list_md").and_then(|s| s.as_str()).is_some());
+    assert!(v.get("instruction").and_then(|s| s.as_str()).is_some());
+}
+
+#[test]
+fn spec_instructions_verify_rejects_incomplete_spec() {
+    let temp = TempDir::new().unwrap();
+    let home = isolated_home(&temp);
+    assert!(
+        run_foundry(&home, &["project", "init", "vp2"])
+            .status
+            .success()
+    );
+    let o = run_foundry(&home, &["spec", "init", "vp2", "in-progress"]);
+    assert!(o.status.success(), "{}", err_utf8(&o));
+    let init: Value = serde_json::from_str(utf8(&o).trim()).unwrap();
+    let id = init.get("id").and_then(|x| x.as_str()).unwrap().to_string();
+    let spec_dir = init
+        .get("path")
+        .and_then(|x| x.as_str())
+        .unwrap()
+        .to_string();
+
+    fs::write(Path::new(&spec_dir).join("spec.md"), "# In Progress\n").unwrap();
+    fs::write(
+        Path::new(&spec_dir).join("task-list.md"),
+        "- [x] done task\n- [ ] incomplete task\n",
+    )
+    .unwrap();
+
+    let o = run_foundry(&home, &["spec", "instructions", "verify", "vp2", &id]);
+    assert!(!o.status.success(), "should reject spec with incomplete tasks");
+    let err = err_utf8(&o);
+    assert!(
+        err.contains("not ready to verify") || err.contains("Complete all task-list"),
+        "stderr should explain phase requirement: {err}"
+    );
+}
